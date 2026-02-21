@@ -1,0 +1,55 @@
+version: '3.8'
+services:
+  php:
+    build: ./docker/php
+    volumes:
+      - ./:/var/www/restaurante
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - deliverypro
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./:/var/www/restaurante
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - php
+    networks:
+      - deliverypro
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: deliverypro
+      POSTGRES_USER: deliverypro
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - deliverypro
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - deliverypro
+
+networks:
+  deliverypro:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
