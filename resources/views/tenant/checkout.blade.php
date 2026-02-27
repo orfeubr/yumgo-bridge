@@ -10,6 +10,56 @@
     <style>
         body { font-family: 'Poppins', sans-serif; }
         [x-cloak] { display: none !important; }
+
+        /* Skeleton loading */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s ease-in-out infinite;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Overlay de confirmação */
+        .order-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pulse-ring {
+            width: 100px;
+            height: 100px;
+            border: 4px solid #EA1D2C;
+            border-radius: 50%;
+            animation: pulse-ring 1.5s ease-out infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.95);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.05);
+                opacity: 0.7;
+            }
+            100% {
+                transform: scale(0.95);
+                opacity: 1;
+            }
+        }
     </style>
     <script>
         tailwind.config = {
@@ -27,6 +77,24 @@
 </head>
 <body class="bg-gray-50">
     <div x-data="checkoutApp()" x-init="init()" class="min-h-screen">
+        <!-- Overlay de Processamento -->
+        <div x-show="loading || pageLoading" x-cloak class="order-overlay">
+            <div class="text-center">
+                <div class="pulse-ring mx-auto mb-6 flex items-center justify-center">
+                    <svg class="w-12 h-12 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <h3 class="text-white text-2xl font-bold mb-2" x-text="loading ? 'Processando seu pedido...' : 'Carregando...'"></h3>
+                <p class="text-gray-300 text-sm mb-4" x-text="loading ? 'Aguarde enquanto confirmamos os dados' : 'Aguarde enquanto carregamos as informações'"></p>
+                <div class="flex items-center justify-center gap-2">
+                    <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                    <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                    <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- Header Estilo iFood -->
         <header class="bg-white sticky top-0 z-50 shadow-md">
             <div class="max-w-4xl mx-auto px-4 py-4">
@@ -51,8 +119,55 @@
         </header>
 
         <div class="max-w-4xl mx-auto px-4 py-6">
+            <!-- Loading Skeleton -->
+            <div x-show="pageLoading" class="space-y-4">
+                <!-- Skeleton do Carrinho -->
+                <div class="bg-white rounded-xl shadow-sm p-5">
+                    <div class="skeleton h-6 w-32 rounded mb-4"></div>
+                    <div class="space-y-3">
+                        <div class="flex gap-3 pb-3 border-b border-gray-100">
+                            <div class="flex-1 space-y-2">
+                                <div class="skeleton h-5 w-48 rounded"></div>
+                                <div class="skeleton h-4 w-64 rounded"></div>
+                                <div class="skeleton h-4 w-24 rounded"></div>
+                            </div>
+                            <div class="skeleton h-6 w-20 rounded"></div>
+                        </div>
+                        <div class="flex gap-3 pb-3">
+                            <div class="flex-1 space-y-2">
+                                <div class="skeleton h-5 w-40 rounded"></div>
+                                <div class="skeleton h-4 w-56 rounded"></div>
+                                <div class="skeleton h-4 w-24 rounded"></div>
+                            </div>
+                            <div class="skeleton h-6 w-20 rounded"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Skeleton de Endereço -->
+                <div class="bg-white rounded-xl shadow-sm p-5">
+                    <div class="skeleton h-6 w-48 rounded mb-4"></div>
+                    <div class="space-y-3">
+                        <div class="skeleton h-12 w-full rounded-lg"></div>
+                        <div class="skeleton h-12 w-full rounded-lg"></div>
+                    </div>
+                </div>
+
+                <!-- Skeleton de Pagamento -->
+                <div class="bg-white rounded-xl shadow-sm p-5">
+                    <div class="skeleton h-6 w-56 rounded mb-4"></div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="skeleton h-24 w-full rounded-lg"></div>
+                        <div class="skeleton h-24 w-full rounded-lg"></div>
+                    </div>
+                </div>
+
+                <!-- Skeleton do Botão -->
+                <div class="skeleton h-14 w-full rounded-lg"></div>
+            </div>
+
             <!-- Carrinho vazio -->
-            <div x-show="cart.length === 0" x-cloak class="bg-white rounded-xl shadow-sm p-12 text-center">
+            <div x-show="!pageLoading && cart.length === 0" x-cloak class="bg-white rounded-xl shadow-sm p-12 text-center">
                 <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
@@ -66,7 +181,7 @@
             </div>
 
             <!-- Checkout Form -->
-            <div x-show="cart.length > 0" x-cloak class="space-y-4">
+            <div x-show="!pageLoading && cart.length > 0" x-cloak class="space-y-4">
                 <!-- Resumo do Carrinho -->
                 <div class="bg-white rounded-xl shadow-sm p-5">
                     <h2 class="text-lg font-bold mb-4 text-gray-900 flex items-center gap-2">
@@ -107,128 +222,6 @@
                         <div class="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t border-gray-200">
                             <span>Total</span>
                             <span class="text-primary" x-text="'R$ ' + total.toFixed(2).replace('.', ',')"></span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Local de Entrega (Cidade e Bairro) -->
-                <div class="bg-white rounded-xl shadow-sm p-5">
-                    <h2 class="text-lg font-bold mb-4 text-gray-900 flex items-center gap-2">
-                        <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/>
-                        </svg>
-                        Local de Entrega
-                    </h2>
-
-                    <div class="space-y-3">
-                        <!-- Cidade -->
-                        <div>
-                            <label class="block text-sm font-semibold mb-2 text-gray-900">Cidade</label>
-                            <select
-                                x-model="selectedCity"
-                                @change="loadNeighborhoodsForCheckout(); selectedNeighborhood = ''"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none">
-                                <option value="">Selecione a cidade</option>
-                                <template x-for="city in availableCities" :key="city">
-                                    <option :value="city" x-text="city"></option>
-                                </template>
-                            </select>
-                        </div>
-
-                        <!-- Bairro - Select com Busca -->
-                        <div x-data="{
-                            open: false,
-                            search: '',
-                            get filteredNeighborhoods() {
-                                if (!this.search) return availableNeighborhoods;
-                                return availableNeighborhoods.filter(n =>
-                                    n.name.toLowerCase().includes(this.search.toLowerCase())
-                                );
-                            }
-                        }" @click.away="open = false">
-                            <label class="block text-sm font-semibold mb-2 text-gray-900">Bairro</label>
-
-                            <!-- Campo de Seleção -->
-                            <div class="relative">
-                                <button
-                                    type="button"
-                                    @click="open = !open"
-                                    :disabled="!selectedCity || loadingNeighborhoods"
-                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:bg-gray-100 text-left flex items-center justify-between"
-                                    :class="!selectedNeighborhood ? 'text-gray-400' : 'text-gray-900'">
-                                    <span x-text="selectedNeighborhood || 'Selecione ou pesquise o bairro'"></span>
-                                    <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                    </svg>
-                                </button>
-
-                                <!-- Loading spinner -->
-                                <div x-show="loadingNeighborhoods" class="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none">
-                                    <svg class="animate-spin h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                </div>
-
-                                <!-- Dropdown com Busca -->
-                                <div
-                                    x-show="open"
-                                    x-transition
-                                    class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-80 overflow-hidden">
-
-                                    <!-- Campo de Busca -->
-                                    <div class="p-2 border-b border-gray-200 sticky top-0 bg-white">
-                                        <div class="relative">
-                                            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                                            </svg>
-                                            <input
-                                                x-model="search"
-                                                type="text"
-                                                placeholder="Pesquisar bairro..."
-                                                class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-md text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                                                @click.stop>
-                                            <!-- Limpar busca -->
-                                            <button
-                                                x-show="search"
-                                                @click="search = ''"
-                                                type="button"
-                                                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <!-- Lista de Bairros -->
-                                    <div class="overflow-y-auto max-h-64">
-                                        <template x-if="filteredNeighborhoods.length === 0">
-                                            <div class="px-4 py-3 text-sm text-gray-500 text-center">
-                                                Nenhum bairro encontrado
-                                            </div>
-                                        </template>
-                                        <template x-for="neighborhood in filteredNeighborhoods" :key="neighborhood.name">
-                                            <button
-                                                type="button"
-                                                @click="selectedNeighborhood = neighborhood.name; updateDeliveryFeeFromNeighborhood(); open = false; search = ''"
-                                                class="w-full px-4 py-2.5 text-left hover:bg-gray-50 transition text-sm"
-                                                :class="selectedNeighborhood === neighborhood.name && 'bg-red-50 text-primary'">
-                                                <span class="font-medium" x-text="neighborhood.name"></span>
-                                            </button>
-                                        </template>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Info da Taxa -->
-                            <p class="text-xs text-gray-500 mt-2" x-show="selectedNeighborhood && currentDeliveryFee > 0">
-                                Taxa de entrega: <span class="font-semibold text-primary" x-text="'R$ ' + currentDeliveryFee.toFixed(2).replace('.', ',')"></span>
-                            </p>
-                            <p class="text-xs text-green-600 font-semibold mt-2" x-show="selectedNeighborhood && currentDeliveryFee === 0">
-                                🎉 Entrega GRÁTIS
-                            </p>
                         </div>
                     </div>
                 </div>
@@ -367,11 +360,11 @@
                             x-show="paymentMethods.find(m => m.key === 'pix')"
                             @click="selectPayment('pix')"
                             :class="paymentMethod === 'pix' ? 'border-primary bg-red-50 ring-2 ring-primary' : 'border-gray-200 hover:border-gray-300'"
-                            class="p-4 border rounded-lg transition text-center">
+                            class="p-4 border-2 rounded-lg transition text-center">
                             <div class="flex items-center justify-center h-16">
-                                <span class="text-4xl">📱</span>
+                                <img src="/images/pix-logo.png" alt="PIX" class="h-12 w-auto">
                             </div>
-                            <div class="font-semibold text-xs text-gray-900 mt-1">PIX</div>
+                            <div class="font-semibold text-xs text-gray-900 mt-2">PIX</div>
                         </button>
 
                         <!-- Cartão de Crédito -->
@@ -380,11 +373,12 @@
                             x-show="paymentMethods.find(m => m.key === 'credit_card')"
                             @click="selectPayment('credit_card')"
                             :class="paymentMethod === 'credit_card' ? 'border-primary bg-red-50 ring-2 ring-primary' : 'border-gray-200 hover:border-gray-300'"
-                            class="p-4 border rounded-lg transition text-center">
-                            <div class="flex items-center justify-center h-16">
-                                <span class="text-4xl">💳</span>
+                            class="p-4 border-2 rounded-lg transition text-center">
+                            <div class="flex items-center justify-center h-16 gap-2">
+                                <img src="/images/visa-logo.png" alt="Visa" class="h-8 w-auto">
+                                <img src="/images/mastercard-logo.png" alt="Mastercard" class="h-8 w-auto">
                             </div>
-                            <div class="font-semibold text-xs text-gray-900 mt-1">Crédito</div>
+                            <div class="font-semibold text-xs text-gray-900 mt-2">Crédito</div>
                         </button>
 
                         <!-- Cartão de Débito -->
@@ -393,11 +387,12 @@
                             x-show="paymentMethods.find(m => m.key === 'debit_card')"
                             @click="selectPayment('debit_card')"
                             :class="paymentMethod === 'debit_card' ? 'border-primary bg-red-50 ring-2 ring-primary' : 'border-gray-200 hover:border-gray-300'"
-                            class="p-4 border rounded-lg transition text-center">
-                            <div class="flex items-center justify-center h-16">
-                                <span class="text-4xl">💳</span>
+                            class="p-4 border-2 rounded-lg transition text-center">
+                            <div class="flex items-center justify-center h-16 gap-2">
+                                <img src="/images/visa-logo.png" alt="Visa" class="h-8 w-auto">
+                                <img src="/images/mastercard-logo.png" alt="Mastercard" class="h-8 w-auto">
                             </div>
-                            <div class="font-semibold text-xs text-gray-900 mt-1">Débito</div>
+                            <div class="font-semibold text-xs text-gray-900 mt-2">Débito</div>
                         </button>
 
                         <!-- Pagar na Entrega -->
@@ -406,11 +401,13 @@
                             x-show="paymentMethods.find(m => m.key === 'on_delivery')"
                             @click="selectPayment('on_delivery')"
                             :class="paymentMethod === 'on_delivery' ? 'border-primary bg-red-50 ring-2 ring-primary' : 'border-gray-200 hover:border-gray-300'"
-                            class="p-4 border rounded-lg transition text-center">
+                            class="p-4 border-2 rounded-lg transition text-center">
                             <div class="flex items-center justify-center h-16">
-                                <span class="text-4xl">🚗</span>
+                                <svg class="w-12 h-12 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/>
+                                </svg>
                             </div>
-                            <div class="font-semibold text-xs text-gray-900 mt-1">Na Entrega</div>
+                            <div class="font-semibold text-xs text-gray-900 mt-2">Na Entrega</div>
                         </button>
                     </div>
 
@@ -421,13 +418,17 @@
                         <template x-for="option in deliveryPaymentOptions" :key="option.key">
                             <label
                                 :class="deliveryPaymentType === option.key ? 'border-primary bg-red-50 ring-2 ring-primary' : 'border-gray-200 hover:border-gray-300'"
-                                class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition">
+                                class="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition">
                                 <input
                                     type="radio"
                                     :value="option.key"
                                     x-model="deliveryPaymentType"
                                     class="text-primary focus:ring-primary">
-                                <span class="text-2xl" x-text="option.icon"></span>
+                                <!-- Logo ou ícone -->
+                                <div class="w-10 h-10 flex items-center justify-center">
+                                    <img x-show="option.logo" :src="option.logo" :alt="option.label" class="h-8 w-auto">
+                                    <span x-show="!option.logo" class="text-2xl" x-text="option.icon"></span>
+                                </div>
                                 <span class="flex-1 font-medium text-sm" x-text="option.label"></span>
                                 <span x-show="option.type === 'meal_voucher'" class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Vale</span>
                             </label>
@@ -596,9 +597,9 @@
                         </div>
                     </div>
 
-                    <!-- CEP (opcional) -->
+                    <!-- CEP -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">CEP (opcional)</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">CEP</label>
                         <input
                             type="text"
                             x-model="deliveryZipcode"
@@ -661,6 +662,7 @@
             changeFor: '',
             notes: '',
             loading: false,
+            pageLoading: true,
             savedAddresses: [],
             selectedAddressId: null,
             showAddressModal: false,
@@ -683,6 +685,10 @@
             editingAddressId: null,
             shouldSaveAddress: true,
             savingAddress: false,
+            paymentMethods: [],
+            deliveryPaymentOptions: [],
+            deliveryPaymentType: null,
+            needsChange: false,
 
             async init() {
                 // Verificar se está autenticado
@@ -714,10 +720,11 @@
                     }
                 }
 
-                // Carregar endereços salvos e cidades disponíveis
+                // Carregar endereços salvos, cidades disponíveis e métodos de pagamento
                 await Promise.all([
                     this.loadSavedAddresses(),
-                    this.loadAvailableCities()
+                    this.loadAvailableCities(),
+                    this.loadPaymentMethods()
                 ]);
 
                 // Se há endereços salvos, selecionar o primeiro automaticamente
@@ -726,6 +733,9 @@
                     this.selectedAddressId = defaultAddress.id;
                     await this.selectSavedAddress(defaultAddress);
                 }
+
+                // Finalizar loading
+                this.pageLoading = false;
 
                 // Se carrinho vazio, redirecionar para home
                 if (this.cart.length === 0) {
@@ -763,6 +773,30 @@
                     }
                 } catch (error) {
                     console.error('Erro ao carregar cidades:', error);
+                }
+            },
+
+            async loadPaymentMethods() {
+                try {
+                    const response = await fetch('/api/v1/settings/payment-methods');
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.paymentMethods = data.data || [];
+
+                        // Se tem método "on_delivery", extrair as opções
+                        const onDeliveryMethod = this.paymentMethods.find(m => m.key === 'on_delivery');
+                        if (onDeliveryMethod && onDeliveryMethod.options) {
+                            this.deliveryPaymentOptions = onDeliveryMethod.options;
+                            // Selecionar primeira opção por padrão
+                            if (this.deliveryPaymentOptions.length > 0) {
+                                this.deliveryPaymentType = this.deliveryPaymentOptions[0].key;
+                            }
+                        }
+
+                        console.log('💳 Métodos de pagamento carregados:', this.paymentMethods);
+                    }
+                } catch (error) {
+                    console.error('Erro ao carregar métodos de pagamento:', error);
                 }
             },
 
@@ -952,7 +986,7 @@
                 this.loadingNeighborhoods = true;
 
                 try {
-                    const response = await fetch(`/api/v1/location/neighborhoods?city=${encodeURIComponent(this.selectedCity)}`);
+                    const response = await fetch(`/api/v1/location/enabled-neighborhoods/${encodeURIComponent(this.selectedCity)}`);
                     if (response.ok) {
                         const data = await response.json();
                         this.availableNeighborhoods = data.data || [];
@@ -977,6 +1011,17 @@
                 if (neighborhood) {
                     this.currentDeliveryFee = parseFloat(neighborhood.delivery_fee) || 0;
                     this.currentDeliveryTime = parseInt(neighborhood.delivery_time) || 30;
+                }
+            },
+
+            selectPayment(method) {
+                this.paymentMethod = method;
+
+                // Se selecionar "on_delivery", garantir que tem uma opção selecionada
+                if (method === 'on_delivery' && this.deliveryPaymentOptions.length > 0) {
+                    if (!this.deliveryPaymentType) {
+                        this.deliveryPaymentType = this.deliveryPaymentOptions[0].key;
+                    }
                 }
             },
 

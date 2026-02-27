@@ -13,7 +13,12 @@ class Tenant extends BaseTenant implements TenantWithDatabase
 {
     use HasDatabase, HasDomains;
 
-    protected $guarded = [];
+    protected $fillable = ['id', 'name', 'slug', 'email', 'phone', 'asaas_account_id', 'plan_id', 'status', 'trial_ends_at'];
+
+    public static function getCustomColumns(): array
+    {
+        return ['id', 'name', 'slug', 'email', 'phone', 'asaas_account_id', 'plan_id', 'status', 'trial_ends_at'];
+    }
 
     /**
      * Plano do tenant

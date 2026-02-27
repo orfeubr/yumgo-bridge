@@ -17,35 +17,45 @@ class AuthController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:customers',
-            'phone' => 'required|string|max:20',
+            'phone' => 'required|string|max:20|unique:customers,phone',
+            'email' => 'nullable|string|email|max:255|unique:customers,email',
             'password' => 'required|string|min:6|confirmed',
             'birth_date' => 'nullable|date',
+        ], [
+            'name.required' => 'O nome é obrigatório.',
+            'phone.required' => 'O celular é obrigatório.',
+            'phone.unique' => 'Este celular já está cadastrado. Faça login ou use outro celular.',
+            'email.email' => 'Digite um email válido.',
+            'email.unique' => 'Este email já está cadastrado.',
+            'password.required' => 'A senha é obrigatória.',
+            'password.min' => 'A senha deve ter no mínimo 6 caracteres.',
+            'password.confirmed' => 'As senhas não coincidem.',
         ]);
 
+        // Criar customer no schema central
         $customer = Customer::create([
             'name' => $request->name,
             'email' => $request->email,
             'phone' => $request->phone,
             'password' => Hash::make($request->password),
             'birth_date' => $request->birth_date,
-            'cashback_balance' => 0,
-            'loyalty_tier' => 'bronze',
-            'total_orders' => 0,
-            'total_spent' => 0,
         ]);
+
+        // Criar relacionamento com tenant atual
+        $tenantData = $customer->getOrCreateTenantRelation(tenant('id'));
 
         $token = $customer->createToken('mobile-app')->plainTextToken;
 
         return response()->json([
+            'success' => true,
             'message' => 'Cliente registrado com sucesso!',
             'customer' => [
                 'id' => $customer->id,
                 'name' => $customer->name,
                 'email' => $customer->email,
                 'phone' => $customer->phone,
-                'cashback_balance' => $customer->cashback_balance,
-                'loyalty_tier' => $customer->loyalty_tier,
+                'cashback_balance' => $tenantData->cashback_balance ?? 0,
+                'loyalty_tier' => $tenantData->loyalty_tier ?? 'bronze',
             ],
             'token' => $token,
         ], 201);
@@ -57,17 +67,27 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
+            'identifier' => 'required|string', // celular ou email
             'password' => 'required',
+        ], [
+            'identifier.required' => 'Digite seu celular ou email',
+            'password.required' => 'Digite sua senha',
         ]);
 
-        $customer = Customer::where('email', $request->email)->first();
+        // Tentar login por celular ou email
+        $identifier = $request->input('identifier');
+        $customer = Customer::where('phone', $identifier)
+            ->orWhere('email', $identifier)
+            ->first();
 
         if (!$customer || !Hash::check($request->password, $customer->password)) {
             throw ValidationException::withMessages([
-                'email' => ['As credenciais fornecidas estão incorretas.'],
+                'identifier' => ['Celular/email ou senha incorretos.'],
             ]);
         }
+
+        // Criar/obter relacionamento com tenant atual
+        $tenantData = $customer->getOrCreateTenantRelation(tenant('id'));
 
         // Remover tokens antigos
         $customer->tokens()->delete();
@@ -75,16 +95,17 @@ class AuthController extends Controller
         $token = $customer->createToken('mobile-app')->plainTextToken;
 
         return response()->json([
+            'success' => true,
             'message' => 'Login realizado com sucesso!',
             'customer' => [
                 'id' => $customer->id,
                 'name' => $customer->name,
                 'email' => $customer->email,
                 'phone' => $customer->phone,
-                'cashback_balance' => $customer->cashback_balance,
-                'loyalty_tier' => $customer->loyalty_tier,
-                'total_orders' => $customer->total_orders,
-                'total_spent' => $customer->total_spent,
+                'cashback_balance' => $tenantData->cashback_balance ?? 0,
+                'loyalty_tier' => $tenantData->loyalty_tier ?? 'bronze',
+                'total_orders' => $tenantData->total_orders ?? 0,
+                'total_spent' => $tenantData->total_spent ?? 0,
             ],
             'token' => $token,
         ]);
@@ -109,17 +130,23 @@ class AuthController extends Controller
     {
         $customer = $request->user();
 
+        // Obter dados do tenant atual
+        $tenantData = $customer->getTenantData(tenant('id'));
+
         return response()->json([
-            'id' => $customer->id,
-            'name' => $customer->name,
-            'email' => $customer->email,
-            'phone' => $customer->phone,
-            'birth_date' => $customer->birth_date,
-            'cashback_balance' => $customer->cashback_balance,
-            'loyalty_tier' => $customer->loyalty_tier,
-            'total_orders' => $customer->total_orders,
-            'total_spent' => $customer->total_spent,
-            'created_at' => $customer->created_at->format('d/m/Y'),
+            'customer' => [
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+                'cpf' => $customer->cpf,
+                'birth_date' => $customer->birth_date,
+                'cashback_balance' => (float) ($tenantData->cashback_balance ?? 0),
+                'loyalty_tier' => $tenantData->loyalty_tier ?? 'bronze',
+                'total_orders' => (int) ($tenantData->total_orders ?? 0),
+                'total_spent' => (float) ($tenantData->total_spent ?? 0),
+                'created_at' => $customer->created_at->format('Y-m-d'),
+            ],
         ]);
     }
 

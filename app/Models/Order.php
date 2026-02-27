@@ -14,6 +14,7 @@ class Order extends Model
 
     protected $fillable = [
         'order_number',
+        'public_token',
         'customer_id',
         'subtotal',
         'delivery_fee',
@@ -24,12 +25,27 @@ class Order extends Model
         'cashback_percentage',
         'status',
         'payment_status',
+        'payment_method',
         'delivery_type',
         'delivery_address',
+        'delivery_city',
+        'delivery_neighborhood',
         'estimated_time',
         'customer_notes',
         'internal_notes',
+        'expires_at',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($order) {
+            if (empty($order->public_token)) {
+                $order->public_token = bin2hex(random_bytes(6));
+            }
+        });
+    }
 
     protected $casts = [
         'subtotal' => 'decimal:2',
@@ -39,6 +55,7 @@ class Order extends Model
         'total' => 'decimal:2',
         'cashback_earned' => 'decimal:2',
         'cashback_percentage' => 'decimal:2',
+        'expires_at' => 'datetime',
     ];
 
     /**
@@ -87,6 +104,14 @@ class Order extends Model
     public function cashbackTransactions(): HasMany
     {
         return $this->hasMany(CashbackTransaction::class);
+    }
+
+    /**
+     * Nota fiscal do pedido
+     */
+    public function fiscalNote(): HasOne
+    {
+        return $this->hasOne(FiscalNote::class);
     }
 
     /**
@@ -151,6 +176,104 @@ class Order extends Model
     public function canBeCanceled(): bool
     {
         return in_array($this->status, ['pending', 'confirmed']);
+    }
+
+    /**
+     * Verifica se o pedido expirou
+     * Pedidos não pagos expiram após o tempo definido (padrão: final do dia)
+     */
+    public function isExpired(): bool
+    {
+        // Se já foi pago, nunca expira
+        if ($this->isPaid()) {
+            return false;
+        }
+
+        // Se tem expires_at definido, verificar
+        if ($this->expires_at) {
+            return now()->isAfter($this->expires_at);
+        }
+
+        // Fallback: pedidos de mais de 1 dia sem pagamento expiram
+        return $this->created_at->addDay()->isPast();
+    }
+
+    /**
+     * Verifica se o restaurante está aberto agora
+     */
+    public function isRestaurantOpen(): bool
+    {
+        $settings = \App\Models\Settings::first();
+
+        if (!$settings) {
+            return true; // Se não tem configuração, assume aberto
+        }
+
+        // Verificar se restaurante está aberto hoje
+        $dayOfWeek = strtolower(now()->locale('en')->dayName); // monday, tuesday, etc
+        $isOpenKey = "open_{$dayOfWeek}";
+
+        if (!$settings->$isOpenKey) {
+            return false; // Fechado hoje
+        }
+
+        // Verificar horário
+        $openTimeKey = "{$dayOfWeek}_open";
+        $closeTimeKey = "{$dayOfWeek}_close";
+
+        $openTime = $settings->$openTimeKey;
+        $closeTime = $settings->$closeTimeKey;
+
+        if (!$openTime || !$closeTime) {
+            return true; // Se não tem horário definido, assume aberto
+        }
+
+        $now = now()->format('H:i:s');
+
+        return $now >= $openTime && $now <= $closeTime;
+    }
+
+    /**
+     * Verifica se o pedido pode receber pagamento
+     */
+    public function canReceivePayment(): bool
+    {
+        // Já pago
+        if ($this->isPaid()) {
+            return false;
+        }
+
+        // Expirado
+        if ($this->isExpired()) {
+            return false;
+        }
+
+        // Restaurante fechado
+        if (!$this->isRestaurantOpen()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Mensagem explicando por que não pode receber pagamento
+     */
+    public function getPaymentBlockedReason(): ?string
+    {
+        if ($this->isPaid()) {
+            return 'Este pedido já foi pago.';
+        }
+
+        if ($this->isExpired()) {
+            return 'Este pedido expirou. Pedidos não pagos expiram após 24 horas.';
+        }
+
+        if (!$this->isRestaurantOpen()) {
+            return 'O restaurante está fechado no momento. Pagamentos só podem ser realizados durante o horário de funcionamento.';
+        }
+
+        return null;
     }
 
     /**

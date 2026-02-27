@@ -1,0 +1,178 @@
+/* Sidebar com gradiente sutil */
+.fi-sidebar {
+    background: linear-gradient(to bottom, #ffffff, #fef3f2) !important;
+    border-right: 2px solid #fed7aa !important;
+}
+
+/* Header do sidebar com destaque */
+.fi-sidebar-header {
+    background: linear-gradient(135deg, #ff6b35, #ff8c42) !important;
+    padding: 1.5rem !important;
+    margin-bottom: 1rem !important;
+}
+
+.fi-sidebar-header .fi-logo {
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+/* Itens do menu com melhor contraste e cor */
+.fi-sidebar-item-button {
+    color: #374151 !important;
+    font-weight: 500 !important;
+    transition: all 0.2s !important;
+    border-radius: 0.5rem !important;
+    margin: 0.25rem 0.5rem !important;
+}
+
+/* Ícones coloridos */
+.fi-sidebar-item-icon {
+    color: #f97316 !important;
+    font-size: 1.25rem !important;
+}
+
+/* Item ativo super destacado */
+.fi-sidebar-item-button[aria-current="page"] {
+    background: linear-gradient(135deg, #f97316, #fb923c) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 6px rgba(249, 115, 22, 0.3) !important;
+    transform: translateX(4px) !important;
+}
+
+.fi-sidebar-item-button[aria-current="page"] .fi-sidebar-item-icon {
+    color: #ffffff !important;
+}
+
+/* Hover animado */
+.fi-sidebar-item-button:hover {
+    background-color: #fff7ed !important;
+    color: #c2410c !important;
+    transform: translateX(2px) !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+}
+
+.fi-sidebar-item-button:hover .fi-sidebar-item-icon {
+    color: #ea580c !important;
+    transform: scale(1.1) !important;
+}
+
+/* Badge de notificações */
+.fi-sidebar-item-badge {
+    background: #ef4444 !important;
+    color: white !important;
+    font-weight: bold !important;
+    animation: pulse 2s infinite !important;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Grupos de navegação com separadores coloridos */
+.fi-sidebar-group-label {
+    color: #9ca3af !important;
+    font-weight: 600 !important;
+    font-size: 0.75rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    margin-top: 1rem !important;
+    padding: 0.5rem 1rem !important;
+    border-top: 2px solid #fed7aa !important;
+}
+
+/* Topbar com gradiente */
+.fi-topbar {
+    background: linear-gradient(to right, #ffffff, #fef3f2) !important;
+    border-bottom: 2px solid #fed7aa !important;
+}
+
+/* Cards com sombra suave */
+.fi-section {
+    box-shadow: 0 1px 3px rgba(249, 115, 22, 0.1) !important;
+    border: 1px solid #fed7aa !important;
+}
+
+/* Botões com mais vida */
+.fi-btn-primary {
+    background: linear-gradient(135deg, #f97316, #fb923c) !important;
+    box-shadow: 0 4px 6px rgba(249, 115, 22, 0.3) !important;
+    transition: all 0.2s !important;
+}
+
+.fi-btn-primary:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 12px rgba(249, 115, 22, 0.4) !important;
+}
+
+/* EXCEÇÃO PRIMEIRO: Forçar texto branco em banners coloridos */
+.bg-gradient-to-r,
+.bg-gradient-to-l,
+.bg-gradient-to-b,
+.bg-gradient-to-t,
+.bg-gradient-to-br,
+.bg-gradient-to-bl,
+.bg-gradient-to-tr,
+.bg-gradient-to-tl {
+    color: white !important;
+}
+
+.bg-gradient-to-r *,
+.bg-gradient-to-l *,
+.bg-gradient-to-b *,
+.bg-gradient-to-t *,
+.bg-gradient-to-br *,
+.bg-gradient-to-bl *,
+.bg-gradient-to-tr *,
+.bg-gradient-to-tl * {
+    color: white !important;
+}
+
+/* Containers com texto branco explícito */
+.text-white,
+.text-white * {
+    color: white !important;
+}
+
+/* CONTRASTE: Garantir textos escuros APENAS em formulários */
+.fi-fo-field-wrp label,
+.fi-fo-field-wrp .fi-fo-field-wrp-label,
+.fi-section-header h3,
+.fi-section-header-heading,
+.fi-section-description,
+.fi-input-wrp label,
+.fi-fo-placeholder,
+.fi-fo-section-header-heading,
+.fi-fo-section-description,
+.fi-header-heading,
+.fi-simple-page-heading {
+    color: #1f2937 !important;
+}
+
+/* Inputs com contraste */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+select,
+textarea {
+    color: #111827 !important;
+    background-color: #ffffff !important;
+}
+
+/* Placeholder com contraste */
+input::placeholder,
+textarea::placeholder {
+    color: #6b7280 !important;
+}
+
+/* Helper text legível */
+.fi-fo-helper-text,
+.fi-fo-hint-text {
+    color: #6b7280 !important;
+}
+
+/* Textos descritivos em formulários */
+.fi-section p,
+.fi-fo-field-wrp p {
+    color: #374151 !important;
+}

@@ -65,7 +65,7 @@ class CouponSeeder extends Seeder
                 'value' => 10.00,
                 'min_order_value' => 35.00,
                 'usage_limit' => null,
-                'usage_per_customer' => null, // Ilimitado por cliente
+                'usage_per_customer' => 0, // Ilimitado por cliente
                 'starts_at' => now(),
                 'expires_at' => now()->addMonths(6),
                 'is_active' => true,

@@ -15,8 +15,8 @@ class StatsOverviewWidget extends BaseWidget
     protected function getStats(): array
     {
         $totalTenants = Tenant::count();
-        $activeTenants = Tenant::whereJsonContains('data->status', 'active')->count();
-        $trialTenants = Tenant::whereJsonContains('data->status', 'trial')->count();
+        $activeTenants = Tenant::where('status', 'active')->count();
+        $trialTenants = Tenant::where('status', 'trial')->count();
 
         $activeSubscriptions = Subscription::where('status', 'active')->count();
 

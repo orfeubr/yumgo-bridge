@@ -44,6 +44,10 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+        'api' => [
+            'driver' => 'sanctum',
+            'provider' => 'customers',
+        ],
     ],
 
     /*
@@ -67,6 +71,10 @@ return [
         'platform_users' => [
             'driver' => 'eloquent',
             'model' => App\Models\PlatformUser::class,
+        ],
+        'customers' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Customer::class,
         ],
         'users' => [
             'driver' => 'eloquent',

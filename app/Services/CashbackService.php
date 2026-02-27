@@ -181,7 +181,7 @@ class CashbackService
     /**
      * Pega porcentagem do tier
      */
-    private function getPercentageForTier(string $tier, CashbackSettings $settings): float
+    public function getPercentageForTier(string $tier, CashbackSettings $settings): float
     {
         return match($tier) {
             'bronze' => $settings->bronze_percentage,
@@ -195,7 +195,7 @@ class CashbackService
     /**
      * Verifica se é aniversário do cliente
      */
-    private function isBirthdayBonus(Customer $customer, CashbackSettings $settings): bool
+    public function isBirthdayBonus(Customer $customer, CashbackSettings $settings): bool
     {
         if (!$settings->birthday_bonus_enabled || !$customer->birth_date) {
             return false;

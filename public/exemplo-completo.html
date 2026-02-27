@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YumGo - Exemplo Completo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b35 0%, #e85a25 100%);
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+        }
+
+        .cart-icon {
+            position: relative;
+            background: rgba(255,255,255,0.2);
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .cart-icon:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .products-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .product-card {
+            display: flex;
+            gap: 16px;
+            padding: 16px;
+            border: 2px solid #f0f0f0;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .product-card:hover {
+            border-color: #ff6b35;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .product-card img {
+            width: 100px;
+            height: 100px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+        .product-info {
+            flex: 1;
+        }
+
+        .product-info h3 {
+            font-size: 18px;
+            margin-bottom: 4px;
+        }
+
+        .product-info p {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .product-price {
+            font-size: 20px;
+            font-weight: 700;
+            color: #ff6b35;
+        }
+
+        .btn-add {
+            background: #ff6b35;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .btn-add:hover {
+            background: #e85a25;
+        }
+
+        .cart-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 20px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        .cart-section h2 {
+            margin-bottom: 16px;
+        }
+
+        #cart-items-container {
+            margin-bottom: 16px;
+        }
+
+        .cart-totals {
+            border-top: 2px solid #f0f0f0;
+            padding-top: 16px;
+            margin-bottom: 16px;
+        }
+
+        .total-line {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 14px;
+        }
+
+        .total-line.grand {
+            font-size: 20px;
+            font-weight: 700;
+            color: #ff6b35;
+            border-top: 2px solid #f0f0f0;
+            padding-top: 12px;
+            margin-top: 8px;
+        }
+
+        .checkout-form {
+            margin-top: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .payment-options {
+            display: flex;
+            gap: 8px;
+        }
+
+        .payment-options label {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .payment-options input:checked + label {
+            border-color: #ff6b35;
+            background: #fff5f2;
+        }
+
+        .payment-options input {
+            display: none;
+        }
+
+        #btn-checkout {
+            width: 100%;
+            padding: 16px;
+            background: #ff6b35;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+
+        #btn-checkout:hover:not(:disabled) {
+            background: #e85a25;
+        }
+
+        #btn-checkout:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🍕 YumGo</h1>
+        <div class="cart-icon">
+            🛒 Carrinho
+            <span id="cart-badge" style="display: none;">0</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- PRODUTOS -->
+        <div class="products-section">
+            <h2>Pizzas</h2>
+
+            <div class="product-card">
+                <img src="https://via.placeholder.com/100?text=Calabresa" alt="Calabresa">
+                <div class="product-info">
+                    <h3>Pizza de Calabresa</h3>
+                    <p><strong>Ingredientes:</strong> Calabresa fatiada, cebola roxa, azeitonas pretas e orégano</p>
+                    <p class="product-price">R$ 45,00</p>
+                    <button class="btn-add" onclick="abrirModalMeioAMeio({
+                        id: 1,
+                        name: 'Pizza de Calabresa',
+                        image: 'https://via.placeholder.com/100?text=Calabresa',
+                        price: 45.00,
+                        ingredients: 'Calabresa fatiada, cebola roxa, azeitonas pretas e orégano'
+                    })">
+                        Meio a Meio
+                    </button>
+                </div>
+            </div>
+
+            <div class="product-card">
+                <img src="https://via.placeholder.com/100?text=Mussarela" alt="Mussarela">
+                <div class="product-info">
+                    <h3>Pizza de Mussarela</h3>
+                    <p><strong>Ingredientes:</strong> Mussarela, tomate, manjericão fresco e azeite extravirgem</p>
+                    <p class="product-price">R$ 42,00</p>
+                    <button class="btn-add" onclick="abrirModalMeioAMeio({
+                        id: 2,
+                        name: 'Pizza de Mussarela',
+                        image: 'https://via.placeholder.com/100?text=Mussarela',
+                        price: 42.00,
+                        ingredients: 'Mussarela, tomate, manjericão fresco e azeite extravirgem'
+                    })">
+                        Meio a Meio
+                    </button>
+                </div>
+            </div>
+
+            <div class="product-card">
+                <img src="https://via.placeholder.com/100?text=Portuguesa" alt="Portuguesa">
+                <div class="product-info">
+                    <h3>Pizza Portuguesa</h3>
+                    <p><strong>Ingredientes:</strong> Presunto, ovos, cebola, azeitonas, mussarela e orégano</p>
+                    <p class="product-price">R$ 48,00</p>
+                    <button class="btn-add" onclick="abrirModalMeioAMeio({
+                        id: 3,
+                        name: 'Pizza Portuguesa',
+                        image: 'https://via.placeholder.com/100?text=Portuguesa',
+                        price: 48.00,
+                        ingredients: 'Presunto, ovos, cebola, azeitonas, mussarela e orégano'
+                    })">
+                        Meio a Meio
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CARRINHO -->
+        <div class="cart-section">
+            <h2>Carrinho</h2>
+
+            <div id="cart-items-container"></div>
+
+            <div class="cart-totals">
+                <div class="total-line">
+                    <span>Subtotal:</span>
+                    <span id="cart-subtotal">R$ 0,00</span>
+                </div>
+                <div class="total-line">
+                    <span>Entrega:</span>
+                    <span id="cart-delivery">R$ 5,00</span>
+                </div>
+                <div class="total-line grand">
+                    <span>Total:</span>
+                    <span id="cart-total">R$ 5,00</span>
+                </div>
+            </div>
+
+            <div class="checkout-form">
+                <div class="form-group">
+                    <label>Endereço de Entrega *</label>
+                    <textarea id="delivery_address" rows="2" placeholder="Rua, número, bairro..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Forma de Pagamento *</label>
+                    <div class="payment-options">
+                        <input type="radio" id="pix" name="payment_method" value="pix" checked>
+                        <label for="pix">PIX</label>
+
+                        <input type="radio" id="card" name="payment_method" value="credit_card">
+                        <label for="card">Cartão</label>
+
+                        <input type="radio" id="cash" name="payment_method" value="cash">
+                        <label for="cash">Dinheiro</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Observações</label>
+                    <textarea id="order_notes" rows="2" placeholder="Ex: Sem cebola..."></textarea>
+                </div>
+
+                <button id="btn-checkout" disabled>Carrinho Vazio</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="/yumgo-cart.js"></script>
+    <script src="/pizza-modal.js"></script>
+
+    <script>
+        // Token fake para teste (substitua pelo real)
+        if (!localStorage.getItem('auth_token')) {
+            localStorage.setItem('auth_token', 'fake-token-123');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste Livewire</title>
+</head>
+<body>
+    <h1>Teste de JavaScript</h1>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('result').innerHTML = 'JavaScript funcionando!<br>';
+
+        // Verificar se Livewire carregou
+        setTimeout(function() {
+            if (typeof window.Livewire !== 'undefined') {
+                document.getElementById('result').innerHTML += 'Livewire carregado! ✅<br>';
+            } else {
+                document.getElementById('result').innerHTML += 'Livewire NÃO carregou! ❌<br>';
+            }
+
+            if (typeof window.Alpine !== 'undefined') {
+                document.getElementById('result').innerHTML += 'Alpine carregado! ✅<br>';
+            } else {
+                document.getElementById('result').innerHTML += 'Alpine NÃO carregou! ❌<br>';
+            }
+        }, 2000);
+    </script>
+
+    <!-- Carregar Livewire -->
+    <script src="/livewire/livewire.js?id=40a765a4" data-csrf="test" data-update-uri="/livewire/update"></script>
+</body>
+</html>

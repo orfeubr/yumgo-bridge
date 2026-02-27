@@ -35,4 +35,28 @@ return [
         ],
     ],
 
+    'asaas' => [
+        'url' => env('ASAAS_URL', 'https://sandbox.asaas.com/api/v3'),
+        'api_key' => env('ASAAS_API_KEY'),
+        'platform_wallet_id' => env('ASAAS_PLATFORM_WALLET_ID'),
+        'webhook_token' => env('ASAAS_WEBHOOK_TOKEN'),
+    ],
+
+    'tributaai' => [
+        'platform_token' => env('TRIBUTAAI_PLATFORM_TOKEN'),
+    ],
+
+    // OAuth Social Login
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('APP_URL') . '/auth/google/callback',
+    ],
+
+    'facebook' => [
+        'client_id' => env('FACEBOOK_CLIENT_ID'),
+        'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
+        'redirect' => env('APP_URL') . '/auth/facebook/callback',
+    ],
+
 ];

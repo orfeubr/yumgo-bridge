@@ -46,6 +46,9 @@ class OrderService
                 $total = 0;
             }
 
+            // Define expiração do pedido (final do dia)
+            $expiresAt = now()->endOfDay();
+
             // Cria pedido
             $order = Order::create([
                 'order_number' => $this->generateOrderNumber(),
@@ -65,6 +68,7 @@ class OrderService
                 'customer_notes' => $data['notes'] ?? null,
                 'cashback_earned' => 0,
                 'cashback_percentage' => 0,
+                'expires_at' => $expiresAt,
             ]);
 
             \Log::info('✅ Pedido criado', ['order_id' => $order->id, 'order_number' => $order->order_number]);

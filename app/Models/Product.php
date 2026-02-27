@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\WeeklyMenu;
 
 class Product extends Model
 {
@@ -19,6 +20,7 @@ class Product extends Model
         'price',
         'image',
         'images',
+        'filling',
         'pizza_config',
         'marmitex_config',
         'has_stock_control',
@@ -27,6 +29,12 @@ class Product extends Model
         'preparation_time',
         'is_active',
         'is_featured',
+        'is_pizza',
+        'allows_half_and_half',
+        'available_sizes',
+        'available_borders',
+        'size_prices',
+        'border_prices',
         'order',
     ];
 
@@ -38,6 +46,12 @@ class Product extends Model
         'has_stock_control' => 'boolean',
         'is_active' => 'boolean',
         'is_featured' => 'boolean',
+        'is_pizza' => 'boolean',
+        'allows_half_and_half' => 'boolean',
+        'available_sizes' => 'array',
+        'available_borders' => 'array',
+        'size_prices' => 'array',
+        'border_prices' => 'array',
     ];
 
     /**
@@ -105,6 +119,27 @@ class Product extends Model
     public function scopeOrdered($query)
     {
         return $query->orderBy('order')->orderBy('name');
+    }
+
+    /**
+     * Scope para produtos no cardápio semanal de hoje
+     */
+    public function scopeInTodaysMenu($query)
+    {
+        $activeMenu = WeeklyMenu::getActive();
+
+        if (!$activeMenu) {
+            return $query; // Sem filtro se não há cardápio ativo
+        }
+
+        $today = WeeklyMenu::getCurrentDayOfWeek();
+        $todayProductIds = $activeMenu->items()
+            ->where('day_of_week', $today)
+            ->where('is_available', true)
+            ->pluck('product_id')
+            ->toArray();
+
+        return $query->whereIn('id', $todayProductIds);
     }
 
     /**

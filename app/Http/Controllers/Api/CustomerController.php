@@ -63,10 +63,10 @@ class CustomerController extends Controller
      */
     public function addresses(Request $request)
     {
-        // TODO: Implementar model de Address quando necessário
-        // Por enquanto, retorna lista vazia
+        $addresses = $request->user()->addresses()->orderBy('is_default', 'desc')->get();
+
         return response()->json([
-            'data' => [],
+            'data' => $addresses,
         ]);
     }
 
@@ -75,10 +75,47 @@ class CustomerController extends Controller
      */
     public function createAddress(Request $request)
     {
-        // TODO: Implementar quando model Address for criado
+        $validated = $request->validate([
+            'label' => 'nullable|string|max:255',
+            'city' => 'required|string|max:255',
+            'neighborhood' => 'required|string|max:255',
+            'street' => 'required|string|max:255',
+            'number' => 'required|string|max:20',
+            'complement' => 'nullable|string|max:255',
+            'zipcode' => 'nullable|string|max:10',
+            'is_default' => 'nullable|boolean',
+        ]);
+
+        // Validar se o bairro está habilitado para delivery
+        $neighborhood = \App\Models\Neighborhood::where('city', $validated['city'])
+            ->where('name', $validated['neighborhood'])
+            ->where('enabled', true)
+            ->first();
+
+        if (!$neighborhood) {
+            return response()->json([
+                'message' => 'Não atendemos este bairro. Por favor, selecione um bairro disponível.',
+                'error' => 'neighborhood_not_available',
+            ], 422);
+        }
+
+        $customer = $request->user();
+
+        // Se for marcado como padrão, desmarca os outros
+        if ($validated['is_default'] ?? false) {
+            $customer->addresses()->update(['is_default' => false]);
+        }
+
+        $address = $customer->addresses()->create($validated);
+
         return response()->json([
-            'message' => 'Funcionalidade em desenvolvimento.',
-        ], 501);
+            'message' => 'Endereço criado com sucesso!',
+            'data' => $address,
+            'delivery_info' => [
+                'fee' => (float) $neighborhood->delivery_fee,
+                'time' => $neighborhood->delivery_time,
+            ],
+        ], 201);
     }
 
     /**
@@ -86,10 +123,48 @@ class CustomerController extends Controller
      */
     public function updateAddress(Request $request, $id)
     {
-        // TODO: Implementar quando model Address for criado
+        $address = $request->user()->addresses()->findOrFail($id);
+
+        $validated = $request->validate([
+            'label' => 'nullable|string|max:255',
+            'city' => 'sometimes|string|max:255',
+            'neighborhood' => 'sometimes|string|max:255',
+            'street' => 'sometimes|string|max:255',
+            'number' => 'sometimes|string|max:20',
+            'complement' => 'nullable|string|max:255',
+            'zipcode' => 'nullable|string|max:10',
+            'is_default' => 'nullable|boolean',
+        ]);
+
+        // Se cidade ou bairro foram alterados, validar se estão habilitados
+        if (isset($validated['city']) || isset($validated['neighborhood'])) {
+            $city = $validated['city'] ?? $address->city;
+            $neighborhood = $validated['neighborhood'] ?? $address->neighborhood;
+
+            $neighborhoodData = \App\Models\Neighborhood::where('city', $city)
+                ->where('name', $neighborhood)
+                ->where('enabled', true)
+                ->first();
+
+            if (!$neighborhoodData) {
+                return response()->json([
+                    'message' => 'Não atendemos este bairro. Por favor, selecione um bairro disponível.',
+                    'error' => 'neighborhood_not_available',
+                ], 422);
+            }
+        }
+
+        // Se for marcado como padrão, desmarca os outros
+        if ($validated['is_default'] ?? false) {
+            $request->user()->addresses()->where('id', '!=', $id)->update(['is_default' => false]);
+        }
+
+        $address->update($validated);
+
         return response()->json([
-            'message' => 'Funcionalidade em desenvolvimento.',
-        ], 501);
+            'message' => 'Endereço atualizado com sucesso!',
+            'data' => $address,
+        ]);
     }
 
     /**
@@ -97,9 +172,11 @@ class CustomerController extends Controller
      */
     public function deleteAddress(Request $request, $id)
     {
-        // TODO: Implementar quando model Address for criado
+        $address = $request->user()->addresses()->findOrFail($id);
+        $address->delete();
+
         return response()->json([
-            'message' => 'Funcionalidade em desenvolvimento.',
-        ], 501);
+            'message' => 'Endereço deletado com sucesso!',
+        ]);
     }
 }

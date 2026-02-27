@@ -7,12 +7,18 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "bezhansalleh/filament-shield": "^3.9",
         "filament/filament": "^3.2",
+        "flowframe/laravel-trend": "^0.4.0",
+        "intervention/image": "^3.11",
         "laravel/framework": "^12.0",
         "laravel/horizon": "^5.44",
         "laravel/reverb": "^1.7",
         "laravel/sanctum": "^4.3",
+        "laravel/socialite": "^5.24",
         "laravel/tinker": "^2.10.1",
+        "nfephp-org/sped-nfe": "^5.2",
+        "simplesoftwareio/simple-qrcode": "^4.2",
         "spatie/laravel-permission": "^6.24",
         "stancl/tenancy": "^3.8"
     },
@@ -21,6 +27,7 @@
         "laravel/pail": "^1.2.2",
         "laravel/pint": "^1.24",
         "laravel/sail": "^1.41",
+        "lucascudo/laravel-pt-br-localization": "^3.0",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
         "phpunit/phpunit": "^11.5.3"

@@ -23,6 +23,8 @@ class ProductVariation extends Model
         'is_active' => 'boolean',
     ];
 
+    protected $appends = ['price'];
+
     /**
      * Produto desta variação
      */
@@ -52,6 +54,33 @@ class ProductVariation extends Model
      */
     public function getFinalPrice(float $basePrice): float
     {
+        if ($this->modifier_type === 'percentage') {
+            return $basePrice + (($basePrice * $this->price_modifier) / 100);
+        }
+
+        return $basePrice + $this->price_modifier;
+    }
+
+    /**
+     * Accessor para calcular preço automaticamente
+     * Usado pelas views que acessam $variation->price
+     */
+    public function getPriceAttribute(): float
+    {
+        // Tentar pegar do relacionamento carregado
+        $product = $this->relationLoaded('product') ? $this->product : null;
+
+        // Se não estiver carregado, buscar do banco
+        if (!$product) {
+            $product = Product::find($this->product_id);
+        }
+
+        if (!$product) {
+            return 0;
+        }
+
+        $basePrice = $product->price ?? 0;
+
         if ($this->modifier_type === 'percentage') {
             return $basePrice + (($basePrice * $this->price_modifier) / 100);
         }

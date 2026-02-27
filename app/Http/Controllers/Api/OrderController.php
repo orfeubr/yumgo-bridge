@@ -290,6 +290,18 @@ class OrderController extends Controller
                 ], 404);
             }
 
+            // 🔒 VALIDAR SE PEDIDO PODE RECEBER PAGAMENTO
+            if (!$order->canReceivePayment()) {
+                $reason = $order->getPaymentBlockedReason();
+                return response()->json([
+                    'message' => $reason,
+                    'can_pay' => false,
+                    'is_expired' => $order->isExpired(),
+                    'is_paid' => $order->isPaid(),
+                    'restaurant_closed' => !$order->isRestaurantOpen(),
+                ], 422);
+            }
+
         } catch (\Exception $e) {
             \Log::error('❌ Erro ao buscar pagamento', [
                 'error' => $e->getMessage(),
@@ -414,12 +426,24 @@ class OrderController extends Controller
             if ($order->customer_id !== $request->user()->id) {
                 \Log::warning('⚠️ Tentativa de acesso a pagamento de outro cliente via order_number', [
                     'order_number' => $orderNumber,
-                    'order_customer_id' => $order->customer_id,
-                    'authenticated_customer_id' => $request->user()->id
+                    'tenant_id' => tenant()->id ?? 'NULL',
+                    // ⚠️ NÃO logar: customer IDs (LGPD)
                 ]);
                 return response()->json([
                     'message' => 'Pedido não encontrado.',
                 ], 404);
+            }
+
+            // 🔒 VALIDAR SE PEDIDO PODE RECEBER PAGAMENTO
+            if (!$order->canReceivePayment()) {
+                $reason = $order->getPaymentBlockedReason();
+                return response()->json([
+                    'message' => $reason,
+                    'can_pay' => false,
+                    'is_expired' => $order->isExpired(),
+                    'is_paid' => $order->isPaid(),
+                    'restaurant_closed' => !$order->isRestaurantOpen(),
+                ], 422);
             }
 
         } catch (\Exception $e) {
@@ -485,19 +509,29 @@ class OrderController extends Controller
             // Verificar se o pedido pertence ao cliente autenticado
             if ($order->customer_id !== $request->user()->id) {
                 \Log::warning('⚠️ Tentativa de acesso a pagamento de outro cliente via token', [
-                    'token' => $token,
-                    'order_customer_id' => $order->customer_id,
-                    'authenticated_customer_id' => $request->user()->id
+                    'tenant_id' => tenant()->id ?? 'NULL',
+                    // ⚠️ NÃO logar: token, customer IDs (LGPD)
                 ]);
                 return response()->json([
                     'message' => 'Pedido não encontrado.',
                 ], 404);
             }
 
+            // 🔒 VALIDAR SE PEDIDO PODE RECEBER PAGAMENTO
+            if (!$order->canReceivePayment()) {
+                $reason = $order->getPaymentBlockedReason();
+                return response()->json([
+                    'message' => $reason,
+                    'can_pay' => false,
+                    'is_expired' => $order->isExpired(),
+                    'is_paid' => $order->isPaid(),
+                    'restaurant_closed' => !$order->isRestaurantOpen(),
+                ], 422);
+            }
+
         } catch (\Exception $e) {
             \Log::error('❌ Erro ao buscar pagamento por token', [
                 'error' => $e->getMessage(),
-                'token' => $token,
                 // ⚠️ NÃO logar: trace (pode conter dados sensíveis)
             ]);
             throw $e;

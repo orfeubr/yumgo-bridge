@@ -24,27 +24,27 @@ class LatestTenantsWidget extends BaseWidget
                     ->limit(5)
             )
             ->columns([
-                Tables\Columns\TextColumn::make('data.name')
+                Tables\Columns\TextColumn::make('name')
                     ->label('Nome')
                     ->searchable(),
-                
-                Tables\Columns\TextColumn::make('data.email')
+
+                Tables\Columns\TextColumn::make('email')
                     ->label('Email')
                     ->searchable()
                     ->copyable(),
-                
+
                 Tables\Columns\TextColumn::make('plan.name')
                     ->label('Plano')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
+                    ->color(fn (?string $state): string => match ($state) {
                         'Trial' => 'gray',
                         'Starter' => 'info',
                         'Pro' => 'success',
                         'Enterprise' => 'warning',
                         default => 'gray',
                     }),
-                
-                Tables\Columns\TextColumn::make('data.status')
+
+                Tables\Columns\TextColumn::make('status')
                     ->label('Status')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {

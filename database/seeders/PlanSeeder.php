@@ -14,7 +14,7 @@ class PlanSeeder extends Seeder
                 'name' => 'Starter',
                 'description' => 'Plano ideal para restaurantes iniciantes',
                 'price_monthly' => 79.00,
-                'commission_percentage' => 3.00,
+                'commission_percentage' => 1.00,
                 'features' => [
                     'Até 50 produtos',
                     'Até 500 pedidos/mês',
@@ -71,7 +71,7 @@ class PlanSeeder extends Seeder
                 'name' => 'Trial',
                 'description' => 'Período de teste gratuito',
                 'price_monthly' => 0.00,
-                'commission_percentage' => 3.00,
+                'commission_percentage' => 1.00,
                 'features' => [
                     'Até 20 produtos',
                     'Até 100 pedidos/mês',

@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class PlatformUser extends Authenticatable
+class PlatformUser extends Authenticatable implements FilamentUser
 {
     use Notifiable;
 
@@ -27,6 +29,11 @@ class PlatformUser extends Authenticatable
         'is_active' => 'boolean',
         'password' => 'hashed',
     ];
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return $this->is_active;
+    }
 
     public function isSuperAdmin(): bool
     {

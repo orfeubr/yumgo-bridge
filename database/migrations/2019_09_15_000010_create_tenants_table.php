@@ -17,9 +17,14 @@ class CreateTenantsTable extends Migration
     {
         Schema::create('tenants', function (Blueprint $table) {
             $table->string('id')->primary();
-
-            // your custom columns may go here
-
+            $table->string('name');
+            $table->string('slug')->unique();
+            $table->string('email')->unique();
+            $table->string('phone')->nullable();
+            $table->string('asaas_account_id')->nullable();
+            $table->foreignId('plan_id')->nullable()->constrained('plans')->nullOnDelete();
+            $table->enum('status', ['active', 'inactive', 'trial', 'suspended'])->default('trial');
+            $table->timestamp('trial_ends_at')->nullable();
             $table->timestamps();
             $table->json('data')->nullable();
         });

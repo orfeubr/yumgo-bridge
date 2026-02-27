@@ -17,8 +17,9 @@ return new class extends Migration
             $table->decimal('price', 10, 2);
             $table->string('image')->nullable();
             $table->json('images')->nullable(); // Múltiplas imagens
-            
+
             // Especificações especiais
+            $table->text('filling')->nullable(); // Recheio da pizza (ex: Mussarela, Calabresa, etc)
             $table->json('pizza_config')->nullable(); // {allow_half_and_half, border_options, etc}
             $table->json('marmitex_config')->nullable(); // {max_proteins, max_sides, etc}
             
