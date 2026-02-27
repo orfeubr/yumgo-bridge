@@ -52,13 +52,13 @@
 
         <div class="max-w-2xl mx-auto px-4 py-6">
             <!-- Loading -->
-            <div x-show="loading" x-cloak class="bg-white rounded-xl shadow-sm p-12 text-center">
-                <div class="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-                <p class="text-gray-600 text-sm">Carregando informações do pagamento...</p>
+            <div x-show="loading && !error" x-cloak class="bg-white rounded-lg border border-gray-200 p-12 text-center">
+                <div class="animate-spin w-12 h-12 border-3 border-gray-300 border-t-gray-900 rounded-full mx-auto mb-4"></div>
+                <p class="text-sm text-gray-500">Carregando...</p>
             </div>
 
             <!-- Erro -->
-            <div x-show="error" x-cloak class="bg-white rounded-xl shadow-sm p-8 text-center">
+            <div x-show="error && !loading" x-cloak class="bg-white rounded-lg border border-gray-200 p-8 text-center">
                 <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>

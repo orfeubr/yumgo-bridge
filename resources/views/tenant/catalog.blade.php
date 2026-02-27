@@ -51,9 +51,11 @@
     </div>
 
     <!-- Loading -->
-    <div x-show="loading" class="max-w-screen-lg mx-auto px-4 py-12 text-center">
-        <div class="inline-block animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full"></div>
-        <p class="text-gray-600 mt-3">Carregando cardápio...</p>
+    <div x-show="loading" class="max-w-2xl mx-auto px-4 py-12">
+        <div class="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <div class="animate-spin w-12 h-12 border-3 border-gray-300 border-t-gray-900 rounded-full mx-auto mb-4"></div>
+            <p class="text-sm text-gray-500">Carregando...</p>
+        </div>
     </div>
 
     <!-- Produtos -->
