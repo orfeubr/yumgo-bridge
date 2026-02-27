@@ -432,8 +432,30 @@ class PaymentAccount extends Page
     public function getAccountStatus(): array
     {
         $tenant = tenant();
+        $activeGateway = $tenant->payment_gateway ?? 'pagarme';
 
-        if (empty($tenant->pagarme_recipient_id) && empty($tenant->asaas_account_id)) {
+        // Se o gateway ativo é Pagar.me
+        if ($activeGateway === 'pagarme') {
+            if (!empty($tenant->pagarme_recipient_id)) {
+                return [
+                    'configured' => true,
+                    'status' => 'approved',
+                    'label' => '✅ Configurada (Pagar.me)',
+                    'color' => 'success',
+                ];
+            }
+
+            // Pagar.me ativo mas sem recipient - avisar!
+            if (!empty($tenant->asaas_account_id)) {
+                return [
+                    'configured' => false,
+                    'status' => 'needs_migration',
+                    'label' => '⚠️ Configure o Pagar.me',
+                    'color' => 'warning',
+                ];
+            }
+
+            // Nenhum gateway configurado
             return [
                 'configured' => false,
                 'status' => 'not_configured',
@@ -442,27 +464,27 @@ class PaymentAccount extends Page
             ];
         }
 
-        // Pagar.me: se tem recipient_id, está configurado
-        if (!empty($tenant->pagarme_recipient_id)) {
+        // Se o gateway ativo é Asaas (legado)
+        if ($activeGateway === 'asaas') {
+            if (!empty($tenant->asaas_account_id)) {
+                return [
+                    'configured' => true,
+                    'status' => 'legacy',
+                    'label' => '✅ Configurada (Asaas)',
+                    'color' => 'success',
+                ];
+            }
+
+            // Asaas ativo mas sem account - avisar!
             return [
-                'configured' => true,
-                'status' => 'approved',
-                'label' => '✅ Configurada (Pagar.me)',
-                'color' => 'success',
+                'configured' => false,
+                'status' => 'not_configured',
+                'label' => '⚠️ Configure o Asaas',
+                'color' => 'warning',
             ];
         }
 
-        // Asaas (legado): se tem asaas_account_id, está configurado
-        if (!empty($tenant->asaas_account_id)) {
-            return [
-                'configured' => true,
-                'status' => 'legacy',
-                'label' => '✅ Configurada',
-                'color' => 'success',
-            ];
-        }
-
-        // Fallback
+        // Fallback para gateways desconhecidos
         return [
             'configured' => false,
             'status' => 'not_configured',

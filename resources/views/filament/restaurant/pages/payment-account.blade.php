@@ -47,10 +47,12 @@
                         <span class="hidden bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-1 rounded-md font-bold text-sm">PAGAR.ME</span>
                     </div>
                     <p class="text-sm text-gray-600 dark:text-gray-400">
-                        @if(!$statusInfo['configured'])
+                        @if($statusInfo['status'] === 'not_configured')
                             Configure seus dados para começar a receber pagamentos online
+                        @elseif($statusInfo['status'] === 'needs_migration')
+                            Você tem uma conta Asaas configurada, mas o gateway ativo é Pagar.me. Configure seus dados abaixo para criar o recebedor.
                         @elseif($statusInfo['status'] === 'legacy')
-                            Sua conta está ativa e você pode receber pagamentos!
+                            Sua conta Asaas está ativa e você pode receber pagamentos!
                         @elseif($statusInfo['status'] === 'pending')
                             Sua conta está sendo configurada no Pagar.me
                         @elseif($statusInfo['status'] === 'approved')
@@ -91,8 +93,34 @@
         </div>
     </div>
 
+    <!-- Banner de Aviso: Precisa Configurar Pagar.me -->
+    @if($statusInfo['status'] === 'needs_migration')
+        <div class="mb-6" style="background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%); border: 2px solid #fb923c; border-radius: 0.75rem; padding: 2rem;">
+            <div style="display: flex; align-items: start; gap: 1rem;">
+                <span style="font-size: 2.5rem; line-height: 1;">⚠️</span>
+                <div style="flex: 1;">
+                    <h3 style="font-size: 1.25rem; font-weight: 700; color: #9a3412 !important; margin-bottom: 0.5rem;">
+                        Gateway Configurado para Pagar.me
+                    </h3>
+                    <p style="font-size: 0.95rem; line-height: 1.6; color: #78716c !important; margin-bottom: 1rem;">
+                        O sistema está configurado para usar <strong>Pagar.me</strong> como gateway de pagamento, mas você ainda não criou um recebedor.
+                        Preencha os dados abaixo para criar sua conta de recebimentos.
+                    </p>
+                    <div style="background: white; border-left: 4px solid #fb923c; padding: 1rem; border-radius: 0.5rem;">
+                        <p style="font-size: 0.875rem; font-weight: 600; color: #9a3412 !important; margin-bottom: 0.5rem;">
+                            💡 Você tem uma conta Asaas configurada (legado)
+                        </p>
+                        <p style="font-size: 0.875rem; color: #78716c !important; margin: 0;">
+                            Mas todos os novos pedidos vão usar o Pagar.me. Configure abaixo para começar a receber pagamentos.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <!-- Banner Como Funciona (apenas se não configurado) -->
-    @if(!$statusInfo['configured'])
+    @if($statusInfo['status'] === 'not_configured')
         <div class="mb-6 banner-info" style="margin-bottom: 1.5rem; border-radius: 0.75rem; box-shadow: 0 2px 8px rgba(249, 115, 22, 0.1); padding: 2rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
                 <span style="font-size: 2rem;">💡</span>
@@ -139,7 +167,7 @@
     </div>
 
     <!-- Mensagem de Sucesso -->
-    @if($statusInfo['configured'] && $statusInfo['status'] === 'approved')
+    @if($statusInfo['configured'] && in_array($statusInfo['status'], ['approved', 'legacy']))
         <div style="margin-top: 1.5rem; background: linear-gradient(135deg, #dcfce7, #bbf7d0); border: 2px solid #86efac; border-radius: 0.5rem; padding: 1.5rem;">
             <div style="display: flex; align-items: start; gap: 1rem;">
                 <span style="font-size: 2.5rem; line-height: 1;">🎉</span>
@@ -148,7 +176,11 @@
                         Parabéns! Você está pronto para vender!
                     </h4>
                     <p style="font-size: 0.875rem; color: #15803d !important; margin-bottom: 0.75rem;">
-                        Sua conta foi aprovada e está 100% funcional. Todos os pedidos feitos pelo app/site já vão gerar cobranças automaticamente!
+                        @if($statusInfo['status'] === 'approved')
+                            Sua conta Pagar.me foi aprovada e está 100% funcional. Todos os pedidos já vão gerar cobranças automaticamente!
+                        @else
+                            Sua conta está ativa e você pode receber pagamentos. Todos os pedidos já vão gerar cobranças automaticamente!
+                        @endif
                     </p>
                     <div style="display: flex; gap: 1rem; font-size: 0.875rem;">
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
