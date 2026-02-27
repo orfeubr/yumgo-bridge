@@ -216,6 +216,16 @@ function trackingApp() {
         pollInterval: null,
 
         async init(orderId) {
+            // Validar orderId
+            if (!orderId || orderId === 'undefined') {
+                this.error = 'ID do pedido inválido';
+                this.loading = false;
+                return;
+            }
+
+            // Pequeno delay para garantir que o tenancy está inicializado
+            await new Promise(resolve => setTimeout(resolve, 100));
+
             await this.loadOrder(orderId);
 
             // Atualizar a cada 10 segundos
@@ -226,7 +236,7 @@ function trackingApp() {
             }
         },
 
-        async loadOrder(orderId, showLoading = true) {
+        async loadOrder(orderId, showLoading = true, retryCount = 0) {
             if (showLoading) {
                 this.loading = true;
             }
@@ -235,6 +245,12 @@ function trackingApp() {
                 const response = await fetch(`/api/v1/orders/${orderId}/track`);
 
                 if (!response.ok) {
+                    // Retry automático até 2 vezes se for 404 e primeira carga
+                    if (response.status === 404 && showLoading && retryCount < 2) {
+                        console.log(`Retry ${retryCount + 1}/2 após 500ms...`);
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        return this.loadOrder(orderId, showLoading, retryCount + 1);
+                    }
                     throw new Error('Pedido não encontrado');
                 }
 
