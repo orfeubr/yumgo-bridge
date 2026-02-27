@@ -231,9 +231,9 @@ class OrderController extends Controller
      */
     public function track($orderNumber)
     {
-        // Busca por order_number (não por ID)
+        // Busca por order_number com items.product
         $order = Order::where('order_number', $orderNumber)
-            ->with(['items.product', 'delivery'])
+            ->with('items.product')
             ->firstOrFail();
 
         return response()->json($this->formatOrder($order, true));
@@ -269,7 +269,7 @@ class OrderController extends Controller
 
         if ($includeItems && $order->relationLoaded('items')) {
             $data['items'] = $order->items->map(fn($item) => [
-                'product_name' => $item->product->name,
+                'product_name' => $item->product_name ?? ($item->product->name ?? 'Produto'),
                 'quantity' => $item->quantity,
                 'unit_price' => $item->unit_price,
                 'subtotal' => $item->subtotal,

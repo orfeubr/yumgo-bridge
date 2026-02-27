@@ -253,8 +253,16 @@ function trackingApp() {
                 }
 
                 const data = await response.json();
+
+                // Garantir que items existe (mesmo vazio)
+                if (!data.items) {
+                    data.items = [];
+                }
+
                 this.order = data;
+                this.error = null; // Limpa erro anterior
             } catch (error) {
+                console.error('Erro ao carregar pedido:', error);
                 this.error = error.message;
                 if (this.pollInterval) {
                     clearInterval(this.pollInterval);
