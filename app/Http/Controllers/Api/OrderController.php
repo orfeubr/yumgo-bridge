@@ -277,6 +277,12 @@ class OrderController extends Controller
             'payment_method' => $order->payment_method,
             'delivery_address' => $order->delivery_address,
             'created_at' => $order->created_at->toIso8601String(), // ⭐ ISO para JS
+            // 🔒 Informações de pagamento
+            'can_pay' => $order->canReceivePayment(),
+            'is_expired' => $order->isExpired(),
+            'is_paid' => $order->isPaid(),
+            'restaurant_open' => $order->isRestaurantOpen(),
+            'payment_blocked_reason' => $order->getPaymentBlockedReason(),
         ];
 
         if ($includeItems && $order->relationLoaded('items')) {
