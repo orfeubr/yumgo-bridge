@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -71,48 +72,49 @@ class Customer extends Authenticatable
      * Pedidos do cliente
      * 🔒 PROTEÇÃO: Requer tenancy inicializado (previne vazamento cross-tenant)
      */
-    public function orders(): HasMany
+    public function orders(): Builder
     {
         if (!tenancy()->initialized) {
             throw new \Exception('Tenancy must be initialized to access orders. This prevents cross-tenant data leakage.');
         }
-        return $this->hasMany(Order::class);
+        // Usar query builder do Order (que usa conexão tenant) em vez de herdar conexão do Customer
+        return Order::where('customer_id', $this->id);
     }
 
     /**
      * Transações de cashback
      * 🔒 PROTEÇÃO: Requer tenancy inicializado (previne vazamento cross-tenant)
      */
-    public function cashbackTransactions(): HasMany
+    public function cashbackTransactions(): Builder
     {
         if (!tenancy()->initialized) {
             throw new \Exception('Tenancy must be initialized to access cashback transactions. This prevents cross-tenant data leakage.');
         }
-        return $this->hasMany(CashbackTransaction::class);
+        return CashbackTransaction::where('customer_id', $this->id);
     }
 
     /**
      * Badges de fidelidade
      * 🔒 PROTEÇÃO: Requer tenancy inicializado (previne vazamento cross-tenant)
      */
-    public function loyaltyBadges(): HasMany
+    public function loyaltyBadges(): Builder
     {
         if (!tenancy()->initialized) {
             throw new \Exception('Tenancy must be initialized to access loyalty badges. This prevents cross-tenant data leakage.');
         }
-        return $this->hasMany(LoyaltyBadge::class);
+        return LoyaltyBadge::where('customer_id', $this->id);
     }
 
     /**
      * Avaliações do cliente
      * 🔒 PROTEÇÃO: Requer tenancy inicializado (previne vazamento cross-tenant)
      */
-    public function reviews(): HasMany
+    public function reviews(): Builder
     {
         if (!tenancy()->initialized) {
             throw new \Exception('Tenancy must be initialized to access reviews. This prevents cross-tenant data leakage.');
         }
-        return $this->hasMany(Review::class);
+        return Review::where('customer_id', $this->id);
     }
 
     /**
