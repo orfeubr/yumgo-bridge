@@ -32,7 +32,7 @@
     </div>
 
     <!-- Categorias (fixo) -->
-    <div class="sticky top-[88px] md:top-[100px] bg-white border-b border-gray-100 z-30 shadow-sm">
+    <div class="sticky top-[148px] md:top-[100px] bg-white border-b border-gray-100 z-30 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-3">
             <div class="flex gap-2 overflow-x-auto scrollbar-hide">
                 <button @click="selectedCategory = null"
