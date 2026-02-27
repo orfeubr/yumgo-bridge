@@ -20,13 +20,13 @@
 
     <div class="max-w-2xl mx-auto px-4 py-6">
         <!-- Loading -->
-        <div x-show="loading" class="bg-white rounded-lg border border-gray-200 p-12 text-center">
+        <div x-show="loading && !error" class="bg-white rounded-lg border border-gray-200 p-12 text-center">
             <div class="animate-spin w-12 h-12 border-3 border-gray-300 border-t-gray-900 rounded-full mx-auto mb-4"></div>
             <p class="text-sm text-gray-500">Carregando...</p>
         </div>
 
         <!-- Erro -->
-        <div x-show="error" class="bg-white rounded-lg border border-gray-200 p-8 text-center">
+        <div x-show="error && !loading" class="bg-white rounded-lg border border-gray-200 p-8 text-center">
             <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
@@ -239,6 +239,7 @@ function trackingApp() {
         async loadOrder(orderId, showLoading = true, retryCount = 0) {
             if (showLoading) {
                 this.loading = true;
+                this.error = null; // Limpa erro anterior ao começar
             }
 
             try {
