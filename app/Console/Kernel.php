@@ -14,6 +14,13 @@ class Kernel extends ConsoleKernel
             ->everyMinute()
             ->withoutOverlapping()
             ->onOneServer();
+
+        // Cancelar pedidos não pagos expirados (dias anteriores ou após horário de fechamento)
+        // Roda a cada hora para processar todos os tenants
+        $schedule->command('orders:cancel-expired')
+            ->hourly()
+            ->withoutOverlapping()
+            ->onOneServer();
     }
 
     protected function commands(): void
