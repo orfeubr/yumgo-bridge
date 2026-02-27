@@ -65,13 +65,23 @@
             <template x-for="product in filteredProducts" :key="product.id">
                 <div @click="openProduct(product)"
                      class="bg-white border border-gray-200 rounded-xl overflow-hidden card-hover transition-smooth cursor-pointer hover:shadow-lg group">
-                    <!-- Imagem -->
-                    <div class="relative h-48 md:h-52 lg:h-56 bg-gray-100 overflow-hidden">
-                        <img :src="product.image" :alt="product.name"
-                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    <!-- Imagem com Lazy Loading -->
+                    <div class="relative h-48 md:h-52 lg:h-56 bg-gray-200 overflow-hidden">
+                        <!-- Skeleton Loader -->
+                        <div class="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-pulse"></div>
+
+                        <!-- Imagem -->
+                        <img :src="product.image"
+                             :alt="product.name"
+                             loading="lazy"
+                             decoding="async"
+                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 relative z-10"
+                             @load="$el.previousElementSibling.style.display='none'"
                              onerror="this.src='https://via.placeholder.com/600x400?text=Sem+Foto'">
+
+                        <!-- Badge Destaque -->
                         <div x-show="product.is_featured"
-                             class="absolute top-3 left-3 bg-primary-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md">
+                             class="absolute top-3 left-3 bg-primary-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md z-20">
                             ⭐ Destaque
                         </div>
                     </div>
