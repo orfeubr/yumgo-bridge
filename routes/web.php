@@ -15,7 +15,7 @@ Route::get('/test-central', function () {
     ]);
 });
 
-// Página inicial - Lista de restaurantes OU cardápio do tenant
+// Página inicial - Landing page OU cardápio do tenant
 Route::get('/', function () {
     $centralDomains = config('tenancy.central_domains');
     $currentHost = request()->getHost();
@@ -26,24 +26,9 @@ Route::get('/', function () {
         'is_central' => in_array($currentHost, $centralDomains),
     ]);
 
-    // Se for domínio central, mostra lista de restaurantes
+    // Se for domínio central, mostra landing page
     if (in_array($currentHost, $centralDomains)) {
-        $tenants = \App\Models\Tenant::with('domains')
-            ->where('status', 'active')
-            ->get()
-            ->map(function ($tenant) {
-                return [
-                    'name' => $tenant->name,
-                    'slug' => $tenant->id,
-                    'url' => 'https://' . $tenant->domains->first()?->domain,
-                    'logo' => $tenant->logo,
-                    'description' => $tenant->description,
-                    'address' => $tenant->address,
-                ];
-            });
-
-        \Log::info('Mostrando lista de restaurantes', ['count' => $tenants->count()]);
-        return view('central.restaurants', compact('tenants'));
+        return view('welcome');
     }
 
     // Se for domínio de tenant, inicializa tenancy e mostra cardápio
@@ -60,6 +45,25 @@ Route::get('/', function () {
     // Chama o controller do restaurante
     return app(\App\Http\Controllers\RestaurantHomeController::class)->index();
 });
+
+// Rota para lista de restaurantes
+Route::get('/restaurantes', function () {
+    $tenants = \App\Models\Tenant::with('domains')
+        ->where('status', 'active')
+        ->get()
+        ->map(function ($tenant) {
+            return [
+                'name' => $tenant->name,
+                'slug' => $tenant->id,
+                'url' => 'https://' . $tenant->domains->first()?->domain,
+                'logo' => $tenant->logo,
+                'description' => $tenant->description,
+                'address' => $tenant->address,
+            ];
+        });
+
+    return view('central.restaurants', compact('tenants'));
+})->name('restaurants.list');
 
 Route::get('/test-deliverypro', function () {
     return response()->json([
