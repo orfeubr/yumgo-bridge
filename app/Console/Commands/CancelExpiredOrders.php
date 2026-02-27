@@ -53,7 +53,7 @@ class CancelExpiredOrders extends Command
 
             // Buscar pedidos não pagos que devem ser cancelados
             $orders = Order::where('payment_status', 'pending')
-                ->where('status', '!=', 'cancelled')
+                ->where('status', '!=', 'canceled')
                 ->where(function($query) {
                     // Pedidos de dias anteriores
                     $query->whereDate('created_at', '<', today())
@@ -101,7 +101,7 @@ class CancelExpiredOrders extends Command
 
                     // Cancelar pedido
                     $order->update([
-                        'status' => 'cancelled',
+                        'status' => 'canceled',
                         'internal_notes' => ($order->internal_notes ?? '') . "\n[" . now()->format('Y-m-d H:i:s') . "] Cancelado automaticamente por expiração (não pago)",
                     ]);
 
