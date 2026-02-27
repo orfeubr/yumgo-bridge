@@ -21,6 +21,7 @@ class OrderController extends Controller
     {
         $orders = $request->user()
             ->orders()
+            ->where('status', '!=', 'canceled') // Não mostrar cancelados
             ->with(['items.product'])
             ->orderBy('created_at', 'desc')
             ->paginate(10);

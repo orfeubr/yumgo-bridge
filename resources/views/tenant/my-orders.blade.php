@@ -195,7 +195,7 @@ function ordersApp() {
                 'ready': 'Pronto',
                 'delivering': 'Saiu para entrega',
                 'delivered': 'Entregue',
-                'cancelled': 'Cancelado'
+                'canceled': 'Cancelado'
             };
             return labels[status] || status;
         },
@@ -208,7 +208,7 @@ function ordersApp() {
                 'ready': 'bg-green-100 text-green-700',
                 'delivering': 'bg-indigo-100 text-indigo-700',
                 'delivered': 'bg-gray-100 text-gray-700',
-                'cancelled': 'bg-red-100 text-red-700'
+                'canceled': 'bg-red-100 text-red-700'
             };
             return classes[status] || 'bg-gray-100 text-gray-700';
         },

@@ -262,15 +262,15 @@ class Order extends Model
     public function getPaymentBlockedReason(): ?string
     {
         if ($this->isPaid()) {
-            return 'Este pedido já foi pago.';
+            return 'Pedido já pago';
         }
 
         if ($this->isExpired()) {
-            return 'Este pedido expirou. Pedidos não pagos expiram após 24 horas.';
+            return 'Pedido expirado';
         }
 
         if (!$this->isRestaurantOpen()) {
-            return 'O restaurante está fechado no momento. Pagamentos só podem ser realizados durante o horário de funcionamento.';
+            return 'Restaurante fechado';
         }
 
         return null;
