@@ -85,31 +85,17 @@
                         </div>
                     </div>
 
-                    <div :class="isStatusActive('preparing') || isStatusActive('ready') || isStatusActive('delivering') || isStatusActive('delivered') ? 'bg-gray-900' : 'bg-gray-200'" class="w-0.5 h-6 ml-3.5"></div>
+                    <div :class="isStatusActive('preparing') || isStatusActive('delivering') || isStatusActive('delivered') ? 'bg-gray-900' : 'bg-gray-200'" class="w-0.5 h-6 ml-3.5"></div>
 
                     <!-- Preparando -->
                     <div class="flex items-start gap-3">
-                        <div :class="isStatusActive('preparing') || isStatusActive('ready') || isStatusActive('delivering') || isStatusActive('delivered') ? 'bg-gray-900 text-white' : 'bg-gray-200 text-gray-500'" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                            <span x-show="isStatusActive('preparing') || isStatusActive('ready') || isStatusActive('delivering') || isStatusActive('delivered')">✓</span>
-                            <span x-show="!isStatusActive('preparing') && !isStatusActive('ready') && !isStatusActive('delivering') && !isStatusActive('delivered')">3</span>
+                        <div :class="isStatusActive('preparing') || isStatusActive('delivering') || isStatusActive('delivered') ? 'bg-gray-900 text-white' : 'bg-gray-200 text-gray-500'" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                            <span x-show="isStatusActive('preparing') || isStatusActive('delivering') || isStatusActive('delivered')">✓</span>
+                            <span x-show="!isStatusActive('preparing') && !isStatusActive('delivering') && !isStatusActive('delivered')">3</span>
                         </div>
                         <div class="flex-1 pt-0.5">
                             <p class="text-sm font-medium text-gray-900">Preparando</p>
                             <p class="text-xs text-gray-500">Em produção</p>
-                        </div>
-                    </div>
-
-                    <div :class="isStatusActive('ready') || isStatusActive('delivering') || isStatusActive('delivered') ? 'bg-gray-900' : 'bg-gray-200'" class="w-0.5 h-6 ml-3.5"></div>
-
-                    <!-- Pronto -->
-                    <div class="flex items-start gap-3">
-                        <div :class="isStatusActive('ready') || isStatusActive('delivering') || isStatusActive('delivered') ? 'bg-gray-900 text-white' : 'bg-gray-200 text-gray-500'" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                            <span x-show="isStatusActive('ready') || isStatusActive('delivering') || isStatusActive('delivered')">✓</span>
-                            <span x-show="!isStatusActive('ready') && !isStatusActive('delivering') && !isStatusActive('delivered')">4</span>
-                        </div>
-                        <div class="flex-1 pt-0.5">
-                            <p class="text-sm font-medium text-gray-900">Pronto</p>
-                            <p class="text-xs text-gray-500">Saindo para entrega</p>
                         </div>
                     </div>
 
@@ -119,7 +105,7 @@
                     <div class="flex items-start gap-3">
                         <div :class="isStatusActive('delivering') || isStatusActive('delivered') ? 'bg-gray-900 text-white' : 'bg-gray-200 text-gray-500'" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0">
                             <span x-show="isStatusActive('delivering') || isStatusActive('delivered')">✓</span>
-                            <span x-show="!isStatusActive('delivering') && !isStatusActive('delivered')">5</span>
+                            <span x-show="!isStatusActive('delivering') && !isStatusActive('delivered')">4</span>
                         </div>
                         <div class="flex-1 pt-0.5">
                             <p class="text-sm font-medium text-gray-900">Saiu para Entrega</p>
@@ -133,7 +119,7 @@
                     <div class="flex items-start gap-3">
                         <div :class="isStatusActive('delivered') ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0">
                             <span x-show="isStatusActive('delivered')">✓</span>
-                            <span x-show="!isStatusActive('delivered')">6</span>
+                            <span x-show="!isStatusActive('delivered')">5</span>
                         </div>
                         <div class="flex-1 pt-0.5">
                             <p class="text-sm font-medium text-gray-900">Entregue</p>
@@ -304,7 +290,7 @@ function trackingApp() {
         },
 
         isStatusActive(checkStatus) {
-            const statusOrder = ['pending', 'confirmed', 'preparing', 'ready', 'delivering', 'delivered'];
+            const statusOrder = ['pending', 'confirmed', 'preparing', 'delivering', 'delivered'];
             const currentIndex = statusOrder.indexOf(this.order.status);
             const checkIndex = statusOrder.indexOf(checkStatus);
             return checkIndex <= currentIndex;
