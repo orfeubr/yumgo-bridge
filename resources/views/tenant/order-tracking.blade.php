@@ -122,8 +122,8 @@
                             <span x-show="!isStatusActive('delivering') && !isStatusActive('delivered')">5</span>
                         </div>
                         <div class="flex-1 pt-0.5">
-                            <p class="text-sm font-medium text-gray-900">A caminho</p>
-                            <p class="text-xs text-gray-500">Entregador saiu</p>
+                            <p class="text-sm font-medium text-gray-900">Saiu para Entrega</p>
+                            <p class="text-xs text-gray-500">A caminho</p>
                         </div>
                     </div>
 
@@ -283,7 +283,7 @@ function trackingApp() {
                 'confirmed': 'Confirmado',
                 'preparing': 'Preparando',
                 'ready': 'Pronto',
-                'delivering': 'A caminho',
+                'delivering': 'Saiu para Entrega',
                 'delivered': 'Entregue',
                 'canceled': 'Cancelado'
             };
