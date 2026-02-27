@@ -14,11 +14,22 @@ class CashbackController extends Controller
     public function balance(Request $request)
     {
         $customer = $request->user();
+        $settings = CashbackSettings::first();
+
+        // Buscar percentual de cashback do tier do cliente
+        $percentage = 0;
+        if ($settings && $settings->is_active) {
+            $tierField = $customer->loyalty_tier . '_percentage';
+            $percentage = $settings->$tierField ?? 0;
+        }
 
         return response()->json([
             'balance' => $customer->cashback_balance,
             'loyalty_tier' => $customer->loyalty_tier,
             'tier_label' => $this->getTierLabel($customer->loyalty_tier),
+            'cashback_percentage' => $percentage,
+            'is_active' => $settings?->is_active ?? false,
+            'min_cashback_to_use' => $settings?->min_cashback_to_use ?? 5.00,
             'next_tier' => $this->getNextTier($customer->loyalty_tier),
             'total_earned' => $customer->cashbackTransactions()
                 ->where('type', 'credit')
@@ -26,6 +37,64 @@ class CashbackController extends Controller
             'total_used' => $customer->cashbackTransactions()
                 ->where('type', 'debit')
                 ->sum('amount'),
+        ]);
+    }
+
+    /**
+     * Calcular cashback que será ganho em um pedido
+     */
+    public function calculate(Request $request)
+    {
+        $request->validate([
+            'total' => 'required|numeric|min:0',
+        ]);
+
+        $customer = $request->user();
+        $settings = CashbackSettings::first();
+
+        if (!$settings || !$settings->is_active) {
+            return response()->json([
+                'will_earn' => 0,
+                'percentage' => 0,
+                'message' => 'Cashback não está ativo',
+            ]);
+        }
+
+        $orderTotal = $request->input('total');
+
+        // Verificar valor mínimo do pedido
+        if ($orderTotal < $settings->min_order_value_to_earn) {
+            return response()->json([
+                'will_earn' => 0,
+                'percentage' => 0,
+                'message' => "Valor mínimo para ganhar cashback: R$ " . number_format($settings->min_order_value_to_earn, 2, ',', '.'),
+            ]);
+        }
+
+        // Buscar percentual do tier
+        $tierField = $customer->loyalty_tier . '_percentage';
+        $percentage = $settings->$tierField ?? 0;
+
+        // Calcular cashback
+        $willEarn = ($orderTotal * $percentage) / 100;
+
+        // Verificar se é aniversário do cliente
+        $isB birthday = false;
+        if ($settings->birthday_bonus_enabled && $customer->birth_date) {
+            $today = now()->format('m-d');
+            $birthDay = $customer->birth_date->format('m-d');
+            $isBirthday = ($today === $birthDay);
+
+            if ($isBirthday) {
+                $willEarn *= $settings->birthday_multiplier;
+            }
+        }
+
+        return response()->json([
+            'will_earn' => round($willEarn, 2),
+            'percentage' => $percentage,
+            'is_birthday_bonus' => $isBirthday ?? false,
+            'message' => $isBirthday ? '🎂 Bônus de aniversário ativado!' : null,
         ]);
     }
 

@@ -249,6 +249,7 @@ Route::prefix('api/v1')->middleware([
 
     // Cashback
     Route::get('/cashback/balance', [CashbackController::class, 'balance']);
+    Route::post('/cashback/calculate', [CashbackController::class, 'calculate']);
     Route::get('/cashback/transactions', [CashbackController::class, 'transactions']);
     Route::get('/cashback/settings', [CashbackController::class, 'settings']);
 

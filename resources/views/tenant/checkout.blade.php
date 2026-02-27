@@ -297,29 +297,50 @@
                 </div>
 
                 <!-- Cashback -->
-                <div x-show="cashbackBalance > 0" class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl shadow-sm p-5 border border-green-200">
-                    <h2 class="text-lg font-bold mb-3 text-gray-900 flex items-center gap-2">
-                        <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        Usar Saldo de Cashback
-                        <span class="ml-auto text-sm bg-green-600 text-white px-3 py-1 rounded-full font-semibold">
-                            Disponível: R$ <span x-text="cashbackBalance.toFixed(2).replace('.', ',')"></span>
-                        </span>
-                    </h2>
-                    <div class="space-y-3">
-                        <div class="flex items-center gap-3">
+                <div x-show="cashbackIsActive" class="bg-white rounded-xl shadow-sm p-5 border border-gray-200">
+                    <h2 class="text-base font-semibold mb-4 text-gray-900">Cashback</h2>
+
+                    <!-- Vai Ganhar -->
+                    <div x-show="willEarnCashback > 0" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">Você vai ganhar</p>
+                                    <p class="text-xs text-gray-600">
+                                        <span x-text="cashbackPercentage"></span>% de cashback neste pedido
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-lg font-bold text-green-600">
+                                    +R$ <span x-text="willEarnCashback.toFixed(2).replace('.', ',')"></span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Saldo Disponível -->
+                    <div x-show="cashbackBalance > 0" class="space-y-3">
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <span class="text-sm text-gray-600">Saldo disponível</span>
+                            <span class="text-sm font-semibold text-gray-900">R$ <span x-text="cashbackBalance.toFixed(2).replace('.', ',')"></span></span>
+                        </div>
+
+                        <div class="flex items-center gap-2">
                             <input
                                 type="checkbox"
                                 x-model="useCashback"
                                 id="use-cashback"
-                                class="w-5 h-5 text-primary border-gray-300 rounded focus:ring-primary">
+                                class="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-900">
                             <label for="use-cashback" class="text-sm font-medium text-gray-700 cursor-pointer">
-                                Quero usar meu saldo de cashback neste pedido
+                                Usar cashback neste pedido
                             </label>
                         </div>
-                        <div x-show="useCashback" x-transition class="mt-3">
-                            <label class="block text-sm font-semibold mb-2 text-gray-900">Quanto deseja usar?</label>
+
+                        <div x-show="useCashback" x-transition class="space-y-2">
                             <div class="flex gap-2">
                                 <input
                                     type="number"
@@ -327,19 +348,24 @@
                                     :max="Math.min(cashbackBalance, subtotal)"
                                     min="0"
                                     step="0.01"
-                                    class="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                                    placeholder="0.00">
+                                    class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-400"
+                                    placeholder="0,00">
                                 <button
                                     @click="cashbackAmount = Math.min(cashbackBalance, subtotal)"
                                     type="button"
-                                    class="px-4 py-3 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition whitespace-nowrap">
+                                    class="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition">
                                     Usar Tudo
                                 </button>
                             </div>
-                            <p class="text-xs text-gray-600 mt-2">
-                                💡 Você pode usar até <strong>R$ <span x-text="Math.min(cashbackBalance, subtotal).toFixed(2).replace('.', ',')"></span></strong> neste pedido
+                            <p class="text-xs text-gray-500">
+                                Máximo: R$ <span x-text="Math.min(cashbackBalance, subtotal).toFixed(2).replace('.', ',')"></span>
                             </p>
                         </div>
+                    </div>
+
+                    <!-- Sem Saldo -->
+                    <div x-show="cashbackBalance === 0 && willEarnCashback === 0" class="text-center py-4">
+                        <p class="text-sm text-gray-500">Você não possui saldo de cashback</p>
                     </div>
                 </div>
 
@@ -678,6 +704,9 @@
             availableNeighborhoods: [],
             loadingNeighborhoods: false,
             cashbackBalance: 0,
+            cashbackIsActive: false,
+            cashbackPercentage: 0,
+            willEarnCashback: 0,
             useCashback: false,
             cashbackAmount: 0,
             addressLabel: '',
@@ -814,11 +843,54 @@
                     if (response.ok) {
                         const data = await response.json();
                         this.cashbackBalance = parseFloat(data.balance) || 0;
-                        console.log('💰 Saldo de cashback:', this.cashbackBalance);
+                        this.cashbackIsActive = data.is_active || false;
+                        this.cashbackPercentage = parseFloat(data.cashback_percentage) || 0;
+                        console.log('💰 Cashback:', {
+                            balance: this.cashbackBalance,
+                            active: this.cashbackIsActive,
+                            percentage: this.cashbackPercentage
+                        });
+
+                        // Calcular quanto vai ganhar
+                        await this.calculateWillEarn();
                     }
                 } catch (error) {
                     console.error('Erro ao carregar saldo de cashback:', error);
                     this.cashbackBalance = 0;
+                    this.cashbackIsActive = false;
+                }
+            },
+
+            async calculateWillEarn() {
+                if (!this.cashbackIsActive || this.total === 0) {
+                    this.willEarnCashback = 0;
+                    return;
+                }
+
+                const token = localStorage.getItem('auth_token');
+                if (!token) return;
+
+                try {
+                    const response = await fetch('/api/v1/cashback/calculate', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            total: this.total
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.willEarnCashback = parseFloat(data.will_earn) || 0;
+                        console.log('🎁 Vai ganhar:', this.willEarnCashback);
+                    }
+                } catch (error) {
+                    console.error('Erro ao calcular cashback:', error);
+                    this.willEarnCashback = 0;
                 }
             },
 
