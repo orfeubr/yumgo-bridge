@@ -77,6 +77,37 @@ class OrderController extends Controller
 
         $customer = $request->user();
 
+        // 🔒 VALIDAR HORÁRIO DE FUNCIONAMENTO
+        $settings = \App\Models\Settings::first();
+        if ($settings) {
+            $dayOfWeek = strtolower(now()->locale('en')->dayName);
+            $isOpenKey = "open_{$dayOfWeek}";
+
+            if (!$settings->$isOpenKey) {
+                return response()->json([
+                    'message' => 'O restaurante está fechado hoje. Pedidos não podem ser criados fora do horário de funcionamento.',
+                    'restaurant_closed' => true,
+                ], 422);
+            }
+
+            $openTimeKey = "{$dayOfWeek}_open";
+            $closeTimeKey = "{$dayOfWeek}_close";
+            $openTime = $settings->$openTimeKey;
+            $closeTime = $settings->$closeTimeKey;
+
+            if ($openTime && $closeTime) {
+                $now = now()->format('H:i:s');
+                if ($now < $openTime || $now > $closeTime) {
+                    return response()->json([
+                        'message' => "O restaurante está fechado. Horário de funcionamento: {$openTime} às {$closeTime}.",
+                        'restaurant_closed' => true,
+                        'open_time' => $openTime,
+                        'close_time' => $closeTime,
+                    ], 422);
+                }
+            }
+        }
+
         // PROTEÇÃO: Sanitizar inputs de texto (XSS)
         $deliveryCity = htmlspecialchars(trim($request->delivery_city), ENT_QUOTES, 'UTF-8');
         $deliveryNeighborhood = htmlspecialchars(trim($request->delivery_neighborhood), ENT_QUOTES, 'UTF-8');
