@@ -138,51 +138,8 @@ Route::middleware([
 |--------------------------------------------------------------------------
 */
 
-// 🧪 TESTE: Rota addresses sem auth (DEBUG)
-Route::get('/api/v1/test-addresses', function() {
-    return response()->json(['data' => [], 'message' => 'Rota funcionando']);
-})->middleware([InitializeTenancyByDomain::class]);
-
-// 🧪 WORKAROUND TEMPORÁRIO: Rotas críticas SEM auth para debug
-Route::prefix('api/v1')->middleware([
-    InitializeTenancyByDomain::class,
-])->group(function () {
-    // Addresses (temporário sem auth)
-    Route::get('/addresses', function() {
-        return response()->json(['data' => []]);
-    });
-
-    // Orders (temporário sem auth - USAR CUSTOMER ID 2 fixo)
-    Route::post('/orders', function(\Illuminate\Http\Request $request) {
-        try {
-            $customer = \App\Models\Customer::find(2);
-            if (!$customer) {
-                return response()->json(['error' => 'Customer não encontrado'], 404);
-            }
-
-            $orderController = app(\App\Http\Controllers\Api\OrderController::class);
-
-            // Simular request autenticado
-            $request->setUserResolver(function() use ($customer) {
-                return $customer;
-            });
-
-            return $orderController->store($request);
-
-        } catch (\Exception $e) {
-            \Log::error('Erro ao criar pedido (workaround)', [
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-            ]);
-
-            return response()->json([
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-            ], 500);
-        }
-    });
-});
+// ⚠️ ROTAS DE DEBUG REMOVIDAS POR SEGURANÇA
+// Todas as rotas da API agora requerem autenticação obrigatória
 
 // API públicas (sem autenticação)
 // NOTA: Não usar 'api' middleware aqui - tenant.php já usa 'web' middleware
@@ -191,28 +148,28 @@ Route::prefix('api/v1')->middleware([
     InitializeTenancyByDomain::class,
     PreventAccessFromCentralDomains::class,
 ])->group(function () {
-    // Autenticação
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
-    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+    // Autenticação (🔒 RATE LIMITED - Proteção contra brute force)
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1'); // 3 tentativas/min
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1'); // 5 tentativas/min
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:3,1'); // 3 tentativas/min
 
-    // Autenticação Social (API)
-    Route::post('/auth/whatsapp/request-code', [SocialAuthController::class, 'requestWhatsAppCode']);
-    Route::post('/auth/whatsapp/verify-code', [SocialAuthController::class, 'verifyWhatsAppCode']);
+    // Autenticação Social (API) (🔒 RATE LIMITED)
+    Route::post('/auth/whatsapp/request-code', [SocialAuthController::class, 'requestWhatsAppCode'])->middleware('throttle:3,1'); // 3 códigos/min
+    Route::post('/auth/whatsapp/verify-code', [SocialAuthController::class, 'verifyWhatsAppCode'])->middleware('throttle:5,1'); // 5 tentativas/min
 
-    // Categorias (público)
-    Route::get('/categories', [CategoryController::class, 'index']);
+    // Categorias (público) (🔒 RATE LIMITED - Proteção contra scraping)
+    Route::get('/categories', [CategoryController::class, 'index'])->middleware('throttle:60,1'); // 60 req/min
 
-    // Produtos (público)
-    Route::get('/products', [ProductController::class, 'index']);
-    Route::get('/products/{id}', [ProductController::class, 'show']);
-    Route::get('/products/category/{categoryId}', [ProductController::class, 'byCategory']);
-    Route::get('/products/featured', [ProductController::class, 'featured']);
-    Route::get('/products/pizza/flavors', [ProductController::class, 'pizzaFlavors']);
+    // Produtos (público) (🔒 RATE LIMITED - Proteção contra scraping)
+    Route::get('/products', [ProductController::class, 'index'])->middleware('throttle:60,1'); // 60 req/min
+    Route::get('/products/{id}', [ProductController::class, 'show'])->middleware('throttle:60,1'); // 60 req/min
+    Route::get('/products/category/{categoryId}', [ProductController::class, 'byCategory'])->middleware('throttle:60,1'); // 60 req/min
+    Route::get('/products/featured', [ProductController::class, 'featured'])->middleware('throttle:60,1'); // 60 req/min
+    Route::get('/products/pizza/flavors', [ProductController::class, 'pizzaFlavors'])->middleware('throttle:60,1'); // 60 req/min
 
-    // Configurações (público)
-    Route::get('/settings', [SettingsController::class, 'index']);
-    Route::get('/settings/payment-methods', [SettingsController::class, 'paymentMethods']);
+    // Configurações (público) (🔒 RATE LIMITED)
+    Route::get('/settings', [SettingsController::class, 'index'])->middleware('throttle:60,1'); // 60 req/min
+    Route::get('/settings/payment-methods', [SettingsController::class, 'paymentMethods'])->middleware('throttle:60,1'); // 60 req/min
 
     // Localização (público)
     Route::prefix('location')->group(function () {
@@ -231,9 +188,9 @@ Route::prefix('api/v1')->middleware([
     Route::post('/kitchen/{order}/status', [\App\Http\Controllers\KitchenController::class, 'updateStatus']);
     Route::post('/delivery/{order}/status', [\App\Http\Controllers\DeliveryController::class, 'updateStatus']);
 
-    // Webhooks (público)
-    Route::post('/webhooks/asaas', [WebhookController::class, 'asaas']);
-    Route::post('/webhooks/tributaai', [\App\Http\Controllers\TributaAiWebhookController::class, 'handle']);
+    // Webhooks (público) (🔒 RATE LIMITED - Proteção contra ataques)
+    Route::post('/webhooks/asaas', [WebhookController::class, 'asaas'])->middleware('throttle:100,1'); // 100 req/min
+    Route::post('/webhooks/tributaai', [\App\Http\Controllers\TributaAiWebhookController::class, 'handle'])->middleware('throttle:100,1'); // 100 req/min
 
     // Teste de webhook (apenas para desenvolvimento)
     Route::get('/test-webhook', function () {
@@ -259,12 +216,12 @@ Route::prefix('api/v1')->middleware([
     Route::get('/me', [AuthController::class, 'me']);
     Route::put('/me', [AuthController::class, 'updateProfile']);
 
-    // Pedidos (apenas para usuários autenticados)
-    Route::get('/orders', [OrderController::class, 'index']);
-    Route::get('/orders/{id}', [OrderController::class, 'show']);
-    Route::get('/orders/{id}/payment', [OrderController::class, 'payment']);
-    Route::post('/orders', [OrderController::class, 'store']);
-    Route::post('/orders/{id}/cancel', [OrderController::class, 'cancel']);
+    // Pedidos (apenas para usuários autenticados) (🔒 RATE LIMITED)
+    Route::get('/orders', [OrderController::class, 'index'])->middleware('throttle:60,1'); // 60 req/min
+    Route::get('/orders/{id}', [OrderController::class, 'show'])->middleware('throttle:60,1'); // 60 req/min
+    Route::get('/orders/{id}/payment', [OrderController::class, 'payment'])->middleware('throttle:60,1'); // 60 req/min
+    Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:10,60'); // 10 pedidos/hora ⭐ CRÍTICO
+    Route::post('/orders/{id}/cancel', [OrderController::class, 'cancel'])->middleware('throttle:10,1'); // 10 cancelamentos/min
 
     // Pedidos por ORDER_NUMBER (segurança - oculta IDs sequenciais)
     Route::get('/orders/number/{orderNumber}', [OrderController::class, 'showByOrderNumber']);

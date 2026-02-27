@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Tenant;
 use App\Services\AsaasService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class CentralWebhookController extends Controller
@@ -15,13 +16,13 @@ class CentralWebhookController extends Controller
      */
     public function asaas(Request $request)
     {
-        // LOG COMPLETO PARA DEBUG
+        // LOG SEGURO (sem dados sensíveis - LGPD compliant)
         Log::info('🔔 Webhook Asaas GLOBAL recebido', [
             'timestamp' => now()->toDateTimeString(),
             'ip' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'headers' => $request->headers->all(),
-            'body' => $request->all(),
+            'event' => $request->input('event'),
+            'payment_id' => $request->input('payment.id'),
+            // ⚠️ NÃO logar: headers completos, body completo (podem conter dados sensíveis)
         ]);
 
         $data = $request->all();
@@ -33,25 +34,38 @@ class CentralWebhookController extends Controller
         ]);
 
         try {
-            // Validar token (se configurado)
-            // Asaas envia token no corpo da requisição como 'access_token' ou no header
+            // 🔐 VALIDAÇÃO OBRIGATÓRIA DE TOKEN (SEGURANÇA)
             $webhookToken = config('services.asaas.webhook_token');
-            if ($webhookToken) {
-                $receivedToken = $request->header('asaas-access-token')
-                    ?? $request->input('access_token')
-                    ?? null;
 
-                // Se token configurado mas não recebido, apenas loga warning (não bloqueia)
-                if (!$receivedToken) {
-                    Log::warning('Webhook Asaas - Token não enviado pelo Asaas (ignorando validação)');
-                } elseif ($receivedToken !== $webhookToken) {
-                    Log::warning('Webhook Asaas - Token inválido', [
-                        'expected' => substr($webhookToken, 0, 10) . '...',
-                        'received' => substr($receivedToken, 0, 10) . '...',
-                    ]);
-                    return response()->json(['message' => 'Unauthorized'], 401);
-                }
+            if (!$webhookToken) {
+                Log::error('🚨 WEBHOOK: Token não configurado no .env');
+                return response()->json(['message' => 'Webhook token not configured'], 500);
             }
+
+            $receivedToken = $request->header('asaas-access-token')
+                ?? $request->input('access_token')
+                ?? null;
+
+            // Token OBRIGATÓRIO
+            if (!$receivedToken) {
+                Log::warning('🚨 WEBHOOK REJEITADO: Token não enviado', [
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+                return response()->json(['message' => 'Unauthorized - Token required'], 401);
+            }
+
+            // Validar token
+            if ($receivedToken !== $webhookToken) {
+                Log::warning('🚨 WEBHOOK REJEITADO: Token inválido', [
+                    'ip' => $request->ip(),
+                    'expected' => substr($webhookToken, 0, 10) . '...',
+                    'received' => substr($receivedToken, 0, 10) . '...',
+                ]);
+                return response()->json(['message' => 'Unauthorized - Invalid token'], 401);
+            }
+
+            Log::info('✅ Webhook token validado com sucesso');
 
             // Identificar tenant pelo payment
             $paymentId = $data['payment']['id'] ?? null;
@@ -73,26 +87,54 @@ class CentralWebhookController extends Controller
             }
 
             // Inicializar tenancy
+            Log::info('🔄 Inicializando tenancy', ['tenant_id' => $tenant->id]);
             tenancy()->initialize($tenant);
+            Log::info('✅ Tenancy inicializado', ['current_schema' => DB::connection()->getDatabaseName()]);
 
-            // Processar webhook diretamente
-            $order = \App\Models\Order::whereHas('payments', function($query) use ($paymentId) {
-                $query->where('transaction_id', $paymentId);
-            })->first();
+            // Primeiro, buscar o payment diretamente
+            Log::info('🔍 Buscando payment por transaction_id', ['payment_id' => $paymentId]);
+            $payment = \App\Models\Payment::where('transaction_id', $paymentId)->first();
+
+            if (!$payment) {
+                Log::error('❌ Payment não encontrado no schema do tenant', [
+                    'payment_id' => $paymentId,
+                    'tenant' => $tenant->id,
+                ]);
+                return response()->json(['error' => 'Payment não encontrado'], 404);
+            }
+
+            Log::info('✅ Payment encontrado', [
+                'payment_id' => $payment->id,
+                'order_id' => $payment->order_id,
+                'status' => $payment->status,
+            ]);
+
+            // Buscar order pelo payment
+            $order = \App\Models\Order::find($payment->order_id);
 
             if (!$order) {
-                Log::error('Webhook: Order não encontrado para payment', [
+                Log::error('❌ Order não encontrado', [
+                    'order_id' => $payment->order_id,
                     'payment_id' => $paymentId,
                     'tenant' => $tenant->id,
                 ]);
                 return response()->json(['error' => 'Order não encontrado'], 404);
             }
 
-            // Atualizar payment
-            $payment = $order->payments()->where('transaction_id', $paymentId)->first();
+            Log::info('✅ Order encontrado', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'current_status' => $order->status,
+                'current_payment_status' => $order->payment_status,
+            ]);
 
-            if ($payment) {
-                switch ($event) {
+            // Atualizar payment e order conforme o evento
+            Log::info('🔄 Processando evento', [
+                'event' => $event,
+                'order_number' => $order->order_number,
+            ]);
+
+            switch ($event) {
                     case 'PAYMENT_CONFIRMED':
                     case 'PAYMENT_RECEIVED':
                         $payment->update([
@@ -125,17 +167,21 @@ class CentralWebhookController extends Controller
                             'event' => $event,
                         ]);
                         break;
-                }
 
-                return response()->json(['message' => 'Webhook processado com sucesso']);
+                    default:
+                        Log::warning('⚠️ Evento não tratado', ['event' => $event]);
+                        break;
             }
 
-            return response()->json(['message' => 'Payment não encontrado'], 404);
+            return response()->json(['message' => 'Webhook processado com sucesso']);
         } catch (\Exception $e) {
             Log::error('Erro ao processar webhook Asaas GLOBAL: ' . $e->getMessage(), [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'data' => $data ?? null,
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'event' => $data['event'] ?? null,
+                'payment_id' => $data['payment']['id'] ?? null,
+                // ⚠️ NÃO logar: trace completo, $data completo (podem conter dados sensíveis)
             ]);
 
             return response()->json(['message' => 'Erro interno'], 500);
@@ -199,9 +245,12 @@ class CentralWebhookController extends Controller
         $data = $request->all();
         $event = $data['event'] ?? null;
 
+        // LOG SEGURO (sem dados sensíveis - LGPD compliant)
         Log::info('Webhook Asaas Account recebido', [
             'event' => $event,
-            'data' => $data,
+            'account_id' => $data['account']['id'] ?? null,
+            'status' => $data['account']['status'] ?? null,
+            // ⚠️ NÃO logar: $data completo (pode conter CPF, dados pessoais)
         ]);
 
         switch ($event) {

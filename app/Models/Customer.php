@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -11,6 +12,16 @@ use Laravel\Sanctum\HasApiTokens;
 class Customer extends Authenticatable
 {
     use Notifiable, SoftDeletes, HasApiTokens;
+
+    /**
+     * Conexão com banco central (PUBLIC schema)
+     */
+    protected $connection = 'pgsql';
+
+    /**
+     * Nome da tabela no schema central
+     */
+    protected $table = 'customers';
 
     protected $fillable = [
         'name',
@@ -31,6 +42,13 @@ class Customer extends Authenticatable
         'address_state',
         'address_zipcode',
         'is_active',
+        // OAuth fields
+        'provider',
+        'provider_id',
+        'avatar',
+        'phone_verified_at',
+        'verification_code',
+        'verification_code_expires_at',
     ];
 
     protected $hidden = [
@@ -44,38 +62,56 @@ class Customer extends Authenticatable
         'total_spent' => 'decimal:2',
         'is_active' => 'boolean',
         'email_verified_at' => 'datetime',
+        'phone_verified_at' => 'datetime',
+        'verification_code_expires_at' => 'datetime',
         'password' => 'hashed',
     ];
 
     /**
      * Pedidos do cliente
+     * 🔒 PROTEÇÃO: Requer tenancy inicializado (previne vazamento cross-tenant)
      */
     public function orders(): HasMany
     {
+        if (!tenancy()->initialized) {
+            throw new \Exception('Tenancy must be initialized to access orders. This prevents cross-tenant data leakage.');
+        }
         return $this->hasMany(Order::class);
     }
 
     /**
      * Transações de cashback
+     * 🔒 PROTEÇÃO: Requer tenancy inicializado (previne vazamento cross-tenant)
      */
     public function cashbackTransactions(): HasMany
     {
+        if (!tenancy()->initialized) {
+            throw new \Exception('Tenancy must be initialized to access cashback transactions. This prevents cross-tenant data leakage.');
+        }
         return $this->hasMany(CashbackTransaction::class);
     }
 
     /**
      * Badges de fidelidade
+     * 🔒 PROTEÇÃO: Requer tenancy inicializado (previne vazamento cross-tenant)
      */
     public function loyaltyBadges(): HasMany
     {
+        if (!tenancy()->initialized) {
+            throw new \Exception('Tenancy must be initialized to access loyalty badges. This prevents cross-tenant data leakage.');
+        }
         return $this->hasMany(LoyaltyBadge::class);
     }
 
     /**
      * Avaliações do cliente
+     * 🔒 PROTEÇÃO: Requer tenancy inicializado (previne vazamento cross-tenant)
      */
     public function reviews(): HasMany
     {
+        if (!tenancy()->initialized) {
+            throw new \Exception('Tenancy must be initialized to access reviews. This prevents cross-tenant data leakage.');
+        }
         return $this->hasMany(Review::class);
     }
 
@@ -137,5 +173,78 @@ class Customer extends Authenticatable
             'platinum' => 'Platina',
             default => 'Bronze',
         };
+    }
+
+    /**
+     * Relacionamento many-to-many com tenants
+     */
+    public function tenants(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Tenant::class,
+            'customer_tenant',
+            'customer_id',
+            'tenant_id'
+        )
+        ->using(CustomerTenant::class)
+        ->withPivot([
+            'cashback_balance',
+            'loyalty_tier',
+            'total_orders',
+            'total_spent',
+            'first_order_at',
+            'last_order_at',
+            'is_active',
+        ])
+        ->withTimestamps();
+    }
+
+    /**
+     * Criar ou obter relacionamento com tenant
+     *
+     * @param string $tenantId
+     * @return CustomerTenant
+     */
+    public function getOrCreateTenantRelation(string $tenantId): CustomerTenant
+    {
+        // Buscar relacionamento existente
+        $relation = CustomerTenant::where('customer_id', $this->id)
+            ->where('tenant_id', $tenantId)
+            ->first();
+
+        // Se não existe, criar
+        if (!$relation) {
+            $relation = CustomerTenant::create([
+                'customer_id' => $this->id,
+                'tenant_id' => $tenantId,
+                'cashback_balance' => 0,
+                'loyalty_tier' => 'bronze',
+                'total_orders' => 0,
+                'total_spent' => 0,
+                'is_active' => true,
+            ]);
+        }
+
+        return $relation;
+    }
+
+    /**
+     * Obter dados do relacionamento com tenant específico
+     *
+     * @param string $tenantId
+     * @return array
+     */
+    public function getTenantData(string $tenantId): array
+    {
+        $relation = $this->getOrCreateTenantRelation($tenantId);
+
+        return [
+            'cashback_balance' => $relation->cashback_balance,
+            'loyalty_tier' => $relation->loyalty_tier,
+            'total_orders' => $relation->total_orders,
+            'total_spent' => $relation->total_spent,
+            'first_order_at' => $relation->first_order_at,
+            'last_order_at' => $relation->last_order_at,
+        ];
     }
 }
