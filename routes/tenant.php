@@ -181,8 +181,8 @@ Route::prefix('api/v1')->middleware([
         Route::post('/import-neighborhoods', [LocationController::class, 'importNeighborhoods']);
     });
 
-    // Rastreamento de pedido (público - apenas com ID)
-    Route::get('/orders/{id}/track', [OrderController::class, 'track']);
+    // Rastreamento de pedido (público - apenas com order_number) (🔒 RATE LIMITED)
+    Route::get('/orders/{orderNumber}/track', [OrderController::class, 'track'])->middleware('throttle:60,1'); // 60 req/min
 
     // APIs para Cozinha e Entregas (públicas)
     Route::post('/kitchen/{order}/status', [\App\Http\Controllers\KitchenController::class, 'updateStatus']);

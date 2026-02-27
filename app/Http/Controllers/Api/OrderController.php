@@ -227,34 +227,16 @@ class OrderController extends Controller
     }
 
     /**
-     * Rastrear pedido em tempo real
+     * Rastrear pedido em tempo real (rota pública)
      */
-    public function track(Request $request, $id)
+    public function track($orderNumber)
     {
-        $order = $request->user()
-            ->orders()
-            ->with('delivery')
-            ->findOrFail($id);
+        // Busca por order_number (não por ID)
+        $order = Order::where('order_number', $orderNumber)
+            ->with(['items.product', 'delivery'])
+            ->firstOrFail();
 
-        return response()->json([
-            'order_id' => $order->id,
-            'status' => $order->status,
-            'status_label' => $this->getStatusLabel($order->status),
-            'delivery' => $order->delivery ? [
-                'driver_name' => $order->delivery->driver_name,
-                'driver_phone' => $order->delivery->driver_phone,
-                'estimated_time' => $order->delivery->estimated_time,
-                'tracking_code' => $order->delivery->tracking_code,
-            ] : null,
-            'timeline' => [
-                ['status' => 'pending', 'completed' => true, 'time' => $order->created_at],
-                ['status' => 'confirmed', 'completed' => in_array($order->status, ['confirmed', 'preparing', 'ready', 'delivering', 'delivered']), 'time' => null],
-                ['status' => 'preparing', 'completed' => in_array($order->status, ['preparing', 'ready', 'delivering', 'delivered']), 'time' => null],
-                ['status' => 'ready', 'completed' => in_array($order->status, ['ready', 'delivering', 'delivered']), 'time' => null],
-                ['status' => 'delivering', 'completed' => in_array($order->status, ['delivering', 'delivered']), 'time' => null],
-                ['status' => 'delivered', 'completed' => $order->status === 'delivered', 'time' => null],
-            ],
-        ]);
+        return response()->json($this->formatOrder($order, true));
     }
 
     /**
