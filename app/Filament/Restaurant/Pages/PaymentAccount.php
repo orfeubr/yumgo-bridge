@@ -452,13 +452,13 @@ class PaymentAccount extends Page
             ];
         }
 
-        // Asaas (legado): se tem asaas_account_id, sugerir migração para Pagar.me
+        // Asaas (legado): se tem asaas_account_id, está configurado
         if (!empty($tenant->asaas_account_id)) {
             return [
                 'configured' => true,
                 'status' => 'legacy',
-                'label' => '🔄 Migre para Pagar.me',
-                'color' => 'warning',
+                'label' => '✅ Configurada',
+                'color' => 'success',
             ];
         }
 
