@@ -24,7 +24,7 @@
     </div>
 
     <!-- Busca Mobile -->
-    <div class="md:hidden sticky top-[88px] bg-white border-b border-gray-100 z-40 px-4 py-3 shadow-sm">
+    <div class="md:hidden fixed top-[88px] left-0 right-0 bg-white border-b border-gray-100 z-40 px-4 py-3 shadow-sm">
         <input type="text"
                x-model="searchQuery"
                placeholder="🔍 Buscar produtos..."
@@ -32,7 +32,7 @@
     </div>
 
     <!-- Categorias (fixo) -->
-    <div class="sticky top-[148px] md:top-[100px] bg-white border-b border-gray-100 z-50 shadow-sm">
+    <div class="fixed top-[148px] md:top-[100px] left-0 right-0 bg-white border-b border-gray-100 z-50 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-3">
             <div class="flex gap-2 overflow-x-auto scrollbar-hide">
                 <button @click="selectedCategory = null"
@@ -49,6 +49,10 @@
             </div>
         </div>
     </div>
+
+    <!-- Espaçador para compensar filtros fixos -->
+    <div class="h-[60px] md:hidden"></div>
+    <div class="h-[56px] hidden md:block"></div>
 
     <!-- Loading -->
     <div x-show="loading" class="max-w-2xl mx-auto px-4 py-12">
