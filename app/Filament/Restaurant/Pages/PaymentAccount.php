@@ -452,34 +452,22 @@ class PaymentAccount extends Page
             ];
         }
 
-        // Asaas (legado): verifica status
-        $status = $tenant->asaas_status ?? 'PENDING_APPROVAL';
-
-        return match($status) {
-            'APPROVED' => [
+        // Asaas (legado): se tem asaas_account_id, sugerir migração para Pagar.me
+        if (!empty($tenant->asaas_account_id)) {
+            return [
                 'configured' => true,
-                'status' => 'approved',
-                'label' => '✅ Aprovada (Asaas Legado)',
-                'color' => 'success',
-            ],
-            'PENDING_APPROVAL' => [
-                'configured' => true,
-                'status' => 'pending',
-                'label' => '⏳ Aguardando Aprovação (Asaas)',
+                'status' => 'legacy',
+                'label' => '🔄 Migre para Pagar.me',
                 'color' => 'warning',
-            ],
-            'REJECTED' => [
-                'configured' => true,
-                'status' => 'rejected',
-                'label' => '❌ Rejeitada (Asaas)',
-                'color' => 'danger',
-            ],
-            default => [
-                'configured' => false,
-                'status' => 'unknown',
-                'label' => '⚪ Status Desconhecido',
-                'color' => 'gray',
-            ],
-        };
+            ];
+        }
+
+        // Fallback
+        return [
+            'configured' => false,
+            'status' => 'not_configured',
+            'label' => '⚪ Não Configurada',
+            'color' => 'gray',
+        ];
     }
 }

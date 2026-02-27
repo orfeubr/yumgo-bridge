@@ -48,6 +48,8 @@
                     <p class="text-sm text-gray-600 dark:text-gray-400">
                         @if(!$statusInfo['configured'])
                             Configure seus dados para começar a receber pagamentos online
+                        @elseif($statusInfo['status'] === 'legacy')
+                            Você tem uma conta Asaas (legado). Configure o Pagar.me abaixo para aproveitar taxas menores em PIX!
                         @elseif($statusInfo['status'] === 'pending')
                             Sua conta está sendo configurada no Pagar.me
                         @elseif($statusInfo['status'] === 'approved')
