@@ -43,7 +43,8 @@
                             Conta de Recebimentos
                         </h3>
                         <span class="text-sm text-gray-500 dark:text-gray-400">via</span>
-                        <span class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-1 rounded-md font-bold text-sm">PAGAR.ME</span>
+                        <img src="/images/pagarme-logo.svg" alt="Pagar.me" class="h-8 w-auto" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                        <span class="hidden bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-1 rounded-md font-bold text-sm">PAGAR.ME</span>
                     </div>
                     <p class="text-sm text-gray-600 dark:text-gray-400">
                         @if(!$statusInfo['configured'])
