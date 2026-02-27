@@ -12,7 +12,7 @@ class OrderService
 {
     public function __construct(
         private CashbackService $cashbackService,
-        private AsaasService $asaasService
+        private PagarMeService $pagarmeService
     ) {}
 
     /**
@@ -80,15 +80,15 @@ class OrderService
 
             \Log::info('✅ Items criados');
 
-            // Se for pagamento online (PIX ou cartão), criar cobrança no Asaas
+            // Se for pagamento online (PIX ou cartão), criar cobrança no Pagar.me
             if (in_array($data['payment_method'], ['pix', 'credit_card', 'debit_card'])) {
                 try {
-                    \Log::info('💳 Criando pagamento Asaas', ['method' => $data['payment_method']]);
+                    \Log::info('💳 Criando pagamento Pagar.me', ['method' => $data['payment_method']]);
 
                     // PROTEÇÃO: Garantir que customer tem relação carregada
                     $order->load('customer');
 
-                    $payment = $this->asaasService->createPayment($order, [
+                    $payment = $this->pagarmeService->createPayment($order, [
                         'payment_method' => $data['payment_method']
                     ]);
 
@@ -98,7 +98,7 @@ class OrderService
                     $pixExpiresAt = null;
 
                     if ($data['payment_method'] === 'pix' && isset($payment['id'])) {
-                        $qrCodeData = $this->asaasService->getPixQrCode($payment['id']);
+                        $qrCodeData = $this->pagarmeService->getPixQrCode($payment['id']);
                         if ($qrCodeData && isset($qrCodeData['encodedImage'])) {
                             $pixQrCode = $qrCodeData['encodedImage'];
                             $pixCopyPaste = $qrCodeData['payload'] ?? null;
@@ -116,7 +116,7 @@ class OrderService
 
                     $paymentRecord = \App\Models\Payment::create([
                         'order_id' => $order->id,
-                        'gateway' => 'asaas',
+                        'gateway' => 'pagarme',
                         'method' => $data['payment_method'],
                         'transaction_id' => $payment['id'],
                         'amount' => $order->total,
@@ -134,19 +134,19 @@ class OrderService
                         'has_code' => !empty($paymentRecord->pix_copy_paste),
                     ]);
 
-                    \Log::info('✅ Pagamento Asaas criado');
+                    \Log::info('✅ Pagamento Pagar.me criado');
                 } catch (\Exception $e) {
-                    \Log::error('❌ Erro ao criar pagamento Asaas (PEDIDO CRIADO, pagamento pendente)', [
+                    \Log::error('❌ Erro ao criar pagamento Pagar.me (PEDIDO CRIADO, pagamento pendente)', [
                         'error' => $e->getMessage(),
                         'order_id' => $order->id,
                         'payment_method' => $data['payment_method'],
                     ]);
 
-                    // FALLBACK: Criar registro de pagamento pendente mesmo sem Asaas
+                    // FALLBACK: Criar registro de pagamento pendente mesmo sem Pagar.me
                     // O pedido já foi criado, apenas marca pagamento como pendente
                     \App\Models\Payment::create([
                         'order_id' => $order->id,
-                        'gateway' => 'asaas',
+                        'gateway' => 'pagarme',
                         'method' => $data['payment_method'],
                         'transaction_id' => 'PENDING_' . $order->id,
                         'amount' => $order->total,

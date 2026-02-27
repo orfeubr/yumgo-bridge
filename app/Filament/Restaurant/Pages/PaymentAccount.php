@@ -2,7 +2,7 @@
 
 namespace App\Filament\Restaurant\Pages;
 
-use App\Services\AsaasService;
+use App\Services\PagarMeService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
@@ -84,7 +84,7 @@ class PaymentAccount extends Page
                             ->required()
                             ->maxDate(now()->subYears(18))
                             ->displayFormat('d/m/Y')
-                            ->helperText('Apenas para pessoa física (CPF). Obrigatório para o Asaas.'),
+                            ->helperText('Apenas para pessoa física (CPF). Obrigatório para o Pagar.me.'),
 
                         Forms\Components\Grid::make(3)
                             ->schema([
@@ -314,8 +314,8 @@ class PaymentAccount extends Page
                 }
             }
 
-            // Se já tem conta Asaas, apenas atualizar dados
-            if ($tenant->asaas_account_id) {
+            // Se já tem recebedor configurado, apenas atualizar dados
+            if ($tenant->pagarme_recipient_id || $tenant->asaas_account_id) {
                 $tenant->update([
                     'cpf_cnpj' => preg_replace('/\D/', '', $data['cpf_cnpj']),
                     'birth_date' => $data['birth_date'],
@@ -345,60 +345,39 @@ class PaymentAccount extends Page
                 return;
             }
 
-            // Criar sub-conta no Asaas
-            $asaasService = new AsaasService();
-
-            // Preparar birthDate
-            $birthDate = null;
-            if (!empty($data['birth_date'])) {
-                if ($data['birth_date'] instanceof \DateTime) {
-                    $birthDate = $data['birth_date']->format('Y-m-d');
-                } else {
-                    $birthDate = date('Y-m-d', strtotime($data['birth_date']));
-                }
-            }
+            // Criar recebedor no Pagar.me
+            $pagarmeService = new PagarMeService();
 
             // Log para debug
-            \Log::info('Criando sub-conta Asaas', [
-                'birth_date_input' => $data['birth_date'] ?? 'vazio',
-                'birth_date_converted' => $birthDate,
+            \Log::info('Criando recebedor Pagar.me', [
                 'cpf_cnpj' => $cpfCnpj,
+                'bank_code' => $data['bank_code'],
             ]);
 
-            $accountData = [
+            $recipientData = [
                 'name' => $data['name'],
                 'email' => $data['email'],
-                'cpfCnpj' => $cpfCnpj,
-                'birthDate' => $birthDate,
-                'companyType' => $data['company_type'],
-                'phone' => preg_replace('/\D/', '', $data['phone'] ?? ''),
-                'mobilePhone' => preg_replace('/\D/', '', $data['mobile_phone']),
-                'address' => $data['address'],
-                'addressNumber' => $data['address_number'],
-                'complement' => $data['complement'],
-                'province' => $data['province'],
-                'postalCode' => preg_replace('/\D/', '', $data['postal_code']),
+                'document' => $cpfCnpj,
+                'type' => strlen($cpfCnpj) === 11 ? 'individual' : 'company',
+                'phone' => preg_replace('/\D/', '', $data['mobile_phone']),
+                'bank_account' => [
+                    'holder_name' => $data['name'],
+                    'holder_type' => strlen($cpfCnpj) === 11 ? 'individual' : 'company',
+                    'holder_document' => $cpfCnpj,
+                    'bank' => $data['bank_code'],
+                    'branch_number' => $data['bank_agency'],
+                    'branch_check_digit' => $data['bank_branch_digit'] ?? '0',
+                    'account_number' => $data['bank_account'],
+                    'account_check_digit' => $data['bank_account_digit'],
+                    'type' => $data['bank_account_type'], // checking ou savings
+                ],
             ];
 
-            $result = $asaasService->createSubAccount($accountData);
+            $result = $pagarmeService->createRecipient($recipientData);
 
             if (!$result || !isset($result['id'])) {
-                throw new \Exception('Erro ao criar conta no Asaas: ' . ($result['errors'][0]['description'] ?? 'Erro desconhecido'));
+                throw new \Exception('Erro ao criar recebedor no Pagar.me. Verifique os dados bancários.');
             }
-
-            // Cadastrar dados bancários
-            $bankData = [
-                'bank' => ['code' => $data['bank_code']],
-                'accountName' => $data['name'],
-                'ownerName' => $data['name'],
-                'cpfCnpj' => $cpfCnpj,
-                'agency' => $data['bank_agency'],
-                'account' => $data['bank_account'],
-                'accountDigit' => $data['bank_account_digit'],
-                'bankAccountType' => $data['bank_account_type'],
-            ];
-
-            $bankResult = $asaasService->createBankAccount($result['id'], $bankData);
 
             // Mapear para os nomes corretos das colunas
             $tenant->update([
@@ -419,15 +398,16 @@ class PaymentAccount extends Page
                 'bank_account' => $data['bank_account'],
                 'bank_account_digit' => $data['bank_account_digit'],
                 'bank_account_type' => $data['bank_account_type'],
-                'asaas_account_id' => $result['id'],
-                'asaas_wallet_id' => $result['walletId'] ?? null,
-                'asaas_status' => 'PENDING_APPROVAL',
+                'bank_code' => $data['bank_code'],
+                'bank_branch_digit' => $data['bank_branch_digit'] ?? '0',
+                'pagarme_recipient_id' => $result['id'],
+                'payment_gateway' => 'pagarme',
             ]);
 
             Notification::make()
                 ->success()
-                ->title('🎉 Conta criada com sucesso!')
-                ->body('Seus dados foram enviados para análise. Você será notificado quando a conta for aprovada (1-3 dias úteis).')
+                ->title('🎉 Recebedor criado com sucesso!')
+                ->body('Seus dados foram cadastrados no Pagar.me. Você já pode receber pagamentos!')
                 ->send();
 
         } catch (Halt $exception) {
@@ -453,7 +433,7 @@ class PaymentAccount extends Page
     {
         $tenant = tenant();
 
-        if (empty($tenant->asaas_account_id)) {
+        if (empty($tenant->pagarme_recipient_id) && empty($tenant->asaas_account_id)) {
             return [
                 'configured' => false,
                 'status' => 'not_configured',
@@ -462,25 +442,36 @@ class PaymentAccount extends Page
             ];
         }
 
+        // Pagar.me: se tem recipient_id, está configurado
+        if (!empty($tenant->pagarme_recipient_id)) {
+            return [
+                'configured' => true,
+                'status' => 'approved',
+                'label' => '✅ Configurada (Pagar.me)',
+                'color' => 'success',
+            ];
+        }
+
+        // Asaas (legado): verifica status
         $status = $tenant->asaas_status ?? 'PENDING_APPROVAL';
 
         return match($status) {
             'APPROVED' => [
                 'configured' => true,
                 'status' => 'approved',
-                'label' => '✅ Aprovada',
+                'label' => '✅ Aprovada (Asaas Legado)',
                 'color' => 'success',
             ],
             'PENDING_APPROVAL' => [
                 'configured' => true,
                 'status' => 'pending',
-                'label' => '⏳ Aguardando Aprovação',
+                'label' => '⏳ Aguardando Aprovação (Asaas)',
                 'color' => 'warning',
             ],
             'REJECTED' => [
                 'configured' => true,
                 'status' => 'rejected',
-                'label' => '❌ Rejeitada',
+                'label' => '❌ Rejeitada (Asaas)',
                 'color' => 'danger',
             ],
             default => [

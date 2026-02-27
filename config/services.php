@@ -42,6 +42,14 @@ return [
         'webhook_token' => env('ASAAS_WEBHOOK_TOKEN'),
     ],
 
+    'pagarme' => [
+        'url' => env('PAGARME_URL', 'https://api.pagar.me/core/v5'),
+        'api_key' => env('PAGARME_API_KEY'),
+        'encryption_key' => env('PAGARME_ENCRYPTION_KEY'),
+        'platform_recipient_id' => env('PAGARME_PLATFORM_RECIPIENT_ID'), // ID do recebedor da plataforma
+        'webhook_token' => env('PAGARME_WEBHOOK_TOKEN'),
+    ],
+
     'tributaai' => [
         'platform_token' => env('TRIBUTAAI_PLATFORM_TOKEN'),
     ],

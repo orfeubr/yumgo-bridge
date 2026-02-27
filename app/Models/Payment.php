@@ -9,13 +9,14 @@ class Payment extends Model
 {
     protected $fillable = [
         'order_id',
-        'gateway',
-        'method',
+        'gateway', // 'asaas', 'pagarme', 'cash', 'card_machine'
+        'method', // 'pix', 'credit_card', 'debit_card', 'cash'
         'amount',
         'fee',
         'net_amount',
         'transaction_id',
-        'asaas_payment_url',
+        'asaas_payment_url', // Legado (manter por compatibilidade)
+        'payment_url', // URL genérica do pagamento
         'pix_qrcode',
         'pix_copy_paste',
         'status',
@@ -93,7 +94,8 @@ class Payment extends Model
     public function getGatewayNameAttribute(): string
     {
         return match($this->gateway) {
-            'asaas' => 'Asaas',
+            'pagarme' => 'Pagar.me',
+            'asaas' => 'Asaas (Legado)',
             'cash' => 'Dinheiro',
             'card_machine' => 'Maquininha',
             default => 'Outro',

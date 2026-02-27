@@ -43,14 +43,13 @@
                             Conta de Recebimentos
                         </h3>
                         <span class="text-sm text-gray-500 dark:text-gray-400">via</span>
-                        <img src="/images/asaas-logo.png" alt="Asaas" class="h-12 w-auto" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
-                        <span class="hidden bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-3 py-1 rounded-md font-bold text-sm">ASAAS</span>
+                        <span class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-1 rounded-md font-bold text-sm">PAGAR.ME</span>
                     </div>
                     <p class="text-sm text-gray-600 dark:text-gray-400">
                         @if(!$statusInfo['configured'])
                             Configure seus dados para começar a receber pagamentos online
                         @elseif($statusInfo['status'] === 'pending')
-                            Sua conta está em análise pelo Asaas (1-3 dias úteis)
+                            Sua conta está sendo configurada no Pagar.me
                         @elseif($statusInfo['status'] === 'approved')
                             Sua conta está ativa e você pode receber pagamentos!
                         @else
@@ -71,12 +70,12 @@
                         <div class="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg">
                             <p class="text-3xl mb-2">💰</p>
                             <p class="text-sm font-semibold text-blue-900 dark:text-blue-300">PIX Habilitado</p>
-                            <p class="text-xs text-blue-700 dark:text-blue-400 mt-1">R$ 0,99/transação</p>
+                            <p class="text-xs text-blue-700 dark:text-blue-400 mt-1">0,99% do valor</p>
                         </div>
                         <div class="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg">
                             <p class="text-3xl mb-2">💳</p>
                             <p class="text-sm font-semibold text-green-900 dark:text-green-300">Cartão Habilitado</p>
-                            <p class="text-xs text-green-700 dark:text-green-400 mt-1">2,99% + R$ 0,49</p>
+                            <p class="text-xs text-green-700 dark:text-green-400 mt-1">3,99% a 4,99%</p>
                         </div>
                         <div class="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg">
                             <p class="text-3xl mb-2">⚡</p>
@@ -97,7 +96,7 @@
                 <h3 style="font-size: 1.5rem; font-weight: 700; margin: 0;">Como Configurar sua Conta de Recebimentos</h3>
             </div>
             <p style="margin-bottom: 1.5rem; font-size: 1rem; line-height: 1.6; color: #57534e !important;">
-                Você <strong>não precisa criar conta</strong> no Asaas! Basta preencher seus dados abaixo e criaremos uma sub-conta automaticamente para você receber seus pagamentos.
+                Você <strong>não precisa criar conta</strong> no Pagar.me! Basta preencher seus dados abaixo e criaremos um recebedor automaticamente para você receber seus pagamentos.
             </p>
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 1.5rem;">
                 <div style="background: white; border: 2px solid #fed7aa; border-radius: 0.5rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">

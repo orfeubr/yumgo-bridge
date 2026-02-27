@@ -13,11 +13,55 @@ class Tenant extends BaseTenant implements TenantWithDatabase
 {
     use HasDatabase, HasDomains;
 
-    protected $fillable = ['id', 'name', 'slug', 'email', 'phone', 'asaas_account_id', 'plan_id', 'status', 'trial_ends_at'];
+    protected $fillable = [
+        'id',
+        'name',
+        'slug',
+        'email',
+        'phone',
+        // Asaas (legado)
+        'asaas_account_id',
+        // Pagar.me (atual)
+        'pagarme_recipient_id',
+        'pagarme_api_key',
+        'pagarme_encryption_key',
+        'pagarme_split_rules',
+        'payment_gateway',
+        // Dados bancários
+        'bank_code',
+        'bank_name',
+        'bank_agency',
+        'bank_branch_digit',
+        'bank_account',
+        'bank_account_digit',
+        'bank_account_type',
+        // Outros
+        'plan_id',
+        'status',
+        'trial_ends_at',
+    ];
+
+    protected $casts = [
+        'pagarme_split_rules' => 'array',
+        'trial_ends_at' => 'datetime',
+    ];
 
     public static function getCustomColumns(): array
     {
-        return ['id', 'name', 'slug', 'email', 'phone', 'asaas_account_id', 'plan_id', 'status', 'trial_ends_at'];
+        return [
+            'id',
+            'name',
+            'slug',
+            'email',
+            'phone',
+            'asaas_account_id',
+            'pagarme_recipient_id',
+            'pagarme_api_key',
+            'payment_gateway',
+            'plan_id',
+            'status',
+            'trial_ends_at',
+        ];
     }
 
     /**

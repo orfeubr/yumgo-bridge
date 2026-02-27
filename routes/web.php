@@ -127,6 +127,18 @@ Route::post('/api/webhooks/asaas', [\App\Http\Controllers\CentralWebhookControll
 Route::post('/api/webhooks/asaas/account', [\App\Http\Controllers\CentralWebhookController::class, 'asaasAccountWebhook'])
     ->name('webhooks.asaas.account');
 
+// ===== PAGAR.ME WEBHOOKS (Principal) =====
+// Webhook global Pagar.me
+Route::post('/api/webhooks/pagarme', [\App\Http\Controllers\PagarMeWebhookController::class, 'handle'])
+    ->name('webhooks.pagarme');
+
+// Webhooks específicos por método
+Route::post('/api/webhooks/pagarme/pix', [\App\Http\Controllers\PagarMeWebhookController::class, 'pix'])
+    ->name('webhooks.pagarme.pix');
+
+Route::post('/api/webhooks/pagarme/card', [\App\Http\Controllers\PagarMeWebhookController::class, 'card'])
+    ->name('webhooks.pagarme.card');
+
 // Teste do webhook (GET)
 Route::get('/api/webhooks/asaas/test', function () {
     return response()->json([

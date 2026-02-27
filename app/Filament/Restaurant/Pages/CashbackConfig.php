@@ -141,7 +141,9 @@ class CashbackConfig extends Page
                             ->numeric()
                             ->suffix('x')
                             ->default(2.00)
-                            ->visible(fn (Forms\Get $get) => $get('birthday_bonus_enabled')),
+                            ->required()
+                            ->visible(fn (Forms\Get $get) => $get('birthday_bonus_enabled'))
+                            ->dehydrated(true),
 
                         Forms\Components\Toggle::make('referral_enabled')
                             ->label('Programa de Indicação')
@@ -153,13 +155,17 @@ class CashbackConfig extends Page
                             ->numeric()
                             ->prefix('R$')
                             ->default(10.00)
-                            ->visible(fn (Forms\Get $get) => $get('referral_enabled')),
+                            ->required()
+                            ->visible(fn (Forms\Get $get) => $get('referral_enabled'))
+                            ->dehydrated(true),
                         Forms\Components\TextInput::make('referral_bonus_referred')
                             ->label('Bônus para quem foi Indicado (R$)')
                             ->numeric()
                             ->prefix('R$')
                             ->default(5.00)
-                            ->visible(fn (Forms\Get $get) => $get('referral_enabled')),
+                            ->required()
+                            ->visible(fn (Forms\Get $get) => $get('referral_enabled'))
+                            ->dehydrated(true),
                     ])
                     ->columns(2),
 
@@ -195,6 +201,19 @@ class CashbackConfig extends Page
     public function save(): void
     {
         $data = $this->form->getState();
+
+        // Ensure birthday_multiplier has a default value
+        if (!isset($data['birthday_multiplier']) || $data['birthday_multiplier'] === null) {
+            $data['birthday_multiplier'] = 2.00;
+        }
+
+        // Ensure referral bonuses have default values
+        if (!isset($data['referral_bonus_referrer']) || $data['referral_bonus_referrer'] === null) {
+            $data['referral_bonus_referrer'] = 10.00;
+        }
+        if (!isset($data['referral_bonus_referred']) || $data['referral_bonus_referred'] === null) {
+            $data['referral_bonus_referred'] = 5.00;
+        }
 
         $settings = CashbackSettings::firstOrCreate([]);
         $settings->update($data);

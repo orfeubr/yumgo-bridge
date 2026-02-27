@@ -79,33 +79,26 @@ class OrderController extends Controller
 
         // 🔒 VALIDAR HORÁRIO DE FUNCIONAMENTO
         $settings = \App\Models\Settings::first();
-        if ($settings) {
-            $dayOfWeek = strtolower(now()->locale('en')->dayName);
-            $isOpenKey = "open_{$dayOfWeek}";
+        if ($settings && !$settings->isOpenNow()) {
+            $now = now();
+            $dayOfWeek = strtolower($now->format('l')); // monday, tuesday...
+            $dayInPortuguese = \App\Models\Settings::getDayNameInPortuguese($dayOfWeek);
+            $hours = $settings->business_hours[$dayInPortuguese] ?? null;
 
-            if (!$settings->$isOpenKey) {
+            if ($hours && is_string($hours) && str_contains($hours, ' - ')) {
+                [$open, $close] = explode(' - ', $hours);
                 return response()->json([
-                    'message' => 'O restaurante está fechado hoje. Pedidos não podem ser criados fora do horário de funcionamento.',
+                    'message' => "O restaurante está fechado. Horário de funcionamento hoje: " . trim($open) . " às " . trim($close) . ".",
                     'restaurant_closed' => true,
+                    'open_time' => trim($open),
+                    'close_time' => trim($close),
                 ], 422);
             }
 
-            $openTimeKey = "{$dayOfWeek}_open";
-            $closeTimeKey = "{$dayOfWeek}_close";
-            $openTime = $settings->$openTimeKey;
-            $closeTime = $settings->$closeTimeKey;
-
-            if ($openTime && $closeTime) {
-                $now = now()->format('H:i:s');
-                if ($now < $openTime || $now > $closeTime) {
-                    return response()->json([
-                        'message' => "O restaurante está fechado. Horário de funcionamento: {$openTime} às {$closeTime}.",
-                        'restaurant_closed' => true,
-                        'open_time' => $openTime,
-                        'close_time' => $closeTime,
-                    ], 422);
-                }
-            }
+            return response()->json([
+                'message' => 'O restaurante está fechado no momento. Pedidos não podem ser criados fora do horário de funcionamento.',
+                'restaurant_closed' => true,
+            ], 422);
         }
 
         // PROTEÇÃO: Sanitizar inputs de texto (XSS)

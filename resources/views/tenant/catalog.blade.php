@@ -154,9 +154,16 @@
                         <div class="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1 bg-gray-300 rounded-full md:hidden z-10"></div>
 
                         <!-- Imagem -->
-                        <div class="relative h-44 md:h-48 bg-gray-100">
+                        <div class="relative h-44 md:h-48 bg-gray-100 overflow-hidden">
+                            <!-- Skeleton Loader -->
+                            <div class="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-pulse"></div>
+
+                            <!-- Imagem com lazy loading -->
                             <img :src="selectedProduct.image" :alt="selectedProduct.name"
-                                 class="w-full h-full object-cover"
+                                 loading="lazy"
+                                 decoding="async"
+                                 @load="$el.previousElementSibling.style.display='none'"
+                                 class="w-full h-full object-cover relative z-10"
                                  onerror="this.src='https://via.placeholder.com/600x400?text=Sem+Foto'">
 
                             <!-- Botão Fechar -->

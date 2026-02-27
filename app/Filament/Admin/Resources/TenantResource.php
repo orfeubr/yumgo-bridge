@@ -159,26 +159,104 @@ class TenantResource extends Resource
                             ->visible(fn (Forms\Get $get) => $get('status') === 'trial'),
                     ])->columns(3),
 
-                Forms\Components\Section::make('Integração Asaas')
+                Forms\Components\Section::make('Gateway de Pagamento')
                     ->schema([
-                        Forms\Components\TextInput::make('asaas_account_id')
-                            ->label('ID da Conta Asaas')
-                            ->helperText('Será preenchido automaticamente após criar sub-conta')
+                        Forms\Components\Select::make('payment_gateway')
+                            ->label('Gateway Ativo')
+                            ->options([
+                                'pagarme' => 'Pagar.me (Recomendado)',
+                                'asaas' => 'Asaas (Legado)',
+                            ])
+                            ->default('pagarme')
+                            ->required()
+                            ->helperText('Escolha qual gateway será usado para processar pagamentos'),
+
+                        Forms\Components\TextInput::make('pagarme_recipient_id')
+                            ->label('ID do Recebedor Pagar.me')
+                            ->helperText('Será preenchido automaticamente após criar recebedor')
                             ->disabled()
-                            ->dehydrated(true),
+                            ->dehydrated(true)
+                            ->visible(fn (Forms\Get $get) => $get('payment_gateway') === 'pagarme'),
+
+                        Forms\Components\TextInput::make('asaas_account_id')
+                            ->label('ID da Conta Asaas (Legado)')
+                            ->helperText('Mantido por compatibilidade')
+                            ->disabled()
+                            ->dehydrated(true)
+                            ->visible(fn (Forms\Get $get) => $get('payment_gateway') === 'asaas'),
+
+                        Forms\Components\Grid::make(3)
+                            ->schema([
+                                Forms\Components\TextInput::make('bank_code')
+                                    ->label('Código do Banco')
+                                    ->placeholder('001, 237, 341...')
+                                    ->helperText('Ex: 001 (BB), 237 (Bradesco), 341 (Itaú)')
+                                    ->maxLength(3),
+
+                                Forms\Components\TextInput::make('bank_agency')
+                                    ->label('Agência')
+                                    ->placeholder('0001')
+                                    ->maxLength(10),
+
+                                Forms\Components\TextInput::make('bank_branch_digit')
+                                    ->label('Dígito Agência')
+                                    ->placeholder('0')
+                                    ->maxLength(2),
+                            ])
+                            ->visible(fn (Forms\Get $get) => $get('payment_gateway') === 'pagarme'),
+
+                        Forms\Components\Grid::make(3)
+                            ->schema([
+                                Forms\Components\TextInput::make('bank_account')
+                                    ->label('Conta')
+                                    ->placeholder('00000001')
+                                    ->maxLength(20),
+
+                                Forms\Components\TextInput::make('bank_account_digit')
+                                    ->label('Dígito Conta')
+                                    ->placeholder('0')
+                                    ->maxLength(2),
+
+                                Forms\Components\Select::make('bank_account_type')
+                                    ->label('Tipo de Conta')
+                                    ->options([
+                                        'checking' => 'Conta Corrente',
+                                        'savings' => 'Conta Poupança',
+                                    ])
+                                    ->default('checking'),
+                            ])
+                            ->visible(fn (Forms\Get $get) => $get('payment_gateway') === 'pagarme'),
 
                         Forms\Components\Actions::make([
-                            Forms\Components\Actions\Action::make('create_asaas_account')
-                                ->label('Criar Sub-conta Asaas')
+                            Forms\Components\Actions\Action::make('create_pagarme_recipient')
+                                ->label('Criar Recebedor Pagar.me')
                                 ->icon('heroicon-o-building-library')
                                 ->color('success')
-                                ->visible(fn (Forms\Get $get) => empty($get('asaas_account_id')))
-                                ->action(function (Forms\Set $set, Forms\Get $get) {
-                                    // TODO: Integrar com Asaas API
-                                    \Filament\Notifications\Notification::make()
-                                        ->title('Funcionalidade em desenvolvimento')
-                                        ->warning()
-                                        ->send();
+                                ->visible(fn (Forms\Get $get) => empty($get('pagarme_recipient_id')) && $get('payment_gateway') === 'pagarme')
+                                ->requiresConfirmation()
+                                ->action(function (Forms\Set $set, Forms\Get $get, $record) {
+                                    try {
+                                        $pagarmeService = app(\App\Services\PagarMeService::class);
+                                        $result = $pagarmeService->createRecipient($record);
+
+                                        if ($result && isset($result['id'])) {
+                                            $record->update(['pagarme_recipient_id' => $result['id']]);
+                                            $set('pagarme_recipient_id', $result['id']);
+
+                                            \Filament\Notifications\Notification::make()
+                                                ->title('Recebedor criado com sucesso!')
+                                                ->success()
+                                                ->send();
+                                        } else {
+                                            throw new \Exception('Erro ao criar recebedor');
+                                        }
+                                    } catch (\Exception $e) {
+                                        \Filament\Notifications\Notification::make()
+                                            ->title('Erro ao criar recebedor')
+                                            ->body($e->getMessage())
+                                            ->danger()
+                                            ->send();
+                                    }
                                 }),
                         ]),
                     ])->collapsible(),

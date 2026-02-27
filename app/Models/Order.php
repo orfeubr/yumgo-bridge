@@ -209,28 +209,8 @@ class Order extends Model
             return true; // Se não tem configuração, assume aberto
         }
 
-        // Verificar se restaurante está aberto hoje
-        $dayOfWeek = strtolower(now()->locale('en')->dayName); // monday, tuesday, etc
-        $isOpenKey = "open_{$dayOfWeek}";
-
-        if (!$settings->$isOpenKey) {
-            return false; // Fechado hoje
-        }
-
-        // Verificar horário
-        $openTimeKey = "{$dayOfWeek}_open";
-        $closeTimeKey = "{$dayOfWeek}_close";
-
-        $openTime = $settings->$openTimeKey;
-        $closeTime = $settings->$closeTimeKey;
-
-        if (!$openTime || !$closeTime) {
-            return true; // Se não tem horário definido, assume aberto
-        }
-
-        $now = now()->format('H:i:s');
-
-        return $now >= $openTime && $now <= $closeTime;
+        // Usa o método isOpenNow() do Settings que verifica business_hours corretamente
+        return $settings->isOpenNow();
     }
 
     /**
