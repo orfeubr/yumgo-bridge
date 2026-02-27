@@ -3,57 +3,64 @@
 @section('title', 'Cardápio')
 
 @section('content')
+<!-- Header -->
+<div class="sticky top-0 bg-gradient-to-r from-primary-500 to-primary-600 border-b border-primary-700 z-40 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4 md:py-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl md:text-3xl lg:text-4xl font-bold text-white">{{ $tenant->name }}</h1>
+                <p class="text-sm md:text-base text-white/90 mt-1">Marmitas fresquinhas todos os dias</p>
+            </div>
+            <!-- Busca Desktop -->
+            <div class="hidden md:block" x-data="{ searchQuery: '' }">
+                <input type="text"
+                       x-model="searchQuery"
+                       @input="window.dispatchEvent(new CustomEvent('search-changed', { detail: $event.target.value }))"
+                       placeholder="Buscar produtos..."
+                       class="w-64 lg:w-80 px-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/30 focus:bg-white/20">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Busca Mobile -->
+<div class="md:hidden fixed top-[88px] left-0 right-0 bg-white border-b border-gray-100 z-40 px-4 py-3 shadow-sm" x-data="{ searchQuery: '' }">
+    <input type="text"
+           x-model="searchQuery"
+           @input="window.dispatchEvent(new CustomEvent('search-changed', { detail: $event.target.value }))"
+           placeholder="🔍 Buscar produtos..."
+           class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 focus:bg-white">
+</div>
+
+<!-- Categorias (fixo) -->
+<div class="fixed top-[148px] md:top-[100px] left-0 right-0 bg-white border-b border-gray-100 z-50 shadow-sm" x-data="{ selectedCategory: null, categories: [] }" x-init="
+    fetch('/api/v1/categories')
+        .then(r => r.json())
+        .then(data => categories = data.data || []);
+">
+    <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-3">
+        <div class="flex gap-2 overflow-x-auto scrollbar-hide">
+            <button @click="selectedCategory = null; window.dispatchEvent(new CustomEvent('category-changed', { detail: null }))"
+                    :class="selectedCategory === null ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                    class="px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-smooth">
+                Todas
+            </button>
+            <template x-for="category in categories" :key="category.id">
+                <button @click="selectedCategory = category.id; window.dispatchEvent(new CustomEvent('category-changed', { detail: category.id }))"
+                        :class="selectedCategory === category.id ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                        class="px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-smooth"
+                        x-text="category.name"></button>
+            </template>
+        </div>
+    </div>
+</div>
+
+<!-- Espaçador para compensar filtros fixos -->
+<div class="h-[60px] md:hidden"></div>
+<div class="h-[56px] hidden md:block"></div>
+
+<!-- Área de Produtos com Alpine -->
 <div x-data="catalogApp()" x-init="init()" class="bg-gray-50">
-    <!-- Header -->
-    <div class="sticky top-0 bg-gradient-to-r from-primary-500 to-primary-600 border-b border-primary-700 z-40 shadow-lg">
-        <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4 md:py-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-2xl md:text-3xl lg:text-4xl font-bold text-white">{{ $tenant->name }}</h1>
-                    <p class="text-sm md:text-base text-white/90 mt-1">Marmitas fresquinhas todos os dias</p>
-                </div>
-                <!-- Busca Desktop -->
-                <div class="hidden md:block">
-                    <input type="text"
-                           x-model="searchQuery"
-                           placeholder="Buscar produtos..."
-                           class="w-64 lg:w-80 px-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/30 focus:bg-white/20">
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Busca Mobile -->
-    <div class="md:hidden fixed top-[88px] left-0 right-0 bg-white border-b border-gray-100 z-40 px-4 py-3 shadow-sm">
-        <input type="text"
-               x-model="searchQuery"
-               placeholder="🔍 Buscar produtos..."
-               class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 focus:bg-white">
-    </div>
-
-    <!-- Categorias (fixo) -->
-    <div class="fixed top-[148px] md:top-[100px] left-0 right-0 bg-white border-b border-gray-100 z-50 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-3">
-            <div class="flex gap-2 overflow-x-auto scrollbar-hide">
-                <button @click="selectedCategory = null"
-                        :class="selectedCategory === null ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
-                        class="px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-smooth">
-                    Todas
-                </button>
-                <template x-for="category in categories" :key="category.id">
-                    <button @click="selectedCategory = category.id"
-                            :class="selectedCategory === category.id ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
-                            class="px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-smooth"
-                            x-text="category.name"></button>
-                </template>
-            </div>
-        </div>
-    </div>
-
-    <!-- Espaçador para compensar filtros fixos -->
-    <div class="h-[60px] md:hidden"></div>
-    <div class="h-[56px] hidden md:block"></div>
-
     <!-- Loading -->
     <div x-show="loading" class="max-w-2xl mx-auto px-4 py-12">
         <div class="bg-white rounded-lg border border-gray-200 p-12 text-center">
@@ -298,6 +305,15 @@ function catalogApp() {
                 this.loadCart()
             ]);
             this.loading = false;
+
+            // Escutar eventos de busca e categoria
+            window.addEventListener('search-changed', (e) => {
+                this.searchQuery = e.detail || '';
+            });
+
+            window.addEventListener('category-changed', (e) => {
+                this.selectedCategory = e.detail;
+            });
         },
 
         async loadProducts() {
