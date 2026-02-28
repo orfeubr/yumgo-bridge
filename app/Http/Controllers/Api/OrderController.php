@@ -81,8 +81,8 @@ class OrderController extends Controller
             'delivery_city' => 'required|string|max:100',
             'delivery_neighborhood' => 'required|string|max:100',
             'payment_method' => 'required|in:pix,credit_card,debit_card,cash',
-            'use_cashback' => 'nullable|numeric|min:0|max:10000',
-            'change_for' => 'nullable|numeric|min:0', // ⭐ ADICIONADO
+            'use_cashback' => 'nullable|boolean', // ⭐ TOGGLE: true = usar todo saldo
+            'change_for' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
         ]);
 
@@ -117,18 +117,22 @@ class OrderController extends Controller
         $deliveryNeighborhood = htmlspecialchars(trim($request->delivery_neighborhood), ENT_QUOTES, 'UTF-8');
         $deliveryAddress = htmlspecialchars(trim($request->delivery_address), ENT_QUOTES, 'UTF-8');
 
-        // PROTEÇÃO: Verificar cashback (sempre do banco, nunca do frontend)
+        // PROTEÇÃO: Calcular cashback (sempre do banco, nunca do frontend)
         // IMPORTANTE: Customer já está na conexão correta do tenant (não usar getTenantData aqui)
         $customer->refresh(); // Garante dados atualizados do banco
         $cashbackBalance = (float) $customer->cashback_balance;
-        $useCashback = min((float) ($request->use_cashback ?? 0), $cashbackBalance);
 
-        if ($request->use_cashback > $cashbackBalance) {
-            return response()->json([
-                'message' => 'Saldo de cashback insuficiente.',
-                'available' => $cashbackBalance,
-                'requested' => $request->use_cashback,
-            ], 422);
+        // 🎯 TOGGLE SIMPLES: Se marcou "usar cashback" = usa TODO saldo disponível
+        $useCashback = 0;
+        if ($request->use_cashback === true && $cashbackBalance > 0) {
+            // Usa todo saldo disponível (OrderService limitará ao total do pedido)
+            $useCashback = $cashbackBalance;
+
+            \Log::info('💰 Cliente optou por usar cashback', [
+                'customer_id' => $customer->id,
+                'saldo_disponivel' => $cashbackBalance,
+                'sera_usado' => $useCashback,
+            ]);
         }
 
         // PROTEÇÃO: Calcular taxa de entrega SEMPRE no backend (nunca confiar no frontend)

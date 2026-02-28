@@ -60,18 +60,30 @@ class OrderService
             // Calcula subtotal
             $subtotal = $this->calculateSubtotal($enrichedItems);
 
-            // Cashback usado (se o cliente quiser usar saldo)
+            // Calcula total ANTES do cashback para saber o limite
+            $deliveryFee = $data['delivery_fee'] ?? 0;
+            $discount = $data['discount'] ?? 0;
+            $totalBeforeCashback = $subtotal + $deliveryFee - $discount;
+
+            // Cashback usado (limita ao total para não ficar negativo)
             $cashbackUsed = $data['cashback_used'] ?? 0;
             if ($cashbackUsed > 0) {
+                // 🎯 Limita cashback ao total do pedido (não pode ficar negativo)
+                $cashbackUsed = min($cashbackUsed, $totalBeforeCashback);
+
                 if (!$this->cashbackService->useCashback($customer, $cashbackUsed)) {
                     throw new \Exception('Saldo de cashback insuficiente');
                 }
+
+                \Log::info('💰 Cashback aplicado', [
+                    'solicitado' => $data['cashback_used'],
+                    'aplicado' => $cashbackUsed,
+                    'total_antes' => $totalBeforeCashback,
+                ]);
             }
 
-            // Calcula total
-            $deliveryFee = $data['delivery_fee'] ?? 0;
-            $discount = $data['discount'] ?? 0;
-            $total = $subtotal + $deliveryFee - $discount - $cashbackUsed;
+            // Calcula total final
+            $total = $totalBeforeCashback - $cashbackUsed;
 
             if ($total < 0) {
                 $total = 0;
