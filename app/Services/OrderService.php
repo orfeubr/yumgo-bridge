@@ -24,6 +24,36 @@ class OrderService
         \Log::info('🔍 Iniciando createOrder', ['customer_id' => $customer->id]);
 
         return DB::transaction(function () use ($customer, $data) {
+            // 🔧 PROTEÇÃO: Garantir que temos customer do TENANT (não do central)
+            // Se o customer veio do login central, buscar/criar correspondente no tenant
+            $tenantCustomer = Customer::where('email', $customer->email)
+                ->orWhere('phone', $customer->phone)
+                ->first();
+
+            if (!$tenantCustomer) {
+                // Criar customer no tenant se não existir
+                $tenantCustomer = Customer::create([
+                    'name' => $customer->name,
+                    'email' => $customer->email,
+                    'phone' => $customer->phone,
+                    'cpf' => $customer->cpf ?? null,
+                    'cashback_balance' => 0,
+                    'loyalty_tier' => 'bronze',
+                    'total_orders' => 0,
+                    'total_spent' => 0,
+                    'is_active' => true,
+                ]);
+
+                \Log::info('✨ Customer criado no tenant', [
+                    'central_id' => $customer->id,
+                    'tenant_id' => $tenantCustomer->id,
+                    'name' => $tenantCustomer->name,
+                ]);
+            }
+
+            // Usar customer do tenant daqui pra frente
+            $customer = $tenantCustomer;
+
             // Enriquecer items com dados dos produtos
             $enrichedItems = $this->enrichItems($data['items']);
 
