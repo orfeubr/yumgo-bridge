@@ -107,8 +107,9 @@ class OrderController extends Controller
         $deliveryAddress = htmlspecialchars(trim($request->delivery_address), ENT_QUOTES, 'UTF-8');
 
         // PROTEÇÃO: Verificar cashback (sempre do banco, nunca do frontend)
-        $tenantData = $customer->getTenantData(tenant()->id);
-        $cashbackBalance = (float) ($tenantData['cashback_balance'] ?? 0);
+        // IMPORTANTE: Customer já está na conexão correta do tenant (não usar getTenantData aqui)
+        $customer->refresh(); // Garante dados atualizados do banco
+        $cashbackBalance = (float) $customer->cashback_balance;
         $useCashback = min((float) ($request->use_cashback ?? 0), $cashbackBalance);
 
         if ($request->use_cashback > $cashbackBalance) {
