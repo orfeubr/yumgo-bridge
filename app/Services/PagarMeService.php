@@ -318,9 +318,20 @@ class PagarMeService
      */
     private function getOrCreateCustomer($customer): array
     {
-        // PROTEÇÃO: Garantir que customer tem email
-        if (empty($customer->email)) {
-            throw new \Exception('Cliente não possui email cadastrado');
+        // PROTEÇÃO: Garantir que customer tem email (usa email do restaurante se vazio)
+        $email = $customer->email;
+        if (empty($email)) {
+            // Gera email usando domínio do restaurante
+            // Ex: cliente-2@marmitaria-gi.yumgo.com.br
+            $tenant = tenant();
+            $email = "cliente-{$customer->id}@{$tenant->slug}.yumgo.com.br";
+
+            \Log::info('💡 Cliente sem email, usando email do restaurante', [
+                'customer_id' => $customer->id,
+                'customer_name' => $customer->name,
+                'fallback_email' => $email,
+                'restaurante' => $tenant->name,
+            ]);
         }
 
         // Preparar CPF
@@ -335,7 +346,7 @@ class PagarMeService
         $response = Http::timeout(5)
             ->withBasicAuth($this->apiKey, '')
             ->get("{$this->baseUrl}/customers", [
-                'email' => $customer->email,
+                'email' => $email, // ⭐ Usa email processado (real ou temp)
             ]);
 
         if ($response->successful()) {
@@ -350,7 +361,7 @@ class PagarMeService
 
         $payload = [
             'name' => $customer->name ?? 'Cliente',
-            'email' => $customer->email,
+            'email' => $email, // ⭐ Usa email processado (real ou temp)
             'type' => 'individual',
             'document' => $cpf,
             'document_type' => 'CPF',
