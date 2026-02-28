@@ -130,6 +130,153 @@ class TenantResource extends Resource
                     ])->columns(1)
                     ->collapsible(),
 
+                Forms\Components\Section::make('Dados Bancários')
+                    ->description('Informações necessárias para criar recebedor no Pagar.me e processar pagamentos com split automático')
+                    ->schema([
+                        Forms\Components\Select::make('payment_gateway')
+                            ->label('Gateway de Pagamento Ativo')
+                            ->options([
+                                'asaas' => 'Asaas',
+                                'pagarme' => 'Pagar.me',
+                            ])
+                            ->default('asaas')
+                            ->required()
+                            ->helperText('Escolha qual gateway será usado para processar pagamentos deste restaurante')
+                            ->columnSpanFull(),
+
+                        Forms\Components\Grid::make(2)
+                            ->schema([
+                                Forms\Components\TextInput::make('company_name')
+                                    ->label('Razão Social / Nome Completo')
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->helperText('Nome da empresa ou nome completo do proprietário'),
+
+                                Forms\Components\Select::make('company_type')
+                                    ->label('Tipo de Pessoa')
+                                    ->options([
+                                        'company' => 'Pessoa Jurídica',
+                                        'individual' => 'Pessoa Física',
+                                        'mei' => 'MEI',
+                                    ])
+                                    ->required()
+                                    ->default('company')
+                                    ->reactive(),
+                            ]),
+
+                        Forms\Components\Grid::make(2)
+                            ->schema([
+                                Forms\Components\TextInput::make('cpf_cnpj')
+                                    ->label(fn (Forms\Get $get) => $get('company_type') === 'company' ? 'CNPJ' : 'CPF')
+                                    ->required()
+                                    ->mask(fn (Forms\Get $get) => $get('company_type') === 'company' ? '99.999.999/9999-99' : '999.999.999-99')
+                                    ->placeholder(fn (Forms\Get $get) => $get('company_type') === 'company' ? '00.000.000/0000-00' : '000.000.000-00')
+                                    ->helperText('Sem pontuação ou com formatação'),
+
+                                Forms\Components\TextInput::make('mobile_phone')
+                                    ->label('Telefone/Celular')
+                                    ->tel()
+                                    ->mask('(99) 99999-9999')
+                                    ->placeholder('(11) 99999-9999')
+                                    ->required()
+                                    ->helperText('Com DDD'),
+                            ]),
+
+                        Forms\Components\Fieldset::make('Dados da Conta Bancária')
+                            ->schema([
+                                Forms\Components\Grid::make(3)
+                                    ->schema([
+                                        Forms\Components\Select::make('bank_code')
+                                            ->label('Banco')
+                                            ->options([
+                                                '001' => '001 - Banco do Brasil',
+                                                '033' => '033 - Santander',
+                                                '104' => '104 - Caixa Econômica',
+                                                '237' => '237 - Bradesco',
+                                                '341' => '341 - Itaú',
+                                                '077' => '077 - Inter',
+                                                '260' => '260 - Nubank',
+                                                '212' => '212 - Banco Original',
+                                                '336' => '336 - C6 Bank',
+                                                '290' => '290 - Pagseguro',
+                                            ])
+                                            ->required()
+                                            ->searchable()
+                                            ->helperText('Código do banco'),
+
+                                        Forms\Components\Select::make('bank_account_type')
+                                            ->label('Tipo de Conta')
+                                            ->options([
+                                                'checking' => 'Conta Corrente',
+                                                'savings' => 'Conta Poupança',
+                                            ])
+                                            ->required()
+                                            ->default('checking'),
+
+                                        Forms\Components\TextInput::make('pagarme_recipient_id')
+                                            ->label('Recipient ID (Pagar.me)')
+                                            ->disabled()
+                                            ->helperText('Gerado automaticamente ao salvar')
+                                            ->dehydrated(false),
+                                    ]),
+
+                                Forms\Components\Grid::make(4)
+                                    ->schema([
+                                        Forms\Components\TextInput::make('bank_agency')
+                                            ->label('Agência')
+                                            ->required()
+                                            ->numeric()
+                                            ->maxLength(10)
+                                            ->placeholder('0001')
+                                            ->helperText('Sem dígito'),
+
+                                        Forms\Components\TextInput::make('bank_branch_digit')
+                                            ->label('Dígito')
+                                            ->maxLength(1)
+                                            ->placeholder('0')
+                                            ->default('0')
+                                            ->helperText('Dígito verificador da agência'),
+
+                                        Forms\Components\TextInput::make('bank_account')
+                                            ->label('Conta')
+                                            ->required()
+                                            ->numeric()
+                                            ->maxLength(20)
+                                            ->placeholder('12345678')
+                                            ->helperText('Sem dígito'),
+
+                                        Forms\Components\TextInput::make('bank_account_digit')
+                                            ->label('Dígito')
+                                            ->required()
+                                            ->maxLength(2)
+                                            ->placeholder('9')
+                                            ->helperText('Dígito verificador da conta'),
+                                    ]),
+                            ]),
+
+                        Forms\Components\Placeholder::make('recipient_status')
+                            ->label('Status do Recebedor')
+                            ->content(function ($record) {
+                                if (!$record) {
+                                    return '💡 Preencha os dados bancários e salve para criar o recebedor automaticamente';
+                                }
+
+                                if ($record->pagarme_recipient_id) {
+                                    return '✅ Recebedor criado: ' . $record->pagarme_recipient_id;
+                                }
+
+                                if ($record->payment_gateway !== 'pagarme') {
+                                    return 'ℹ️ Gateway ativo: ' . ($record->payment_gateway === 'asaas' ? 'Asaas' : 'Outro');
+                                }
+
+                                return '⏳ Recebedor será criado automaticamente ao salvar os dados bancários completos';
+                            })
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(1)
+                    ->collapsible()
+                    ->collapsed(false),
+
                 Forms\Components\Section::make('Domínios')
                     ->schema([
                         Forms\Components\Placeholder::make('domain_info')

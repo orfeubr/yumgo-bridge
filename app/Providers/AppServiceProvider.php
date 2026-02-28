@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Models\Product;
 use App\Observers\OrderFiscalObserver;
 use App\Observers\TenantObserver;
+use App\Observers\TenantRecipientObserver;
 use App\Observers\ProductObserver;
 
 class AppServiceProvider extends ServiceProvider
@@ -27,6 +28,9 @@ class AppServiceProvider extends ServiceProvider
     {
         // Registrar observer para criar domínios automaticamente
         Tenant::observe(TenantObserver::class);
+
+        // Registrar observer para criar recebedores Pagar.me automaticamente
+        Tenant::observe(TenantRecipientObserver::class);
 
         // Registrar observer para emissão automática de NFC-e
         Order::observe(OrderFiscalObserver::class);

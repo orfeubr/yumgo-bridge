@@ -19,6 +19,11 @@ class Tenant extends BaseTenant implements TenantWithDatabase
         'slug',
         'email',
         'phone',
+        'mobile_phone',
+        // Dados da empresa
+        'company_name',
+        'company_type',
+        'cpf_cnpj',
         // Asaas (legado)
         'asaas_account_id',
         // Pagar.me (atual)

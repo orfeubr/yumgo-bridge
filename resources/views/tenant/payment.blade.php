@@ -98,7 +98,7 @@
                 <div x-show="paymentMethod === 'pix' && qrcodeImage" class="bg-white rounded-xl shadow-sm p-6 text-center">
                     <h2 class="text-lg font-bold mb-4 text-gray-900">Escaneie o QR Code</h2>
                     <div class="bg-white p-4 rounded-xl inline-block border-2 border-gray-200">
-                        <img :src="'data:image/png;base64,' + qrcodeImage" alt="QR Code PIX" class="w-64 h-64 mx-auto">
+                        <img :src="qrcodeImage" alt="QR Code PIX" class="w-64 h-64 mx-auto">
                     </div>
                     <p class="text-gray-600 text-sm mt-4">Use o app do seu banco para escanear</p>
                 </div>

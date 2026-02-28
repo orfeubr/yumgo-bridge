@@ -48,7 +48,8 @@ class PaymentAccount extends Page
             'state' => $tenant->address_state,
 
             // Dados bancários
-            'bank_code' => $tenant->bank_name,
+            'bank_code' => $tenant->bank_code,
+            'bank_branch_digit' => $tenant->bank_branch_digit,
             'bank_agency' => $tenant->bank_agency,
             'bank_account' => $tenant->bank_account,
             'bank_account_digit' => $tenant->bank_account_digit,
@@ -210,33 +211,44 @@ class PaymentAccount extends Page
                                     ->label('Tipo de Conta')
                                     ->required()
                                     ->options([
-                                        'CONTA_CORRENTE' => 'Conta Corrente',
-                                        'CONTA_POUPANCA' => 'Conta Poupança',
+                                        'checking' => 'Conta Corrente',
+                                        'savings' => 'Conta Poupança',
                                     ])
-                                    ->default('CONTA_CORRENTE'),
+                                    ->default('checking'),
                             ]),
 
-                        Forms\Components\Grid::make(3)
+                        Forms\Components\Grid::make(5)
                             ->schema([
                                 Forms\Components\TextInput::make('bank_agency')
                                     ->label('Agência')
                                     ->required()
                                     ->numeric()
                                     ->maxLength(10)
-                                    ->placeholder('0001'),
+                                    ->placeholder('0001')
+                                    ->columnSpan(2),
+
+                                Forms\Components\TextInput::make('bank_branch_digit')
+                                    ->label('Dígito Ag.')
+                                    ->maxLength(1)
+                                    ->placeholder('0')
+                                    ->default('0')
+                                    ->helperText('Deixe 0 se não tiver')
+                                    ->columnSpan(1),
 
                                 Forms\Components\TextInput::make('bank_account')
                                     ->label('Conta')
                                     ->required()
                                     ->numeric()
                                     ->maxLength(20)
-                                    ->placeholder('12345678'),
+                                    ->placeholder('12345678')
+                                    ->columnSpan(1),
 
                                 Forms\Components\TextInput::make('bank_account_digit')
                                     ->label('Dígito')
                                     ->required()
                                     ->maxLength(2)
-                                    ->placeholder('9'),
+                                    ->placeholder('9')
+                                    ->columnSpan(1),
                             ]),
 
                         Forms\Components\Placeholder::make('bank_warning')
@@ -329,8 +341,10 @@ class PaymentAccount extends Page
                     'address_neighborhood' => $data['province'],
                     'address_city' => $data['city'],
                     'address_state' => $data['state'],
-                    'bank_name' => $data['bank_code'],
+                    'bank_code' => $data['bank_code'],
+                    'bank_name' => $data['bank_code'], // Mantém compatibilidade
                     'bank_agency' => $data['bank_agency'],
+                    'bank_branch_digit' => $data['bank_branch_digit'] ?? '0',
                     'bank_account' => $data['bank_account'],
                     'bank_account_digit' => $data['bank_account_digit'],
                     'bank_account_type' => $data['bank_account_type'],
