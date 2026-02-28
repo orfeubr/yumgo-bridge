@@ -156,7 +156,7 @@ class OrderController extends Controller
                 'delivery_neighborhood' => $deliveryNeighborhood,
                 'delivery_fee' => $deliveryFee, // Sempre do banco
                 'payment_method' => $request->payment_method, // Validado pelo validator
-                'use_cashback' => $useCashback, // Validado contra saldo real
+                'cashback_used' => $useCashback, // ⭐ CORRIGIDO: era 'use_cashback'
                 'notes' => htmlspecialchars(substr($request->notes ?? '', 0, 1000), ENT_QUOTES, 'UTF-8'),
             ]);
 
@@ -166,7 +166,7 @@ class OrderController extends Controller
             ];
 
             // Se for PIX, adiciona QR Code na resposta
-            $payment = $order->payment;
+            $payment = $order->payments()->latest()->first(); // ⭐ CORRIGIDO: era $order->payment
             if ($payment && $payment->method === 'pix' && $payment->pix_qrcode) {
                 $response['payment'] = [
                     'method' => 'pix',
