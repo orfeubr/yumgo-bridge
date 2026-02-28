@@ -15,6 +15,17 @@ class OrderController extends Controller
     ) {}
 
     /**
+     * Busca customer do tenant correspondente ao usuário logado
+     * Resolve incompatibilidade de IDs entre schema central e tenant
+     */
+    private function getTenantCustomer($loggedUser): ?\App\Models\Customer
+    {
+        return \App\Models\Customer::where('email', $loggedUser->email)
+            ->orWhere('phone', $loggedUser->phone)
+            ->first();
+    }
+
+    /**
      * Listar pedidos do cliente
      */
     public function index(Request $request)
@@ -45,7 +56,7 @@ class OrderController extends Controller
         $order = Order::with(['items.product', 'delivery'])->findOrFail($id);
 
         // Verificar se o pedido pertence ao cliente autenticado
-        if ($order->customer_id !== $request->user()->id) {
+        if ($order->customer_id !== $this->getTenantCustomer($request->user())?->id) {
             return response()->json(['message' => 'Pedido não encontrado.'], 404);
         }
 
@@ -291,7 +302,7 @@ class OrderController extends Controller
             $order = Order::with('payments')->findOrFail($id);
 
             // Verificar se o pedido pertence ao cliente autenticado
-            if ($order->customer_id !== $request->user()->id) {
+            if ($order->customer_id !== $this->getTenantCustomer($request->user())?->id) {
                 // LOG SEGURO (tentativa de acesso não autorizado - sem IDs de cliente)
                 \Log::warning('⚠️ Tentativa de acesso a pedido de outro cliente', [
                     'order_id' => $id,
@@ -376,7 +387,7 @@ class OrderController extends Controller
             ->firstOrFail();
 
         // Verificar se o pedido pertence ao cliente autenticado
-        if ($order->customer_id !== $request->user()->id) {
+        if ($order->customer_id !== $this->getTenantCustomer($request->user())?->id) {
             \Log::warning('⚠️ Tentativa de acesso a pedido de outro cliente via order_number', [
                 'order_number' => $orderNumber,
                 'tenant_id' => tenant()->id ?? 'NULL',
@@ -405,7 +416,7 @@ class OrderController extends Controller
             ->firstOrFail();
 
         // Verificar se o pedido pertence ao cliente autenticado
-        if ($order->customer_id !== $request->user()->id) {
+        if ($order->customer_id !== $this->getTenantCustomer($request->user())?->id) {
             \Log::warning('⚠️ Tentativa de acesso a pedido de outro cliente via token', [
                 'token' => $token,
                 'tenant_id' => tenant()->id ?? 'NULL',
@@ -435,8 +446,14 @@ class OrderController extends Controller
                 ->with('payments')
                 ->firstOrFail();
 
+            // 🔧 CORREÇÃO: Buscar customer do tenant correspondente ao usuário logado
+            $loggedUser = $request->user();
+            $tenantCustomer = \App\Models\Customer::where('email', $loggedUser->email)
+                ->orWhere('phone', $loggedUser->phone)
+                ->first();
+
             // Verificar se o pedido pertence ao cliente autenticado
-            if ($order->customer_id !== $request->user()->id) {
+            if (!$tenantCustomer || $order->customer_id !== $tenantCustomer->id) {
                 \Log::warning('⚠️ Tentativa de acesso a pagamento de outro cliente via order_number', [
                     'order_number' => $orderNumber,
                     'tenant_id' => tenant()->id ?? 'NULL',
@@ -520,7 +537,7 @@ class OrderController extends Controller
                 ->firstOrFail();
 
             // Verificar se o pedido pertence ao cliente autenticado
-            if ($order->customer_id !== $request->user()->id) {
+            if ($order->customer_id !== $this->getTenantCustomer($request->user())?->id) {
                 \Log::warning('⚠️ Tentativa de acesso a pagamento de outro cliente via token', [
                     'tenant_id' => tenant()->id ?? 'NULL',
                     // ⚠️ NÃO logar: token, customer IDs (LGPD)
