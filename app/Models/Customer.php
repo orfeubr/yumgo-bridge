@@ -15,12 +15,8 @@ class Customer extends Authenticatable
     use Notifiable, SoftDeletes, HasApiTokens;
 
     /**
-     * Conexão com banco central (PUBLIC schema)
-     */
-    protected $connection = 'pgsql';
-
-    /**
-     * Nome da tabela no schema central
+     * Tabela de customers do tenant
+     * IMPORTANTE: Não definir $connection para permitir usar conexão do tenant
      */
     protected $table = 'customers';
 

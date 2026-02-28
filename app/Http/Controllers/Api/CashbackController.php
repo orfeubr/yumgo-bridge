@@ -10,38 +10,36 @@ class CashbackController extends Controller
 {
     /**
      * Obter saldo de cashback do cliente
+     * SIMPLIFICADO: Sem sistema de tiers
      */
     public function balance(Request $request)
     {
         $customer = $request->user();
         $settings = CashbackSettings::first();
 
-        // Buscar percentual de cashback do tier do cliente
+        // Percentual único para todos os clientes
         $percentage = 0;
         if ($settings && $settings->is_active) {
-            $tierField = $customer->loyalty_tier . '_percentage';
-            $percentage = $settings->$tierField ?? 0;
+            $percentage = (float) $settings->bronze_percentage;
         }
 
         return response()->json([
-            'balance' => $customer->cashback_balance,
-            'loyalty_tier' => $customer->loyalty_tier,
-            'tier_label' => $this->getTierLabel($customer->loyalty_tier),
+            'balance' => (float) $customer->cashback_balance,
             'cashback_percentage' => $percentage,
             'is_active' => $settings?->is_active ?? false,
-            'min_cashback_to_use' => $settings?->min_cashback_to_use ?? 5.00,
-            'next_tier' => $this->getNextTier($customer->loyalty_tier),
-            'total_earned' => $customer->cashbackTransactions()
-                ->where('type', 'credit')
+            'min_cashback_to_use' => (float) ($settings?->min_cashback_to_use ?? 5.00),
+            'total_earned' => (float) $customer->cashbackTransactions()
+                ->where('type', 'earned')
                 ->sum('amount'),
-            'total_used' => $customer->cashbackTransactions()
-                ->where('type', 'debit')
+            'total_used' => (float) $customer->cashbackTransactions()
+                ->where('type', 'used')
                 ->sum('amount'),
         ]);
     }
 
     /**
      * Calcular cashback que será ganho em um pedido
+     * SIMPLIFICADO: Percentual único para todos
      */
     public function calculate(Request $request)
     {
@@ -71,15 +69,14 @@ class CashbackController extends Controller
             ]);
         }
 
-        // Buscar percentual do tier
-        $tierField = $customer->loyalty_tier . '_percentage';
-        $percentage = $settings->$tierField ?? 0;
+        // Percentual único para todos os clientes
+        $percentage = (float) $settings->bronze_percentage;
 
         // Calcular cashback
         $willEarn = ($orderTotal * $percentage) / 100;
 
         // Verificar se é aniversário do cliente
-        $isB birthday = false;
+        $isBirthday = false;
         if ($settings->birthday_bonus_enabled && $customer->birth_date) {
             $today = now()->format('m-d');
             $birthDay = $customer->birth_date->format('m-d');
@@ -130,6 +127,7 @@ class CashbackController extends Controller
 
     /**
      * Obter configurações de cashback do restaurante
+     * SIMPLIFICADO: Sem sistema de tiers
      */
     public function settings()
     {
@@ -142,69 +140,16 @@ class CashbackController extends Controller
         }
 
         return response()->json([
-            'enabled' => true,
-            'tiers' => [
-                [
-                    'name' => 'bronze',
-                    'label' => 'Bronze',
-                    'percentage' => $settings->bronze_percentage,
-                    'min_orders' => $settings->bronze_min_orders,
-                    'min_spent' => $settings->bronze_min_spent,
-                ],
-                [
-                    'name' => 'silver',
-                    'label' => 'Prata',
-                    'percentage' => $settings->silver_percentage,
-                    'min_orders' => $settings->silver_min_orders,
-                    'min_spent' => $settings->silver_min_spent,
-                ],
-                [
-                    'name' => 'gold',
-                    'label' => 'Ouro',
-                    'percentage' => $settings->gold_percentage,
-                    'min_orders' => $settings->gold_min_orders,
-                    'min_spent' => $settings->gold_min_spent,
-                ],
-                [
-                    'name' => 'platinum',
-                    'label' => 'Platina',
-                    'percentage' => $settings->platinum_percentage,
-                    'min_orders' => $settings->platinum_min_orders,
-                    'min_spent' => $settings->platinum_min_spent,
-                ],
-            ],
+            'is_active' => $settings->is_active,
+            'percentage' => (float) $settings->bronze_percentage,
+            'min_order_value_to_earn' => (float) $settings->min_order_value_to_earn,
+            'min_cashback_to_use' => (float) $settings->min_cashback_to_use,
+            'expiration_days' => $settings->expiration_days,
             'birthday_bonus_enabled' => $settings->birthday_bonus_enabled,
-            'birthday_multiplier' => $settings->birthday_multiplier,
+            'birthday_multiplier' => (float) $settings->birthday_multiplier,
             'referral_bonus_enabled' => $settings->referral_bonus_enabled,
-            'referral_bonus_amount' => $settings->referral_bonus_amount,
+            'referral_bonus_amount' => (float) $settings->referral_bonus_amount,
         ]);
     }
 
-    /**
-     * Obter label do tier
-     */
-    private function getTierLabel(string $tier): string
-    {
-        return match ($tier) {
-            'bronze' => 'Bronze',
-            'silver' => 'Prata',
-            'gold' => 'Ouro',
-            'platinum' => 'Platina',
-            default => $tier,
-        };
-    }
-
-    /**
-     * Obter próximo tier
-     */
-    private function getNextTier(string $currentTier): ?string
-    {
-        return match ($currentTier) {
-            'bronze' => 'silver',
-            'silver' => 'gold',
-            'gold' => 'platinum',
-            'platinum' => null,
-            default => null,
-        };
-    }
 }

@@ -12,11 +12,12 @@ class CashbackService
 {
     /**
      * Calcula o cashback para um pedido
+     * SIMPLIFICADO: Todos os clientes ganham o mesmo percentual
      */
     public function calculateCashback(Order $order): float
     {
         $settings = CashbackSettings::first();
-        
+
         if (!$settings || !$settings->is_active) {
             return 0.00;
         }
@@ -26,10 +27,11 @@ class CashbackService
             return 0.00;
         }
 
-        $customer = $order->customer;
-        $percentage = $this->getPercentageForTier($customer->loyalty_tier, $settings);
+        // Usa bronze_percentage como percentual único para todos
+        $percentage = (float) $settings->bronze_percentage;
 
         // Bônus de aniversário
+        $customer = $order->customer;
         if ($this->isBirthdayBonus($customer, $settings)) {
             $percentage *= $settings->birthday_multiplier;
         }
@@ -117,33 +119,12 @@ class CashbackService
 
     /**
      * Atualiza tier do cliente baseado em pedidos/gastos
+     * DESABILITADO: Sistema de tiers removido (todos ganham mesmo percentual)
      */
     public function updateCustomerTier(Customer $customer): void
     {
-        $settings = CashbackSettings::first();
-        
-        if (!$settings) {
-            return;
-        }
-
-        $totalOrders = $customer->total_orders;
-        $totalSpent = $customer->total_spent;
-
-        // Verifica tier de cima para baixo
-        if ($totalOrders >= $settings->platinum_min_orders && 
-            $totalSpent >= $settings->platinum_min_spent) {
-            $customer->loyalty_tier = 'platinum';
-        } elseif ($totalOrders >= $settings->gold_min_orders && 
-                  $totalSpent >= $settings->gold_min_spent) {
-            $customer->loyalty_tier = 'gold';
-        } elseif ($totalOrders >= $settings->silver_min_orders && 
-                  $totalSpent >= $settings->silver_min_spent) {
-            $customer->loyalty_tier = 'silver';
-        } else {
-            $customer->loyalty_tier = 'bronze';
-        }
-
-        $customer->save();
+        // Sistema de tiers desabilitado - não faz nada
+        return;
     }
 
     /**
@@ -179,17 +160,11 @@ class CashbackService
     }
 
     /**
-     * Pega porcentagem do tier
+     * Pega porcentagem do cashback (única para todos os clientes)
      */
-    public function getPercentageForTier(string $tier, CashbackSettings $settings): float
+    public function getPercentage(CashbackSettings $settings): float
     {
-        return match($tier) {
-            'bronze' => $settings->bronze_percentage,
-            'silver' => $settings->silver_percentage,
-            'gold' => $settings->gold_percentage,
-            'platinum' => $settings->platinum_percentage,
-            default => $settings->bronze_percentage,
-        };
+        return (float) $settings->bronze_percentage;
     }
 
     /**

@@ -220,7 +220,7 @@ Route::prefix('api/v1')->middleware([
     Route::get('/orders', [OrderController::class, 'index'])->middleware('throttle:60,1'); // 60 req/min
     Route::get('/orders/{id}', [OrderController::class, 'show'])->middleware('throttle:60,1'); // 60 req/min
     Route::get('/orders/{id}/payment', [OrderController::class, 'payment'])->middleware('throttle:60,1'); // 60 req/min
-    Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:10,60'); // 10 pedidos/hora ⭐ CRÍTICO
+    Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:30,60'); // 30 pedidos/hora (razoável)
     Route::post('/orders/{id}/cancel', [OrderController::class, 'cancel'])->middleware('throttle:10,1'); // 10 cancelamentos/min
 
     // Pedidos por ORDER_NUMBER (segurança - oculta IDs sequenciais)

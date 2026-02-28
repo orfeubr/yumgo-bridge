@@ -55,4 +55,30 @@ return Application::configure(basePath: dirname(__DIR__))
                 'domain' => $request->getHost(),
             ], 404);
         });
+
+        // 🔒 SEGURANÇA: Não expor stack traces em APIs (produção)
+        $exceptions->render(function (\Throwable $e, $request) {
+            // Se for request de API e não estiver em modo debug
+            if ($request->is('api/*') && !config('app.debug')) {
+                $statusCode = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
+
+                // Mensagens seguras sem expor internals
+                $message = match($statusCode) {
+                    429 => 'Muitas tentativas. Aguarde alguns minutos.',
+                    401 => 'Não autenticado.',
+                    403 => 'Acesso negado.',
+                    404 => 'Recurso não encontrado.',
+                    422 => 'Dados inválidos.',
+                    default => 'Erro no servidor. Tente novamente.'
+                };
+
+                return response()->json([
+                    'message' => $message,
+                    'status' => $statusCode,
+                ], $statusCode);
+            }
+
+            // Se for ambiente de desenvolvimento, mostrar detalhes
+            return null; // Laravel vai usar o handler padrão
+        });
     })->create();

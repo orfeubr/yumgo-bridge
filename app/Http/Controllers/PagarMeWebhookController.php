@@ -38,14 +38,19 @@ class PagarMeWebhookController extends Controller
 
         try {
             // 🔐 VALIDAÇÃO DE ASSINATURA (SEGURANÇA)
+            Log::alert('🔐 Validando assinatura do webhook');
             if (!$this->validateSignature($request)) {
                 Log::error('🚨 WEBHOOK: Assinatura inválida');
                 return response()->json(['message' => 'Invalid signature'], 403);
             }
 
+            Log::alert('✅ Assinatura válida, processando webhook');
+
             // Processar webhook via PagarMeService
             $pagarmeService = app(PagarMeService::class);
+            Log::alert('🔵 Chamando handleWebhook no PagarMeService');
             $success = $pagarmeService->handleWebhook($data);
+            Log::alert('🔵 handleWebhook retornou: ' . ($success ? 'true' : 'false'));
 
             if ($success) {
                 Log::info('✅ Webhook Pagar.me processado com sucesso', [

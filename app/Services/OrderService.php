@@ -12,6 +12,7 @@ class OrderService
 {
     public function __construct(
         private CashbackService $cashbackService,
+        private AsaasService $asaasService,
         private PagarMeService $pagarmeService
     ) {}
 
@@ -80,17 +81,32 @@ class OrderService
 
             \Log::info('✅ Items criados');
 
-            // Se for pagamento online (PIX ou cartão), criar cobrança no Pagar.me
+            // Se for pagamento online (PIX ou cartão), criar cobrança no gateway configurado
             if (in_array($data['payment_method'], ['pix', 'credit_card', 'debit_card'])) {
                 try {
-                    \Log::info('💳 Criando pagamento Pagar.me', ['method' => $data['payment_method']]);
-
                     // PROTEÇÃO: Garantir que customer tem relação carregada
                     $order->load('customer');
 
-                    $payment = $this->pagarmeService->createPayment($order, [
-                        'payment_method' => $data['payment_method']
+                    // Determinar qual gateway usar (Pagar.me por padrão)
+                    $tenant = tenant();
+                    $gateway = $tenant->payment_gateway ?? 'pagarme';
+
+                    \Log::info('💳 Criando pagamento', [
+                        'gateway' => $gateway,
+                        'method' => $data['payment_method'],
+                        'tenant_id' => $tenant->id,
                     ]);
+
+                    // Usar serviço correspondente
+                    if ($gateway === 'asaas') {
+                        $payment = $this->asaasService->createPayment($order, [
+                            'payment_method' => $data['payment_method']
+                        ]);
+                    } else {
+                        $payment = $this->pagarmeService->createPayment($order, [
+                            'payment_method' => $data['payment_method']
+                        ]);
+                    }
 
                     // Se for PIX, buscar QR Code (segunda chamada necessária)
                     $pixQrCode = null;
@@ -98,25 +114,33 @@ class OrderService
                     $pixExpiresAt = null;
 
                     if ($data['payment_method'] === 'pix' && isset($payment['id'])) {
-                        $qrCodeData = $this->pagarmeService->getPixQrCode($payment['id']);
-                        if ($qrCodeData && isset($qrCodeData['encodedImage'])) {
-                            $pixQrCode = $qrCodeData['encodedImage'];
-                            $pixCopyPaste = $qrCodeData['payload'] ?? null;
-                            $pixExpiresAt = isset($qrCodeData['expirationDate'])
-                                ? Carbon::parse($qrCodeData['expirationDate'])
-                                : null;
-
-                            \Log::info('✅ QR Code PIX obtido', [
-                                'payment_id' => $payment['id'],
-                                'has_image' => !empty($pixQrCode),
-                                'has_payload' => !empty($pixCopyPaste),
-                            ]);
+                        if ($gateway === 'asaas') {
+                            // Asaas já retorna QR Code na primeira chamada
+                            $pixQrCode = $payment['encodedImage'] ?? null;
+                            $pixCopyPaste = $payment['payload'] ?? null;
+                        } else {
+                            // Pagar.me precisa de segunda chamada
+                            $qrCodeData = $this->pagarmeService->getPixQrCode($payment['id']);
+                            if ($qrCodeData && isset($qrCodeData['encodedImage'])) {
+                                $pixQrCode = $qrCodeData['encodedImage'];
+                                $pixCopyPaste = $qrCodeData['payload'] ?? null;
+                                $pixExpiresAt = isset($qrCodeData['expirationDate'])
+                                    ? Carbon::parse($qrCodeData['expirationDate'])
+                                    : null;
+                            }
                         }
+
+                        \Log::info('✅ QR Code PIX obtido', [
+                            'gateway' => $gateway,
+                            'payment_id' => $payment['id'],
+                            'has_image' => !empty($pixQrCode),
+                            'has_payload' => !empty($pixCopyPaste),
+                        ]);
                     }
 
                     $paymentRecord = \App\Models\Payment::create([
                         'order_id' => $order->id,
-                        'gateway' => 'pagarme',
+                        'gateway' => $gateway,
                         'method' => $data['payment_method'],
                         'transaction_id' => $payment['id'],
                         'amount' => $order->total,
@@ -134,19 +158,20 @@ class OrderService
                         'has_code' => !empty($paymentRecord->pix_copy_paste),
                     ]);
 
-                    \Log::info('✅ Pagamento Pagar.me criado');
+                    \Log::info('✅ Pagamento criado', ['gateway' => $gateway]);
                 } catch (\Exception $e) {
-                    \Log::error('❌ Erro ao criar pagamento Pagar.me (PEDIDO CRIADO, pagamento pendente)', [
+                    \Log::error('❌ Erro ao criar pagamento (PEDIDO CRIADO, pagamento pendente)', [
+                        'gateway' => $gateway ?? 'unknown',
                         'error' => $e->getMessage(),
                         'order_id' => $order->id,
                         'payment_method' => $data['payment_method'],
                     ]);
 
-                    // FALLBACK: Criar registro de pagamento pendente mesmo sem Pagar.me
+                    // FALLBACK: Criar registro de pagamento pendente mesmo com erro no gateway
                     // O pedido já foi criado, apenas marca pagamento como pendente
                     \App\Models\Payment::create([
                         'order_id' => $order->id,
-                        'gateway' => 'pagarme',
+                        'gateway' => $gateway ?? 'pagarme',
                         'method' => $data['payment_method'],
                         'transaction_id' => 'PENDING_' . $order->id,
                         'amount' => $order->total,

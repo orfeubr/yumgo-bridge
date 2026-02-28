@@ -161,6 +161,8 @@ class PagarMeService
         $payload = [
             'customer' => [
                 'id' => $customer['id'],
+                'name' => $customer['name'] ?? $order->customer->name ?? 'Cliente',
+                'email' => $customer['email'] ?? $order->customer->email,
             ],
             'items' => $this->formatOrderItems($order),
             'metadata' => [
@@ -258,17 +260,53 @@ class PagarMeService
 
     /**
      * Formata itens do pedido para o formato Pagar.me
+     * IMPORTANTE: A soma dos items deve ser igual ao total do pedido
      */
     private function formatOrderItems(Order $order): array
     {
         $items = [];
 
+        // Adicionar produtos
         foreach ($order->items as $item) {
+            // Calcular amount em centavos (mínimo 1 centavo)
+            $amountInCents = (int)round($item->unit_price * $item->quantity * 100);
+            $amountInCents = max($amountInCents, 1); // Garantir mínimo 1 centavo
+
             $items[] = [
-                'amount' => (int)($item->price * 100), // Centavos
-                'description' => $item->product_name,
-                'quantity' => $item->quantity,
+                'amount' => $amountInCents,
+                'description' => $item->product_name ?: 'Produto',
+                'quantity' => (int)$item->quantity,
                 'code' => (string)$item->product_id,
+            ];
+        }
+
+        // Adicionar taxa de entrega (se houver)
+        if ($order->delivery_fee > 0) {
+            $items[] = [
+                'amount' => (int)round($order->delivery_fee * 100),
+                'description' => 'Taxa de Entrega',
+                'quantity' => 1,
+                'code' => 'DELIVERY_FEE',
+            ];
+        }
+
+        // Adicionar desconto como item negativo (se houver)
+        if ($order->discount > 0) {
+            $items[] = [
+                'amount' => -(int)round($order->discount * 100), // Negativo
+                'description' => 'Desconto',
+                'quantity' => 1,
+                'code' => 'DISCOUNT',
+            ];
+        }
+
+        // Adicionar cashback usado como item negativo (se houver)
+        if ($order->cashback_used > 0) {
+            $items[] = [
+                'amount' => -(int)round($order->cashback_used * 100), // Negativo
+                'description' => 'Cashback Utilizado',
+                'quantity' => 1,
+                'code' => 'CASHBACK_USED',
             ];
         }
 
@@ -362,8 +400,12 @@ class PagarMeService
      */
     public function handleWebhook(array $data): bool
     {
+        \Log::info('🔔 Webhook Pagar.me recebido no Service', ['data' => $data]);
+
         $event = $data['type'] ?? null;
         $orderData = $data['data'] ?? null;
+
+        \Log::info('📋 Webhook - Event: ' . $event, ['has_orderData' => !empty($orderData)]);
 
         if (!$event || !$orderData) {
             \Log::warning('Webhook Pagar.me inválido', ['data' => $data]);
@@ -376,45 +418,53 @@ class PagarMeService
             $orderId = $metadata['order_id'] ?? null;
             $tenantId = $metadata['tenant_id'] ?? null;
 
+            \Log::alert('🔍 Metadata extraído', ['order_id' => $orderId, 'tenant_id' => $tenantId]);
+
             if (!$orderId || !$tenantId) {
                 \Log::warning('Webhook sem order_id ou tenant_id', ['metadata' => $metadata]);
                 return false;
             }
 
             // Inicializa tenancy
+            \Log::alert('🔍 Buscando tenant: ' . $tenantId);
             $tenant = \App\Models\Tenant::find($tenantId);
             if (!$tenant) {
                 \Log::error('Tenant não encontrado no webhook', ['tenant_id' => $tenantId]);
                 return false;
             }
 
+            \Log::alert('✅ Tenant encontrado: ' . $tenant->name);
             tenancy()->initialize($tenant);
 
             // Busca order
+            \Log::alert('🔍 Buscando order: ' . $orderId);
             $order = Order::find($orderId);
             if (!$order) {
                 \Log::error('Order não encontrada no webhook', ['order_id' => $orderId]);
                 return false;
             }
 
+            \Log::alert('✅ Order encontrada: #' . $order->order_number);
+
             // Processa evento
+            \Log::alert('🔄 Processando evento: ' . $event);
             switch ($event) {
                 case 'order.paid':
                 case 'charge.paid':
-                    $order->update([
-                        'payment_status' => 'paid',
-                        'status' => 'confirmed',
-                        'paid_at' => now(),
+                    \Log::alert('💳 Atualizando status do pagamento para paid');
+                    // Atualiza pagamento
+                    $order->payments()->where('transaction_id', $orderData['id'])->update([
+                        'status' => 'paid',
                     ]);
 
-                    // Processar cashback (se configurado)
-                    if ($order->cashback_earned > 0) {
-                        app(\App\Services\CashbackService::class)->processCashback($order);
-                    }
+                    \Log::alert('✅ Chamando confirmPayment');
+                    // Confirma pedido e processa cashback automaticamente
+                    app(\App\Services\OrderService::class)->confirmPayment($order);
 
                     \Log::info('Pagamento confirmado via webhook Pagar.me', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
+                        'cashback_earned' => $order->cashback_earned,
                     ]);
                     break;
 
@@ -450,24 +500,87 @@ class PagarMeService
         $orderData = $this->getPaymentStatus($orderId);
 
         if (!$orderData) {
+            \Log::warning('Pagar.me: Não foi possível obter dados do pedido', ['order_id' => $orderId]);
             return null;
         }
 
         $charges = $orderData['charges'] ?? [];
         if (empty($charges)) {
+            \Log::warning('Pagar.me: Nenhuma cobrança encontrada', ['order_id' => $orderId]);
             return null;
         }
 
         $lastTransaction = $charges[0]['last_transaction'] ?? null;
-        if (!$lastTransaction || $lastTransaction['transaction_type'] !== 'pix') {
+        if (!$lastTransaction) {
+            \Log::warning('Pagar.me: Nenhuma transação encontrada', ['order_id' => $orderId]);
             return null;
         }
 
+        $qrCodeString = $lastTransaction['qr_code'] ?? null;
+        $qrCodeUrl = $lastTransaction['qr_code_url'] ?? null;
+
+        // Se tiver URL da imagem, buscar e converter para base64
+        $encodedImage = null;
+        if ($qrCodeUrl) {
+            try {
+                $response = \Illuminate\Support\Facades\Http::timeout(10)->get($qrCodeUrl);
+                if ($response->successful()) {
+                    $encodedImage = 'data:image/png;base64,' . base64_encode($response->body());
+                    \Log::info('Pagar.me: Imagem QR Code baixada com sucesso', ['url' => $qrCodeUrl]);
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Pagar.me: Erro ao baixar imagem QR Code', [
+                    'url' => $qrCodeUrl,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Se não conseguiu a imagem, gerar QR Code a partir da string
+        if (!$encodedImage && $qrCodeString) {
+            // Usar API pública para gerar QR Code (fallback)
+            $encodedImage = $this->generateQrCodeFromString($qrCodeString);
+        }
+
+        // Log para debug
+        \Log::info('Pagar.me: Dados da transação PIX', [
+            'order_id' => $orderId,
+            'transaction_type' => $lastTransaction['transaction_type'] ?? 'unknown',
+            'has_qr_code' => isset($lastTransaction['qr_code']),
+            'has_qr_code_url' => isset($lastTransaction['qr_code_url']),
+            'has_encoded_image' => !empty($encodedImage),
+        ]);
+
+        // Retornar no formato esperado pelo OrderService (compatível com Asaas)
         return [
-            'qr_code' => $lastTransaction['qr_code'] ?? null,
-            'qr_code_url' => $lastTransaction['qr_code_url'] ?? null,
-            'expires_at' => $lastTransaction['expires_at'] ?? null,
+            'encodedImage' => $encodedImage,
+            'payload' => $qrCodeString, // QR code string para copiar/colar
+            'qr_code_url' => $qrCodeUrl,
+            'expirationDate' => $lastTransaction['expires_at'] ?? null,
         ];
+    }
+
+    /**
+     * Gera QR Code em base64 a partir de uma string usando API pública
+     */
+    private function generateQrCodeFromString(string $text): ?string
+    {
+        try {
+            // Usar API pública do QR Server
+            $url = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' . urlencode($text);
+
+            $response = \Illuminate\Support\Facades\Http::timeout(10)->get($url);
+
+            if ($response->successful()) {
+                return 'data:image/png;base64,' . base64_encode($response->body());
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Erro ao gerar QR Code via API pública', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return null;
     }
 
     /**

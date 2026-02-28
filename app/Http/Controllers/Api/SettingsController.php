@@ -14,6 +14,7 @@ class SettingsController extends Controller
     public function index()
     {
         $settings = Settings::current();
+        $cashbackSettings = \App\Models\CashbackSettings::first();
 
         return response()->json([
             'success' => true,
@@ -35,6 +36,18 @@ class SettingsController extends Controller
                 'max_delivery_time' => $settings->max_delivery_time,
                 'allow_pickup' => $settings->allow_pickup,
                 'allow_delivery' => $settings->allow_delivery,
+
+                // Cashback (simplificado - sem tiers)
+                'cashback' => $cashbackSettings ? [
+                    'is_active' => $cashbackSettings->is_active,
+                    'percentage' => (float) $cashbackSettings->bronze_percentage,
+                    'min_order_value_to_earn' => (float) $cashbackSettings->min_order_value_to_earn,
+                    'min_cashback_to_use' => (float) $cashbackSettings->min_cashback_to_use,
+                    'birthday_bonus_enabled' => $cashbackSettings->birthday_bonus_enabled,
+                    'birthday_multiplier' => (float) $cashbackSettings->birthday_multiplier,
+                ] : [
+                    'is_active' => false,
+                ],
 
                 // Pagamentos
                 'payment_methods' => [
