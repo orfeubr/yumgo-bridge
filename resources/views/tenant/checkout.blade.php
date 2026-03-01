@@ -80,13 +80,13 @@
         <!-- Overlay de Processamento -->
         <div x-show="loading || pageLoading" x-cloak class="order-overlay">
             <div class="text-center">
-                <div class="pulse-ring mx-auto mb-6 flex items-center justify-center">
-                    <svg class="w-12 h-12 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
+                <!-- Animação de Cozinha -->
+                <div class="mb-8">
+                    <x-cooking-animation />
                 </div>
-                <h3 class="text-white text-2xl font-bold mb-2" x-text="loading ? 'Processando seu pedido...' : 'Carregando...'"></h3>
-                <p class="text-gray-300 text-sm mb-4" x-text="loading ? 'Aguarde enquanto confirmamos os dados' : 'Aguarde enquanto carregamos as informações'"></p>
+
+                <h3 class="text-white text-2xl font-bold mb-2" x-text="loading ? 'Preparando seu pedido...' : 'Carregando suas informações...'"></h3>
+                <p class="text-gray-300 text-sm mb-4" x-text="loading ? 'Estamos confirmando todos os detalhes' : 'Só mais um instante'"></p>
                 <x-loading-dots />
             </div>
         </div>
