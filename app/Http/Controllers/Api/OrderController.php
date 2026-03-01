@@ -87,7 +87,18 @@ class OrderController extends Controller
             'notes' => 'nullable|string|max:1000',
         ]);
 
-        $customer = $request->user();
+        $centralCustomer = $request->user();
+
+        // 🔄 BUSCAR CUSTOMER DO TENANT (cashback está no schema do tenant, não no central)
+        $customer = \App\Models\Customer::where('email', $centralCustomer->email)
+            ->orWhere('phone', $centralCustomer->phone)
+            ->first();
+
+        if (!$customer) {
+            return response()->json([
+                'message' => 'Cliente não encontrado no restaurante. Por favor, faça login novamente.',
+            ], 404);
+        }
 
         // 🔒 VALIDAR HORÁRIO DE FUNCIONAMENTO
         $settings = \App\Models\Settings::first();
@@ -118,8 +129,7 @@ class OrderController extends Controller
         $deliveryNeighborhood = htmlspecialchars(trim($request->delivery_neighborhood), ENT_QUOTES, 'UTF-8');
         $deliveryAddress = htmlspecialchars(trim($request->delivery_address), ENT_QUOTES, 'UTF-8');
 
-        // PROTEÇÃO: Calcular cashback (sempre do banco, nunca do frontend)
-        // IMPORTANTE: Customer já está na conexão correta do tenant (não usar getTenantData aqui)
+        // PROTEÇÃO: Calcular cashback (sempre do banco do TENANT, nunca do frontend)
         $customer->refresh(); // Garante dados atualizados do banco
         $cashbackBalance = (float) $customer->cashback_balance;
 

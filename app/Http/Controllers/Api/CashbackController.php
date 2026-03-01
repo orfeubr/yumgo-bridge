@@ -14,7 +14,24 @@ class CashbackController extends Controller
      */
     public function balance(Request $request)
     {
-        $customer = $request->user();
+        // 🔄 BUSCAR CUSTOMER DO TENANT (cashback está no schema do tenant, não no central)
+        $centralCustomer = $request->user();
+        $customer = \App\Models\Customer::where('email', $centralCustomer->email)
+            ->orWhere('phone', $centralCustomer->phone)
+            ->first();
+
+        if (!$customer) {
+            return response()->json([
+                'balance' => 0,
+                'cashback_percentage' => 0,
+                'is_active' => false,
+                'min_cashback_to_use' => 0,
+                'total_earned' => 0,
+                'total_used' => 0,
+                'message' => 'Cliente não encontrado neste restaurante',
+            ]);
+        }
+
         $settings = CashbackSettings::first();
 
         // Percentual único para todos os clientes
@@ -47,7 +64,12 @@ class CashbackController extends Controller
             'total' => 'required|numeric|min:0',
         ]);
 
-        $customer = $request->user();
+        // 🔄 BUSCAR CUSTOMER DO TENANT
+        $centralCustomer = $request->user();
+        $customer = \App\Models\Customer::where('email', $centralCustomer->email)
+            ->orWhere('phone', $centralCustomer->phone)
+            ->first();
+
         $settings = CashbackSettings::first();
 
         if (!$settings || !$settings->is_active) {
@@ -100,8 +122,25 @@ class CashbackController extends Controller
      */
     public function transactions(Request $request)
     {
-        $transactions = $request->user()
-            ->cashbackTransactions()
+        // 🔄 BUSCAR CUSTOMER DO TENANT
+        $centralCustomer = $request->user();
+        $customer = \App\Models\Customer::where('email', $centralCustomer->email)
+            ->orWhere('phone', $centralCustomer->phone)
+            ->first();
+
+        if (!$customer) {
+            return response()->json([
+                'data' => [],
+                'pagination' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => 20,
+                    'total' => 0,
+                ],
+            ]);
+        }
+
+        $transactions = $customer->cashbackTransactions()
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 
