@@ -62,4 +62,4 @@ echo "\n";
 echo "🎉 Concluído!\n";
 echo "📊 {$updated} produtos atualizados com imagens\n";
 echo "\n";
-echo "🌐 Acesse: https://pizzaria-bella.eliseus.com.br\n";
+echo "🌐 Acesse: https://pizzaria-bella.yumgo.com.br\n";

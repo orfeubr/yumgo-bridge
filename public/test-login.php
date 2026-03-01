@@ -6,8 +6,8 @@ $app = require_once __DIR__ . '/../bootstrap/app.php';
 $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
 
 // Simular request
-$request = Illuminate\Http\Request::create('https://marmitaria-gi.eliseus.com.br/test-login.php');
-$request->headers->set('Host', 'marmitaria-gi.eliseus.com.br');
+$request = Illuminate\Http\Request::create('https://marmitaria-gi.yumgo.com.br/test-login.php');
+$request->headers->set('Host', 'marmitaria-gi.yumgo.com.br');
 
 $response = $kernel->handle($request);
 
@@ -66,7 +66,7 @@ try {
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
 
         echo "Credenciais:\n";
-        echo "URL: https://marmitaria-gi.eliseus.com.br/painel\n";
+        echo "URL: https://marmitaria-gi.yumgo.com.br/painel\n";
         echo "Email: admin@marmitaria-gi.com\n";
         echo "Senha: 123456\n";
     } else {

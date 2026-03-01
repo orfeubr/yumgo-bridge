@@ -52,4 +52,4 @@ echo "\n";
 echo "🎉 Concluído!\n";
 echo "📊 {$updated} marmitas atualizadas\n";
 echo "\n";
-echo "🌐 Acesse: https://marmitaria-gi.eliseus.com.br\n";
+echo "🌐 Acesse: https://marmitaria-gi.yumgo.com.br\n";

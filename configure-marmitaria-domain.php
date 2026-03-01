@@ -28,7 +28,7 @@ if (!$tenant) {
 echo "✅ Tenant encontrado: {$tenant->name}\n";
 
 // Verificar se o domínio já existe
-$domain = Domain::where('domain', 'marmitaria-gi.eliseus.com.br')->first();
+$domain = Domain::where('domain', 'marmitaria-gi.yumgo.com.br')->first();
 
 if ($domain) {
     echo "⚠️  Domínio já existe!\n";
@@ -43,7 +43,7 @@ if ($domain) {
 } else {
     echo "➕ Criando domínio...\n";
     $domain = Domain::create([
-        'domain' => 'marmitaria-gi.eliseus.com.br',
+        'domain' => 'marmitaria-gi.yumgo.com.br',
         'tenant_id' => 'marmitaria-gi',
     ]);
     echo "✅ Domínio criado com sucesso!\n";
@@ -51,7 +51,7 @@ if ($domain) {
 
 echo "\n";
 echo "🎉 CONFIGURAÇÃO CONCLUÍDA!\n\n";
-echo "📱 Acesse: https://marmitaria-gi.eliseus.com.br\n";
+echo "📱 Acesse: https://marmitaria-gi.yumgo.com.br\n";
 echo "🍱 Você verá o catálogo de marmitas da Gi!\n\n";
 
 // Mostrar todos os domínios do tenant

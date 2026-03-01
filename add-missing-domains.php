@@ -27,7 +27,7 @@ foreach ($tenants as $tenant) {
     }
 
     // Criar domínio usando o slug
-    $domain = $tenant->slug . '.eliseus.com.br';
+    $domain = $tenant->slug . '.yumgo.com.br';
 
     try {
         Domain::create([
