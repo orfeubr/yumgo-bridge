@@ -20,28 +20,6 @@ return [
             'report_query_bindings' => true,
             'report_view_data' => true,
         ],
-
-        'context' => function () {
-            $context = [
-                'environment' => config('app.env'),
-                'app_version' => '1.0.0',
-            ];
-
-            // Adiciona contexto do tenant se estiver inicializado
-            if (function_exists('tenancy') && tenancy()->initialized) {
-                $tenant = tenant();
-                if ($tenant) {
-                    $context['tenant_id'] = $tenant->id;
-                    $context['tenant_slug'] = $tenant->slug;
-                    $context['tenant_name'] = $tenant->name;
-                    $context['payment_gateway'] = $tenant->payment_gateway ?? 'not_configured';
-                }
-            } else {
-                $context['tenant'] = 'central';
-            }
-
-            return $context;
-        },
         /*
         |
         |--------------------------------------------------------------------------
