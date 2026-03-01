@@ -286,47 +286,97 @@ class OrderService
 
     /**
      * Confirma pagamento e adiciona cashback
+     *
+     * ⚠️ IMPORTANTE: Cashback só é gerado APÓS confirmação de pagamento
+     * Este método deve ser chamado apenas quando o pagamento for APROVADO
      */
     public function confirmPayment(Order $order): void
     {
         DB::transaction(function () use ($order) {
+            // ⚠️ PROTEÇÃO: Não processar se já estiver pago (evita duplicação)
+            if ($order->payment_status === 'paid') {
+                \Log::warning('⚠️ Tentativa de confirmar pagamento já pago', [
+                    'order_number' => $order->order_number,
+                    'payment_status' => $order->payment_status,
+                ]);
+                return;
+            }
+
+            // ⚠️ PROTEÇÃO: Não processar se pedido estiver cancelado
+            if ($order->status === 'canceled') {
+                \Log::error('❌ Tentativa de confirmar pagamento de pedido cancelado', [
+                    'order_number' => $order->order_number,
+                    'status' => $order->status,
+                ]);
+                return;
+            }
+
+            // ✅ Marca pagamento como confirmado
             $order->update([
                 'payment_status' => 'paid',
                 'status' => 'confirmed',
             ]);
 
-            // Calcula e adiciona cashback ganho (se ainda não calculado)
+            \Log::info('✅ Pagamento confirmado', [
+                'order_number' => $order->order_number,
+                'total' => $order->total,
+            ]);
+
+            // 💰 CASHBACK: Só gera APÓS pagamento confirmado
             if ($order->cashback_earned == 0) {
                 $cashbackEarned = $this->cashbackService->calculateCashback($order);
                 if ($cashbackEarned > 0) {
                     $order->update(['cashback_earned' => $cashbackEarned]);
                     $this->cashbackService->addEarnedCashback($order, $cashbackEarned);
+
+                    \Log::info('💰 Cashback creditado', [
+                        'order_number' => $order->order_number,
+                        'customer_id' => $order->customer_id,
+                        'amount' => $cashbackEarned,
+                    ]);
                 }
             } else {
-                // Se já foi calculado, apenas adiciona
+                // Se já foi calculado (raro), apenas adiciona
                 $this->cashbackService->addEarnedCashback($order, $order->cashback_earned);
+
+                \Log::info('💰 Cashback creditado (já calculado)', [
+                    'order_number' => $order->order_number,
+                    'amount' => $order->cashback_earned,
+                ]);
             }
 
-            // Atualiza estatísticas do cliente
+            // 📊 Atualiza estatísticas do cliente
             $customer = $order->customer;
             $customer->total_orders += 1;
             $customer->total_spent += $order->total;
             $customer->save();
 
-            // Atualiza tier do cliente
+            // ⭐ Atualiza tier do cliente (Bronze → Prata → Ouro)
             $this->cashbackService->updateCustomerTier($customer);
+
+            \Log::info('📊 Estatísticas atualizadas', [
+                'customer_id' => $customer->id,
+                'total_orders' => $customer->total_orders,
+                'total_spent' => $customer->total_spent,
+                'tier' => $customer->loyalty_tier,
+            ]);
         });
     }
 
     /**
-     * Cancela pedido e devolve cashback usado
+     * Cancela pedido e estorna cashback
+     *
+     * REGRAS DE ESTORNO:
+     * 1. Devolve cashback USADO pelo cliente (se houver)
+     * 2. Remove cashback GANHO se pagamento foi confirmado (previne fraude)
      */
     public function cancelOrder(Order $order): void
     {
         DB::transaction(function () use ($order) {
-            // Devolve cashback usado
+            $customer = $order->customer;
+
+            // 1️⃣ ESTORNO: Devolve cashback USADO pelo cliente
             if ($order->cashback_used > 0) {
-                $customer = $order->customer;
                 $balanceBefore = $customer->cashback_balance;
                 $customer->cashback_balance += $order->cashback_used;
                 $customer->save();
@@ -338,12 +388,70 @@ class OrderService
                     'amount' => $order->cashback_used,
                     'balance_before' => $balanceBefore,
                     'balance_after' => $customer->cashback_balance,
-                    'description' => "Devolução de cashback - Pedido #{$order->order_number} cancelado",
+                    'description' => "Estorno de cashback usado - Pedido #{$order->order_number} cancelado",
+                ]);
+
+                \Log::info('💰 Cashback usado devolvido', [
+                    'order_number' => $order->order_number,
+                    'customer_id' => $customer->id,
+                    'amount' => $order->cashback_used,
                 ]);
             }
 
+            // 2️⃣ ESTORNO: Remove cashback GANHO se pagamento foi confirmado
+            // ⚠️ PROTEÇÃO: Só remove se o pedido estava PAGO (evita remover cashback não creditado)
+            if ($order->cashback_earned > 0 && $order->payment_status === 'paid') {
+                $balanceBefore = $customer->cashback_balance;
+                $customer->cashback_balance -= $order->cashback_earned;
+
+                // Previne saldo negativo
+                if ($customer->cashback_balance < 0) {
+                    $customer->cashback_balance = 0;
+                }
+
+                $customer->save();
+
+                \App\Models\CashbackTransaction::create([
+                    'customer_id' => $customer->id,
+                    'order_id' => $order->id,
+                    'type' => 'used',
+                    'amount' => $order->cashback_earned,
+                    'balance_before' => $balanceBefore,
+                    'balance_after' => $customer->cashback_balance,
+                    'description' => "Estorno de cashback ganho - Pedido #{$order->order_number} cancelado após pagamento",
+                ]);
+
+                \Log::warning('⚠️ Cashback ganho removido (cancelamento pós-pagamento)', [
+                    'order_number' => $order->order_number,
+                    'customer_id' => $customer->id,
+                    'amount' => $order->cashback_earned,
+                    'payment_status' => $order->payment_status,
+                ]);
+            }
+
+            // 3️⃣ Atualiza estatísticas do cliente (remove pedido das contagens)
+            if ($order->payment_status === 'paid') {
+                $customer->total_orders = max(0, $customer->total_orders - 1);
+                $customer->total_spent = max(0, $customer->total_spent - $order->total);
+                $customer->save();
+
+                \Log::info('📊 Estatísticas do cliente atualizadas', [
+                    'customer_id' => $customer->id,
+                    'total_orders' => $customer->total_orders,
+                    'total_spent' => $customer->total_spent,
+                ]);
+            }
+
+            // 4️⃣ Marca pedido como cancelado
             $order->update([
                 'status' => 'canceled',
+                'payment_status' => 'canceled', // Marca pagamento também
+            ]);
+
+            \Log::info('🔴 Pedido cancelado', [
+                'order_number' => $order->order_number,
+                'cashback_used_returned' => $order->cashback_used,
+                'cashback_earned_removed' => ($order->payment_status === 'paid' ? $order->cashback_earned : 0),
             ]);
         });
     }
