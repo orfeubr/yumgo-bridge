@@ -40,8 +40,8 @@
 
         <!-- Loading -->
         <div x-show="loading && isAuthenticated" class="bg-white rounded-lg border border-gray-200 p-12 text-center">
-            <div class="animate-spin w-12 h-12 border-3 border-gray-300 border-t-gray-900 rounded-full mx-auto mb-4"></div>
-            <p class="text-sm text-gray-500">Carregando pedidos...</p>
+            <x-loading-spinner size="lg" />
+            <p class="text-sm text-gray-500 mt-4">Carregando pedidos...</p>
         </div>
 
         <!-- Lista de Pedidos -->
@@ -63,15 +63,14 @@
             </div>
 
             <!-- Vazio -->
-            <div x-show="filteredOrders.length === 0" class="bg-white rounded-lg border border-gray-200 p-12 text-center">
-                <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
-                </svg>
-                <h2 class="text-lg font-semibold text-gray-900 mb-2">Nenhum pedido</h2>
-                <p class="text-sm text-gray-500 mb-6">Você ainda não fez nenhum pedido</p>
-                <a href="/" class="inline-block px-6 py-2.5 bg-gray-900 text-white rounded-lg font-medium text-sm hover:bg-gray-800 transition">
-                    Ver Cardápio
-                </a>
+            <div x-show="filteredOrders.length === 0">
+                <x-empty-state
+                    title="Nenhum pedido"
+                    message="Você ainda não fez nenhum pedido"
+                    icon="inbox"
+                    actionText="Ver Cardápio"
+                    actionUrl="/"
+                />
             </div>
 
             <!-- Pedidos -->

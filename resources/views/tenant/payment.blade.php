@@ -53,8 +53,8 @@
         <div class="max-w-2xl mx-auto px-4 py-6">
             <!-- Loading -->
             <div x-show="loading && !error" x-cloak class="bg-white rounded-lg border border-gray-200 p-12 text-center">
-                <div class="animate-spin w-12 h-12 border-3 border-gray-300 border-t-gray-900 rounded-full mx-auto mb-4"></div>
-                <p class="text-sm text-gray-500">Carregando...</p>
+                <x-loading-spinner size="lg" />
+                <p class="text-sm text-gray-500 mt-4">Carregando pagamento...</p>
             </div>
 
             <!-- Erro -->
@@ -173,7 +173,7 @@
                 <!-- Status Check -->
                 <div class="bg-white rounded-xl shadow-sm p-6 text-center">
                     <div class="flex items-center justify-center gap-2 mb-2">
-                        <div class="animate-spin w-5 h-5 border-2 border-primary border-t-transparent rounded-full"></div>
+                        <x-loading-spinner size="sm" />
                         <p class="text-gray-700 font-medium text-sm">Verificando pagamento...</p>
                     </div>
                     <p class="text-xs text-gray-500">

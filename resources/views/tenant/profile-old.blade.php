@@ -37,8 +37,8 @@
 
             <!-- Loading -->
             <div x-show="loading && isAuthenticated" class="bg-white rounded-2xl shadow-lg p-12 text-center">
-                <div class="animate-spin w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-                <p class="text-gray-600">Carregando perfil...</p>
+                <x-loading-spinner size="xl" />
+                <p class="text-gray-600 mt-4">Carregando perfil...</p>
             </div>
 
             <!-- Perfil -->

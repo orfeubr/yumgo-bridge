@@ -87,11 +87,7 @@
                 </div>
                 <h3 class="text-white text-2xl font-bold mb-2" x-text="loading ? 'Processando seu pedido...' : 'Carregando...'"></h3>
                 <p class="text-gray-300 text-sm mb-4" x-text="loading ? 'Aguarde enquanto confirmamos os dados' : 'Aguarde enquanto carregamos as informações'"></p>
-                <div class="flex items-center justify-center gap-2">
-                    <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0s"></div>
-                    <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                    <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
-                </div>
+                <x-loading-dots />
             </div>
         </div>
 
@@ -121,63 +117,20 @@
         <div class="max-w-4xl mx-auto px-4 py-6">
             <!-- Loading Skeleton -->
             <div x-show="pageLoading" class="space-y-4">
-                <!-- Skeleton do Carrinho -->
-                <div class="bg-white rounded-xl shadow-sm p-5">
-                    <div class="skeleton h-6 w-32 rounded mb-4"></div>
-                    <div class="space-y-3">
-                        <div class="flex gap-3 pb-3 border-b border-gray-100">
-                            <div class="flex-1 space-y-2">
-                                <div class="skeleton h-5 w-48 rounded"></div>
-                                <div class="skeleton h-4 w-64 rounded"></div>
-                                <div class="skeleton h-4 w-24 rounded"></div>
-                            </div>
-                            <div class="skeleton h-6 w-20 rounded"></div>
-                        </div>
-                        <div class="flex gap-3 pb-3">
-                            <div class="flex-1 space-y-2">
-                                <div class="skeleton h-5 w-40 rounded"></div>
-                                <div class="skeleton h-4 w-56 rounded"></div>
-                                <div class="skeleton h-4 w-24 rounded"></div>
-                            </div>
-                            <div class="skeleton h-6 w-20 rounded"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Skeleton de Endereço -->
-                <div class="bg-white rounded-xl shadow-sm p-5">
-                    <div class="skeleton h-6 w-48 rounded mb-4"></div>
-                    <div class="space-y-3">
-                        <div class="skeleton h-12 w-full rounded-lg"></div>
-                        <div class="skeleton h-12 w-full rounded-lg"></div>
-                    </div>
-                </div>
-
-                <!-- Skeleton de Pagamento -->
-                <div class="bg-white rounded-xl shadow-sm p-5">
-                    <div class="skeleton h-6 w-56 rounded mb-4"></div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="skeleton h-24 w-full rounded-lg"></div>
-                        <div class="skeleton h-24 w-full rounded-lg"></div>
-                    </div>
-                </div>
-
-                <!-- Skeleton do Botão -->
-                <div class="skeleton h-14 w-full rounded-lg"></div>
+                <x-skeleton-card />
+                <x-skeleton-card />
+                <x-skeleton-card />
             </div>
 
             <!-- Carrinho vazio -->
-            <div x-show="!pageLoading && cart.length === 0" x-cloak class="bg-white rounded-xl shadow-sm p-12 text-center">
-                <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
-                    </svg>
-                </div>
-                <h2 class="text-2xl font-bold mb-2 text-gray-900">Seu carrinho está vazio</h2>
-                <p class="text-gray-600 mb-6">Adicione itens ao carrinho antes de finalizar o pedido</p>
-                <a href="/" class="inline-block px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-red-700 transition">
-                    Ver Cardápio
-                </a>
+            <div x-show="!pageLoading && cart.length === 0" x-cloak>
+                <x-empty-state
+                    title="Seu carrinho está vazio"
+                    message="Adicione itens ao carrinho antes de finalizar o pedido"
+                    icon="shopping-cart"
+                    actionText="Ver Cardápio"
+                    actionUrl="/"
+                />
             </div>
 
             <!-- Checkout Form -->
@@ -407,11 +360,8 @@
                                 :class="(!couponCode || validatingCoupon) ? 'bg-gray-300 cursor-not-allowed' : 'bg-primary hover:bg-red-700'"
                                 class="px-6 py-3 text-white text-sm font-semibold rounded-lg transition">
                                 <span x-show="!validatingCoupon">Aplicar</span>
-                                <span x-show="validatingCoupon">
-                                    <svg class="animate-spin inline w-4 h-4" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
+                                <span x-show="validatingCoupon" class="inline-flex items-center gap-2">
+                                    <x-loading-dots />
                                 </span>
                             </button>
                         </div>
@@ -573,11 +523,8 @@
                         :class="loading || !isFormValid ? 'bg-gray-300 cursor-not-allowed' : 'bg-primary hover:bg-red-700'"
                         class="w-full py-4 text-white font-bold text-lg rounded-lg transition-all duration-200">
                         <span x-show="!loading">Confirmar Pedido - R$ <span x-text="total.toFixed(2).replace('.', ',')"></span></span>
-                        <span x-show="loading">
-                            <svg class="animate-spin inline w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
+                        <span x-show="loading" class="inline-flex items-center gap-2">
+                            <x-loading-spinner size="sm" />
                             Processando...
                         </span>
                     </button>
