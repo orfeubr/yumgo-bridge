@@ -49,6 +49,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // 🔥 Flare - Error Monitoring (Spatie)
+        \Spatie\LaravelFlare\Facades\Flare::handles($exceptions);
+
         // Tratar erro quando tenant não existe
         $exceptions->render(function (\Stancl\Tenancy\Exceptions\TenantCouldNotBeIdentifiedOnDomainException $e, $request) {
             return response()->view('errors.tenant-not-found', [
