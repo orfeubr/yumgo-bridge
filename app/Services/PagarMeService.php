@@ -17,6 +17,20 @@ class PagarMeService
         $this->baseUrl = config('services.pagarme.url', 'https://api.pagar.me/core/v5');
         $this->apiKey = config('services.pagarme.api_key');
         $this->encryptionKey = config('services.pagarme.encryption_key');
+
+        // ⭐ VALIDAÇÃO OBRIGATÓRIA - Previne erros silenciosos
+        if (empty($this->apiKey)) {
+            \Log::error('❌ Pagar.me: API key não configurada!');
+            throw new \Exception(
+                'Pagar.me não configurado. Configure PAGARME_API_KEY no arquivo .env do projeto. ' .
+                'Obtenha sua chave em: https://dashboard.pagar.me → Configurações → Chaves de API'
+            );
+        }
+
+        \Log::info('✅ Pagar.me: Service inicializado com sucesso', [
+            'base_url' => $this->baseUrl,
+            'has_encryption_key' => !empty($this->encryptionKey),
+        ]);
     }
 
     /**
@@ -237,14 +251,33 @@ class PagarMeService
         if ($response->successful()) {
             $result = $response->json();
 
+            // ⭐ Log de sucesso com detalhes
+            \Log::info('✅ Pagar.me: Pagamento criado com sucesso', [
+                'order_id' => $result['id'] ?? null,
+                'status' => $result['status'] ?? null,
+                'amount' => $result['amount'] ?? null,
+                'has_charges' => !empty($result['charges']),
+            ]);
+
+            // Extrai QR Code PIX se disponível
+            $qrCode = $result['charges'][0]['last_transaction']['qr_code'] ?? null;
+            $qrCodeUrl = $result['charges'][0]['last_transaction']['qr_code_url'] ?? null;
+
+            if ($qrCode && $qrCodeUrl) {
+                \Log::info('✅ Pagar.me: QR Code PIX obtido na mesma chamada', [
+                    'has_qr_code' => true,
+                    'has_url' => true,
+                ]);
+            }
+
             // Extrai informações importantes
             return [
                 'id' => $result['id'] ?? null,
                 'status' => $result['status'] ?? null,
                 'amount' => $result['amount'] ?? null,
                 'charges' => $result['charges'] ?? [],
-                'pix_qr_code' => $result['charges'][0]['last_transaction']['qr_code'] ?? null,
-                'pix_qr_code_url' => $result['charges'][0]['last_transaction']['qr_code_url'] ?? null,
+                'pix_qr_code' => $qrCode,
+                'pix_qr_code_url' => $qrCodeUrl,
             ];
         }
 
@@ -508,10 +541,12 @@ class PagarMeService
      */
     public function getPixQrCode(string $orderId): ?array
     {
+        \Log::info('🔍 Pagar.me: Buscando QR Code PIX', ['order_id' => $orderId]);
+
         $orderData = $this->getPaymentStatus($orderId);
 
         if (!$orderData) {
-            \Log::warning('Pagar.me: Não foi possível obter dados do pedido', ['order_id' => $orderId]);
+            \Log::error('❌ Pagar.me: Não foi possível obter dados do pedido', ['order_id' => $orderId]);
             return null;
         }
 
@@ -563,12 +598,21 @@ class PagarMeService
         ]);
 
         // Retornar no formato esperado pelo OrderService (compatível com Asaas)
-        return [
+        $result = [
             'encodedImage' => $encodedImage,
             'payload' => $qrCodeString, // QR code string para copiar/colar
             'qr_code_url' => $qrCodeUrl,
             'expirationDate' => $lastTransaction['expires_at'] ?? null,
         ];
+
+        \Log::info('✅ Pagar.me: QR Code retornado com sucesso', [
+            'order_id' => $orderId,
+            'has_image' => !empty($encodedImage),
+            'has_payload' => !empty($qrCodeString),
+            'has_expiration' => !empty($result['expirationDate']),
+        ]);
+
+        return $result;
     }
 
     /**
