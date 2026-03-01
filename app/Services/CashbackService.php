@@ -80,20 +80,47 @@ class CashbackService
     public function useCashback(Customer $customer, float $amount): bool
     {
         $settings = CashbackSettings::first();
-        
-        // Verifica valor mínimo
-        if ($settings && $amount < $settings->min_cashback_to_use) {
-            return false;
-        }
 
         // Verifica saldo
         if ($customer->cashback_balance < $amount) {
+            \Log::warning('❌ Saldo de cashback insuficiente', [
+                'customer_id' => $customer->id,
+                'saldo_disponivel' => $customer->cashback_balance,
+                'tentou_usar' => $amount,
+            ]);
             return false;
+        }
+
+        // ⭐ CORREÇÃO: Verifica valor mínimo APENAS se saldo > mínimo
+        // Se cliente tem menos que o mínimo, pode usar TODO o saldo
+        if ($settings && $settings->min_cashback_to_use > 0) {
+            $customerBalance = $customer->cashback_balance;
+
+            // Se saldo é MAIOR que mínimo, validar valor usado
+            if ($customerBalance >= $settings->min_cashback_to_use) {
+                if ($amount < $settings->min_cashback_to_use) {
+                    \Log::warning('⚠️ Valor abaixo do mínimo para usar cashback', [
+                        'customer_id' => $customer->id,
+                        'minimo_configurado' => $settings->min_cashback_to_use,
+                        'tentou_usar' => $amount,
+                        'saldo_disponivel' => $customerBalance,
+                    ]);
+                    return false;
+                }
+            }
+            // Se saldo < mínimo, permite usar todo o saldo (não valida mínimo)
         }
 
         $balanceBefore = $customer->cashback_balance;
         $customer->cashback_balance -= $amount;
         $customer->save();
+
+        \Log::info('✅ Cashback usado com sucesso', [
+            'customer_id' => $customer->id,
+            'valor_usado' => $amount,
+            'saldo_antes' => $balanceBefore,
+            'saldo_depois' => $customer->cashback_balance,
+        ]);
 
         return true;
     }

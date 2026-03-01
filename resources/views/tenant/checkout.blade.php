@@ -341,9 +341,9 @@
                                 id="use-cashback"
                                 class="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500">
                             <div class="flex-1">
-                                <p class="text-sm font-semibold text-gray-900">Usar todo meu cashback</p>
+                                <p class="text-sm font-semibold text-gray-900">Usar meu cashback</p>
                                 <p class="text-xs text-gray-600 mt-0.5">
-                                    Desconto automático de <strong>R$ <span x-text="Math.min(cashbackBalance, subtotal + currentDeliveryFee).toFixed(2).replace('.', ',')"></span></strong>
+                                    Desconto de <strong>R$ <span x-text="Math.min(cashbackBalance, subtotal + currentDeliveryFee).toFixed(2).replace('.', ',')"></span></strong>
                                 </p>
                             </div>
                         </label>
