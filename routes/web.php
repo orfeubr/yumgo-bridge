@@ -343,3 +343,21 @@ Route::get('/debug-db', function () {
 Route::get('/admin/database', [\App\Http\Controllers\AdminerController::class, 'index'])
     ->middleware(['web'])
     ->name('admin.database');
+
+// 🔥 FLARE - Teste de Error Monitoring
+Route::get('/test-flare', function () {
+    // Adiciona contexto antes do erro
+    if (class_exists('\Spatie\FlareClient\Flare')) {
+        \Spatie\FlareClient\Flare::context('test_mode', true);
+        \Spatie\FlareClient\Flare::context('environment', config('app.env'));
+
+        if (tenancy()->initialized) {
+            $tenant = tenant();
+            \Spatie\FlareClient\Flare::context('tenant_id', $tenant->id);
+            \Spatie\FlareClient\Flare::context('tenant_slug', $tenant->slug);
+            \Spatie\FlareClient\Flare::context('tenant_name', $tenant->name);
+        }
+    }
+
+    throw new \Exception('🔥 Teste Flare - Multi-Tenant Error Monitoring (' . (tenancy()->initialized ? tenant('name') : 'Central') . ')');
+});
