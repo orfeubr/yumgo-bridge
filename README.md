@@ -1,59 +1,333 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🍔 YumGo - Sistema de Delivery Multi-tenant
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+[![Laravel](https://img.shields.io/badge/Laravel-11-FF2D20?style=flat&logo=laravel)](https://laravel.com)
+[![PHP](https://img.shields.io/badge/PHP-8.3-777BB4?style=flat&logo=php)](https://php.net)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat&logo=postgresql)](https://postgresql.org)
+[![Filament](https://img.shields.io/badge/Filament-3-FFAA00?style=flat)](https://filamentphp.com)
+[![License](https://img.shields.io/badge/License-Proprietário-red.svg)](LICENSE)
 
-## About Laravel
+Sistema de delivery multi-tenant completo, com comissão justa, cashback configurável e gestão inteligente de pedidos.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🎯 Diferenciais
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 💰 **Comissão Muito Menor que iFood**
+- **YumGo:** 1-3% de comissão
+- **iFood:** ~30% de comissão
+- **Economia:** R$ 1.500+/mês em 1000 pedidos!
 
-## Learning Laravel
+### 💳 **Pagamentos Baratos (Pagar.me)**
+- **PIX:** R$ 0,99/transação
+- **Cartão:** 2,99% + R$ 0,49
+- **Split automático:** 1 transação = 1 taxa
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+### 🎁 **Cashback Configurável**
+- Restaurante define % de cada nível
+- Tiers: Bronze → Prata → Ouro → Platina
+- Proteção completa contra fraudes
+- Estorno automático em cancelamentos
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 🔒 **Isolamento Total (Multi-tenant)**
+- PostgreSQL schemas separados
+- Impossível vazamento de dados
+- 1 restaurante = 1 schema isolado
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## ⚡ Stack Tecnológica
 
-### Premium Partners
+**Backend:**
+- **Laravel 11** (PHP 8.3) - Framework principal
+- **PostgreSQL 16** - Banco de dados multi-schema
+- **Redis 7** - Cache e filas
+- **Filament 3** - Painel administrativo
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+**Frontend:**
+- **Blade** - Templates server-side
+- **Alpine.js** - Interatividade leve
+- **Tailwind CSS** - Estilização
+- **Design:** Inspirado no iFood (clean e moderno)
 
-## Contributing
+**Pagamentos:**
+- **Pagar.me API v5** - Gateway principal
+- **PIX + Cartão** - Métodos suportados
+- **Webhooks** - Confirmação automática
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+**Infra:**
+- **Nginx** - Web server
+- **Supervisor** - Gerenciamento de filas
+- **Cloudflare** - CDN e SSL
 
-## Code of Conduct
+---
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## 🚀 Funcionalidades Principais
 
-## Security Vulnerabilities
+### 👨‍💼 **Plataforma Central**
+- ✅ Gestão de restaurantes (tenants)
+- ✅ Planos e assinaturas
+- ✅ Dashboard com métricas em tempo real
+- ✅ Auditoria completa de ações
+- ✅ Faturamento automático
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 🍕 **Painel do Restaurante**
+- ✅ Gestão de produtos e categorias
+- ✅ Cardápio semanal configurável
+- ✅ Zonas de entrega por bairros
+- ✅ Configurações de pagamento
+- ✅ Relatórios e estatísticas
+- ✅ Gestão de cupons de desconto
 
-## License
+### 📱 **Aplicativo do Cliente**
+- ✅ Cardápio responsivo (mobile + desktop)
+- ✅ Carrinho persistente
+- ✅ Checkout simplificado
+- ✅ Pagamento PIX com QR Code
+- ✅ Rastreamento de pedidos
+- ✅ Histórico e cashback
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 🎨 **Produtos Especiais**
+- ✅ **Pizzas:** Meio a meio, bordas, tamanhos
+- ✅ **Marmitex:** Proteínas + acompanhamentos
+- ✅ **Combos:** Produtos agrupados
+- ✅ **Adicionais:** Extras configuráveis
+
+---
+
+## 💰 Sistema de Cashback
+
+### **Configuração Flexível**
+- Restaurante define % de cada tier
+- Validade configurável (30, 60, 90 dias)
+- Bônus de aniversário (dobro)
+- Indique e ganhe
+
+### **Segurança Total**
+- ✅ Cashback só em pagamentos aprovados
+- ✅ Estorno automático em cancelamentos
+- ✅ Proteção contra fraudes
+- ✅ Auditoria completa (cashback_transactions)
+
+### **Tiers de Fidelidade**
+```
+Bronze  → 0-10 pedidos   → 2% cashback
+Prata   → 11-30 pedidos  → 3% cashback
+Ouro    → 31-60 pedidos  → 5% cashback
+Platina → 61+ pedidos    → 7% cashback
+```
+
+---
+
+## 🗄️ Arquitetura do Banco
+
+### **Schema PUBLIC (Plataforma)**
+```sql
+- tenants (restaurantes)
+- plans (planos de assinatura)
+- subscriptions (assinaturas ativas)
+- invoices (faturas)
+- domains (domínios personalizados)
+- platform_users (admins)
+- audit_logs (auditoria)
+```
+
+### **Schema TENANT_* (Por Restaurante)**
+```sql
+- customers (clientes + cashback)
+- orders (pedidos)
+- order_items (items do pedido)
+- payments (transações)
+- products (cardápio)
+- categories (categorias)
+- cashback_transactions (histórico cashback)
+- cashback_settings (config cashback)
+- neighborhoods (zonas de entrega)
+- coupons (cupons de desconto)
+```
+
+---
+
+## 📦 Instalação
+
+### **Requisitos**
+- PHP 8.3+
+- PostgreSQL 16+
+- Redis 7+
+- Composer 2+
+- Node.js 20+ (opcional)
+
+### **Passo a Passo**
+
+1. **Clone o repositório:**
+```bash
+git clone https://github.com/orfeubr/yumgo.git
+cd yumgo
+```
+
+2. **Instale as dependências:**
+```bash
+composer install
+```
+
+3. **Configure o .env:**
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+
+4. **Configure o banco:**
+```bash
+# Edite .env com suas credenciais PostgreSQL
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=yumgo
+DB_USERNAME=postgres
+DB_PASSWORD=sua_senha
+```
+
+5. **Execute as migrations:**
+```bash
+php artisan migrate
+php artisan db:seed
+```
+
+6. **Configure Pagar.me:**
+```bash
+# Obtenha as chaves em: https://dashboard.pagar.me
+PAGARME_API_KEY=sk_test_...
+PAGARME_ENCRYPTION_KEY=pk_test_...
+```
+
+7. **Inicie o servidor:**
+```bash
+php artisan serve
+```
+
+8. **Acesse:**
+- **Plataforma:** http://localhost:8000/admin
+- **Restaurante:** http://tenant.localhost:8000
+
+---
+
+## 🧪 Testes Realizados
+
+### ✅ **QR Code PIX**
+```
+✅ Pedido criado com sucesso
+✅ QR Code gerado automaticamente
+✅ Imagem base64 salva no banco
+✅ Código copiar/colar disponível
+✅ Transaction ID registrado
+```
+
+### ✅ **Cashback**
+```
+✅ Só gerado em pagamentos aprovados
+✅ Estorno completo em cancelamentos
+✅ Proteção contra webhooks duplicados
+✅ Previne saldo negativo
+✅ Logs completos para auditoria
+```
+
+---
+
+## 📊 Modelo de Negócio
+
+### **Planos para Restaurantes**
+
+| Plano | Mensalidade | Comissão | Features |
+|-------|-------------|----------|----------|
+| **Starter** | R$ 79/mês | 3% | Básico completo |
+| **Pro** | R$ 149/mês | 2% | + Relatórios avançados |
+| **Enterprise** | R$ 299/mês | 1% | + API, webhook, suporte |
+
+**Trial:** 15 dias grátis em todos os planos
+
+### **ROI Estimado**
+```
+1000 pedidos/mês × R$ 50 = R$ 50.000
+
+Receita comissão: R$ 1.500 (3%)
+Custo Pagar.me PIX: R$ 990
+Lucro líquido: R$ 510/mês
+
+vs Mercado Pago: PREJUÍZO -R$ 995/mês
+ECONOMIA: R$ 1.505/mês! 🚀
+```
+
+---
+
+## 🔧 Últimas Atualizações
+
+### **01/03/2026**
+
+**✅ QR Code PIX Corrigido**
+- Validação obrigatória de credenciais
+- Logs detalhados em todas etapas
+- Mensagens de erro claras
+- [Ver detalhes](CORRECAO-PAGARME-01-03-2026.md)
+
+**✅ Proteção de Cashback**
+- Cashback só em pagamentos aprovados
+- Estorno completo em cancelamentos
+- Proteção contra fraudes
+- [Ver detalhes](PROTECAO-CASHBACK-01-03-2026.md)
+
+**✅ Animação de Cozinha**
+- Animação CSS temática no checkout
+- Textos em português claro
+- [Ver detalhes](ANIMACAO-COZINHA-01-03-2026.md)
+
+---
+
+## 📚 Documentação
+
+- [Visão Geral do Projeto](PROJETO.md)
+- [Guia de Instalação](INSTALL.md)
+- [Sistema de Cashback](README-CASHBACK.md)
+- [Integração Pagar.me](docs/ASAAS-INTEGRATION.md)
+- [API REST](docs/API-LOCALIZACAO.md)
+- [Roadmap](docs/ROADMAP-FUNCIONALIDADES.md)
+
+---
+
+## 🤝 Contribuindo
+
+Este é um projeto proprietário. Para colaborar, entre em contato.
+
+---
+
+## 📝 Licença
+
+Código proprietário. Todos os direitos reservados.
+
+---
+
+## 🏆 Créditos
+
+**Desenvolvido com:**
+- Laravel Framework
+- Filament Admin Panel
+- Pagar.me Payment Gateway
+- PostgreSQL Database
+
+**Inspiração de Design:**
+- iFood Brasil
+
+---
+
+## 📞 Contato
+
+- **GitHub:** [@orfeubr](https://github.com/orfeubr)
+- **Repositório:** [github.com/orfeubr/yumgo](https://github.com/orfeubr/yumgo)
+
+---
+
+<div align="center">
+
+**💪 Feito com Laravel e ❤️ para revolucionar o mercado de delivery!**
+
+[🚀 Ver Demo](https://yumgo.com.br) · [📖 Documentação](docs/) · [🐛 Reportar Bug](https://github.com/orfeubr/yumgo/issues)
+
+</div>
