@@ -20,8 +20,18 @@ return [
         'localhost',
         'yumgo.com.br',
         '*.deliverypro.local',
-        'ec2-*.compute.amazonaws.com', // AWS EC2 domains
-        '*.us-west-2.compute.amazonaws.com', // AWS regional domains
+
+        // AWS Infrastructure
+        'ec2-*.compute.amazonaws.com',           // EC2 public domains
+        '*.compute.amazonaws.com',               // All AWS compute domains
+        '*.elb.amazonaws.com',                   // Elastic Load Balancer
+        '*.cloudfront.net',                      // CloudFront CDN
+        '44.250.44.108',                         // EC2 public IP (current)
+
+        // Common development/testing
+        '*.ngrok.io',                            // Ngrok tunnels
+        '*.localhost.run',                       // Localhost tunneling
+        '*.loca.lt',                             // Localtunnel
     ],
 
     /**
