@@ -20,6 +20,8 @@ return [
         'localhost',
         'yumgo.com.br',
         '*.deliverypro.local',
+        'ec2-*.compute.amazonaws.com', // AWS EC2 domains
+        '*.us-west-2.compute.amazonaws.com', // AWS regional domains
     ],
 
     /**
