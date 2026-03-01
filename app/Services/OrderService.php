@@ -60,9 +60,50 @@ class OrderService
             // Calcula subtotal
             $subtotal = $this->calculateSubtotal($enrichedItems);
 
-            // Calcula total ANTES do cashback para saber o limite
+            // 🎟️ PROCESSAR CUPOM DE DESCONTO
             $deliveryFee = $data['delivery_fee'] ?? 0;
-            $discount = $data['discount'] ?? 0;
+            $couponDiscount = 0;
+            $couponCode = null;
+
+            if (!empty($data['coupon_code'])) {
+                $coupon = \App\Models\Coupon::active()
+                    ->byCode($data['coupon_code'])
+                    ->first();
+
+                if ($coupon) {
+                    $orderSubtotal = $subtotal + $deliveryFee;
+
+                    // Verificar valor mínimo
+                    if (!$coupon->min_order_value || $orderSubtotal >= $coupon->min_order_value) {
+                        // Calcular desconto
+                        if ($coupon->type === 'percentage') {
+                            $couponDiscount = ($orderSubtotal * $coupon->value) / 100;
+                        } else {
+                            $couponDiscount = $coupon->value;
+                        }
+
+                        // Limita desconto ao total do pedido
+                        $couponDiscount = min($couponDiscount, $orderSubtotal);
+                        $couponCode = $coupon->code;
+
+                        \Log::info('🎟️ Cupom aplicado', [
+                            'code' => $couponCode,
+                            'type' => $coupon->type,
+                            'value' => $coupon->value,
+                            'discount' => $couponDiscount,
+                        ]);
+                    } else {
+                        \Log::warning('⚠️ Cupom não atinge valor mínimo', [
+                            'code' => $data['coupon_code'],
+                            'min_required' => $coupon->min_order_value,
+                            'order_total' => $orderSubtotal,
+                        ]);
+                    }
+                }
+            }
+
+            // Calcula total ANTES do cashback (subtotal + entrega - cupom)
+            $discount = $couponDiscount;
             $totalBeforeCashback = $subtotal + $deliveryFee - $discount;
 
             // Cashback usado (limita ao total para não ficar negativo)
@@ -99,6 +140,7 @@ class OrderService
                 'subtotal' => $subtotal,
                 'delivery_fee' => $deliveryFee,
                 'discount' => $discount,
+                'coupon_code' => $couponCode, // ⭐ Código do cupom
                 'cashback_used' => $cashbackUsed,
                 'total' => $total,
                 'status' => 'pending',
@@ -122,6 +164,12 @@ class OrderService
             }
 
             \Log::info('✅ Items criados');
+
+            // 🎟️ Incrementar contador de uso do cupom
+            if ($couponCode) {
+                \App\Models\Coupon::where('code', $couponCode)->increment('usage_count');
+                \Log::info('🎟️ Contador do cupom incrementado', ['code' => $couponCode]);
+            }
 
             // Se for pagamento online (PIX ou cartão), criar cobrança no gateway configurado
             if (in_array($data['payment_method'], ['pix', 'credit_card', 'debit_card'])) {

@@ -215,8 +215,12 @@
                             <span class="text-gray-600">Taxa de entrega</span>
                             <span class="text-gray-900 font-medium" x-text="currentDeliveryFee > 0 ? 'R$ ' + currentDeliveryFee.toFixed(2).replace('.', ',') : (selectedNeighborhood ? 'Grátis' : 'A calcular')"></span>
                         </div>
-                        <div x-show="useCashback && cashbackAmount > 0" class="flex justify-between text-sm text-green-600">
-                            <span class="font-medium">Desconto Cashback</span>
+                        <div x-show="appliedCoupon && couponDiscount > 0" class="flex justify-between text-sm text-primary">
+                            <span class="font-medium">🎟️ Cupom (<span x-text="appliedCoupon?.code"></span>)</span>
+                            <span class="font-semibold">- R$ <span x-text="couponDiscount.toFixed(2).replace('.', ',')"></span></span>
+                        </div>
+                        <div x-show="useCashback && cashbackBalance > 0" class="flex justify-between text-sm text-green-600">
+                            <span class="font-medium">💰 Desconto Cashback</span>
                             <span class="font-semibold">- R$ <span x-text="cashbackAmount.toFixed(2).replace('.', ',')"></span></span>
                         </div>
                         <div class="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t border-gray-200">
@@ -329,43 +333,93 @@
                             <span class="text-sm font-semibold text-gray-900">R$ <span x-text="cashbackBalance.toFixed(2).replace('.', ',')"></span></span>
                         </div>
 
-                        <div class="flex items-center gap-2">
+                        <label class="flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition"
+                               :class="useCashback ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'">
                             <input
                                 type="checkbox"
                                 x-model="useCashback"
                                 id="use-cashback"
-                                class="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-900">
-                            <label for="use-cashback" class="text-sm font-medium text-gray-700 cursor-pointer">
-                                Usar cashback neste pedido
-                            </label>
-                        </div>
-
-                        <div x-show="useCashback" x-transition class="space-y-2">
-                            <div class="flex gap-2">
-                                <input
-                                    type="number"
-                                    x-model.number="cashbackAmount"
-                                    :max="Math.min(cashbackBalance, subtotal)"
-                                    min="0"
-                                    step="0.01"
-                                    class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-400"
-                                    placeholder="0,00">
-                                <button
-                                    @click="cashbackAmount = Math.min(cashbackBalance, subtotal)"
-                                    type="button"
-                                    class="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition">
-                                    Usar Tudo
-                                </button>
+                                class="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500">
+                            <div class="flex-1">
+                                <p class="text-sm font-semibold text-gray-900">Usar todo meu cashback</p>
+                                <p class="text-xs text-gray-600 mt-0.5">
+                                    Desconto automático de <strong>R$ <span x-text="Math.min(cashbackBalance, subtotal + currentDeliveryFee).toFixed(2).replace('.', ',')"></span></strong>
+                                </p>
                             </div>
-                            <p class="text-xs text-gray-500">
-                                Máximo: R$ <span x-text="Math.min(cashbackBalance, subtotal).toFixed(2).replace('.', ',')"></span>
-                            </p>
-                        </div>
+                        </label>
                     </div>
 
                     <!-- Sem Saldo -->
                     <div x-show="cashbackBalance === 0 && willEarnCashback === 0" class="text-center py-4">
                         <p class="text-sm text-gray-500">Você não possui saldo de cashback</p>
+                    </div>
+                </div>
+
+                <!-- Cupom de Desconto -->
+                <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-200">
+                    <h2 class="text-base font-semibold mb-4 text-gray-900 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>
+                        </svg>
+                        Cupom de Desconto
+                    </h2>
+
+                    <!-- Cupom Aplicado -->
+                    <div x-show="appliedCoupon" x-cloak class="mb-4 p-3 bg-green-50 border-2 border-green-500 rounded-lg">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <div>
+                                    <p class="text-sm font-bold text-gray-900" x-text="appliedCoupon?.code"></p>
+                                    <p class="text-xs text-gray-600" x-text="appliedCoupon?.description"></p>
+                                </div>
+                            </div>
+                            <button
+                                @click="removeCoupon()"
+                                type="button"
+                                class="text-red-600 hover:text-red-700 font-medium text-sm">
+                                Remover
+                            </button>
+                        </div>
+                        <div class="mt-2 text-right">
+                            <p class="text-lg font-bold text-green-600">
+                                - R$ <span x-text="couponDiscount.toFixed(2).replace('.', ',')"></span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Campo de Cupom -->
+                    <div x-show="!appliedCoupon" class="space-y-3">
+                        <div class="flex gap-2">
+                            <input
+                                type="text"
+                                x-model="couponCode"
+                                @keyup.enter="validateCoupon()"
+                                placeholder="Digite o código do cupom"
+                                class="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-sm font-mono uppercase focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                                :disabled="validatingCoupon">
+                            <button
+                                @click="validateCoupon()"
+                                type="button"
+                                :disabled="!couponCode || validatingCoupon"
+                                :class="(!couponCode || validatingCoupon) ? 'bg-gray-300 cursor-not-allowed' : 'bg-primary hover:bg-red-700'"
+                                class="px-6 py-3 text-white text-sm font-semibold rounded-lg transition">
+                                <span x-show="!validatingCoupon">Aplicar</span>
+                                <span x-show="validatingCoupon">
+                                    <svg class="animate-spin inline w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </span>
+                            </button>
+                        </div>
+
+                        <!-- Mensagem de Erro -->
+                        <div x-show="couponError" x-transition class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p class="text-sm text-red-700" x-text="couponError"></p>
+                        </div>
                     </div>
                 </div>
 
@@ -708,7 +762,11 @@
             cashbackPercentage: 0,
             willEarnCashback: 0,
             useCashback: false,
-            cashbackAmount: 0,
+            couponCode: '',
+            appliedCoupon: null,
+            couponDiscount: 0,
+            validatingCoupon: false,
+            couponError: '',
             addressLabel: '',
             deliveryZipcode: '',
             editingAddressId: null,
@@ -1106,8 +1164,17 @@
             },
 
             get total() {
-                const cashbackDiscount = this.useCashback ? Math.min(this.cashbackAmount, this.subtotal + this.deliveryFee) : 0;
-                return Math.max(0, this.subtotal + this.deliveryFee - cashbackDiscount);
+                // Calcula total: Subtotal + Entrega - Cupom - Cashback
+                const totalBeforeDiscounts = this.subtotal + this.deliveryFee;
+                const totalAfterCoupon = totalBeforeDiscounts - this.couponDiscount;
+                const cashbackDiscount = this.useCashback ? Math.min(this.cashbackBalance, totalAfterCoupon) : 0;
+                return Math.max(0, totalAfterCoupon - cashbackDiscount);
+            },
+
+            get cashbackAmount() {
+                // Retorna quanto de cashback será usado (para exibição)
+                const totalAfterCoupon = this.subtotal + this.deliveryFee - this.couponDiscount;
+                return this.useCashback ? Math.min(this.cashbackBalance, totalAfterCoupon) : 0;
             },
 
             get isFormValid() {
@@ -1116,6 +1183,59 @@
                        this.deliveryStreet !== '' &&
                        this.deliveryNumber !== '' &&
                        this.paymentMethod !== '';
+            },
+
+            async validateCoupon() {
+                if (!this.couponCode || this.couponCode.trim() === '') {
+                    return;
+                }
+
+                this.validatingCoupon = true;
+                this.couponError = '';
+
+                try {
+                    const orderTotal = this.subtotal + this.deliveryFee;
+
+                    const response = await fetch('/api/v1/coupons/validate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            code: this.couponCode.trim().toUpperCase(),
+                            order_total: orderTotal
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.valid) {
+                        this.appliedCoupon = data.coupon;
+                        this.couponDiscount = data.coupon.discount_amount;
+                        this.couponCode = '';
+                        this.couponError = '';
+                        console.log('🎟️ Cupom aplicado:', this.appliedCoupon);
+                    } else {
+                        this.couponError = data.message || 'Cupom inválido';
+                        this.appliedCoupon = null;
+                        this.couponDiscount = 0;
+                    }
+                } catch (error) {
+                    console.error('Erro ao validar cupom:', error);
+                    this.couponError = 'Erro ao validar cupom. Tente novamente.';
+                    this.appliedCoupon = null;
+                    this.couponDiscount = 0;
+                } finally {
+                    this.validatingCoupon = false;
+                }
+            },
+
+            removeCoupon() {
+                this.appliedCoupon = null;
+                this.couponDiscount = 0;
+                this.couponCode = '';
+                this.couponError = '';
             },
 
             async submitOrder() {
@@ -1165,7 +1285,8 @@
                         delivery_city: this.selectedCity,
                         delivery_neighborhood: this.selectedNeighborhood,
                         payment_method: this.paymentMethod,
-                        use_cashback: this.useCashback ? this.cashbackAmount : 0,
+                        use_cashback: this.useCashback, // ⭐ Boolean toggle (true = usar todo saldo)
+                        coupon_code: this.appliedCoupon ? this.appliedCoupon.code : null, // ⭐ Cupom de desconto
                         notes: this.notes,
                         change_for: this.paymentMethod === 'cash' ? this.changeFor : null
                     };

@@ -82,6 +82,7 @@ class OrderController extends Controller
             'delivery_neighborhood' => 'required|string|max:100',
             'payment_method' => 'required|in:pix,credit_card,debit_card,cash',
             'use_cashback' => 'nullable|boolean', // ⭐ TOGGLE: true = usar todo saldo
+            'coupon_code' => 'nullable|string|max:50', // ⭐ Código do cupom
             'change_for' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
         ]);
@@ -162,6 +163,52 @@ class OrderController extends Controller
         // PROTEÇÃO: Garantir que a taxa é numérica e positiva
         $deliveryFee = max(0, (float) $deliveryFee);
 
+        // 🎟️ VALIDAR CUPOM DE DESCONTO (se informado)
+        $couponCode = null;
+        $couponDiscount = 0;
+
+        if ($request->filled('coupon_code')) {
+            $couponCodeInput = strtoupper(trim($request->coupon_code));
+
+            $coupon = \App\Models\Coupon::active()
+                ->byCode($couponCodeInput)
+                ->first();
+
+            if (!$coupon) {
+                return response()->json([
+                    'message' => 'Cupom inválido ou expirado',
+                ], 422);
+            }
+
+            // Verificar limite de uso
+            if ($coupon->usage_limit && $coupon->usage_count >= $coupon->usage_limit) {
+                return response()->json([
+                    'message' => 'Cupom esgotado',
+                ], 422);
+            }
+
+            // Verificar limite por cliente
+            if ($coupon->usage_per_customer) {
+                $customerUsageCount = \App\Models\Order::where('customer_id', $customer->id)
+                    ->where('coupon_code', $couponCodeInput)
+                    ->whereIn('payment_status', ['paid', 'pending'])
+                    ->count();
+
+                if ($customerUsageCount >= $coupon->usage_per_customer) {
+                    return response()->json([
+                        'message' => 'Você já atingiu o limite de uso deste cupom',
+                    ], 422);
+                }
+            }
+
+            $couponCode = $coupon->code;
+            \Log::info('🎟️ Cupom válido encontrado', [
+                'code' => $couponCode,
+                'type' => $coupon->type,
+                'value' => $coupon->value,
+            ]);
+        }
+
         try {
             // PROTEÇÃO: Usar apenas dados validados e sanitizados
             $order = $this->orderService->createOrder($customer, [
@@ -172,6 +219,7 @@ class OrderController extends Controller
                 'delivery_fee' => $deliveryFee, // Sempre do banco
                 'payment_method' => $request->payment_method, // Validado pelo validator
                 'cashback_used' => $useCashback, // ⭐ CORRIGIDO: era 'use_cashback'
+                'coupon_code' => $couponCode, // ⭐ Cupom validado
                 'notes' => htmlspecialchars(substr($request->notes ?? '', 0, 1000), ENT_QUOTES, 'UTF-8'),
             ]);
 

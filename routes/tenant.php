@@ -171,6 +171,9 @@ Route::prefix('api/v1')->middleware([
     Route::get('/settings', [SettingsController::class, 'index'])->middleware('throttle:60,1'); // 60 req/min
     Route::get('/settings/payment-methods', [SettingsController::class, 'paymentMethods'])->middleware('throttle:60,1'); // 60 req/min
 
+    // Cupons (público) (🔒 RATE LIMITED)
+    Route::post('/coupons/validate', [\App\Http\Controllers\Api\CouponController::class, 'validate'])->middleware('throttle:30,1'); // 30 req/min
+
     // Localização (público)
     Route::prefix('location')->group(function () {
         Route::get('/enabled-cities', [LocationController::class, 'getEnabledCities']);
