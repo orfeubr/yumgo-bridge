@@ -23,17 +23,13 @@ class MarketplaceController extends Controller
         // Ordenar por nome
         $restaurants = $query->orderBy('name', 'asc')->get();
 
-        // Adicionar URL de cada restaurante
+        // Adicionar URL e verificar status de cada restaurante
         $restaurants->each(function ($restaurant) {
             // Assumindo que o domínio é: {slug}.yumgo.com.br
             $restaurant->url = 'https://' . $restaurant->slug . '.yumgo.com.br';
 
-            // Logo padrão se não tiver
-            if (!$restaurant->logo) {
-                $restaurant->logo_url = 'https://ui-avatars.com/api/?name=' . urlencode($restaurant->name) . '&size=200&background=EA1D2C&color=fff';
-            } else {
-                $restaurant->logo_url = asset('storage/' . $restaurant->logo);
-            }
+            // Verificar se está aberto (usa método do model)
+            $restaurant->is_open = $restaurant->isOpen();
         });
 
         return view('marketplace', compact('restaurants'));

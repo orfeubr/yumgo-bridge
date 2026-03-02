@@ -24,6 +24,11 @@ class Tenant extends BaseTenant implements TenantWithDatabase
         'company_name',
         'company_type',
         'cpf_cnpj',
+        // Marketplace
+        'logo',
+        'description',
+        'business_hours',
+        'accepting_orders',
         // Asaas (legado)
         'asaas_account_id',
         // Pagar.me (atual)
@@ -48,6 +53,8 @@ class Tenant extends BaseTenant implements TenantWithDatabase
 
     protected $casts = [
         'pagarme_split_rules' => 'array',
+        'business_hours' => 'array',
+        'accepting_orders' => 'boolean',
         'trial_ends_at' => 'datetime',
     ];
 
@@ -107,5 +114,57 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     public function scopeTrial($query)
     {
         return $query->where('status', 'trial');
+    }
+
+    /**
+     * Verifica se o restaurante está aberto agora
+     */
+    public function isOpen(): bool
+    {
+        // Se não aceita pedidos, está fechado
+        if (!$this->accepting_orders) {
+            return false;
+        }
+
+        // Se não tem horário configurado, assume que está aberto
+        if (!$this->business_hours) {
+            return true;
+        }
+
+        // Pegar dia e hora atual (timezone do Brasil)
+        $now = now()->timezone('America/Sao_Paulo');
+        $dayOfWeek = strtolower($now->format('l')); // monday, tuesday, etc
+        $currentTime = $now->format('H:i'); // 14:30
+
+        // Verifica se existe configuração para este dia
+        if (!isset($this->business_hours[$dayOfWeek])) {
+            return false;
+        }
+
+        $todayHours = $this->business_hours[$dayOfWeek];
+
+        // Se está marcado como fechado
+        if (isset($todayHours['closed']) && $todayHours['closed']) {
+            return false;
+        }
+
+        // Verifica se está dentro do horário
+        $openTime = $todayHours['open'] ?? '00:00';
+        $closeTime = $todayHours['close'] ?? '23:59';
+
+        return $currentTime >= $openTime && $currentTime <= $closeTime;
+    }
+
+    /**
+     * Retorna URL da logo ou fallback
+     */
+    public function getLogoUrlAttribute(): string
+    {
+        if ($this->logo && file_exists(storage_path('app/public/' . $this->logo))) {
+            return asset('storage/' . $this->logo);
+        }
+
+        // Fallback: Logo YumGo cinza (SVG)
+        return asset('images/logo-yumgo-gray.svg');
     }
 }

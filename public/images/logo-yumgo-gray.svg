@@ -1,0 +1,22 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fundo cinza claro -->
+  <rect width="200" height="200" fill="#F3F4F6"/>
+
+  <!-- Ícone de restaurante/comida estilizado -->
+  <g transform="translate(50, 50)">
+    <!-- Prato -->
+    <circle cx="50" cy="70" r="35" fill="#D1D5DB" stroke="#9CA3AF" stroke-width="2"/>
+
+    <!-- Garfo (esquerda) -->
+    <path d="M35 30 L35 55 M35 55 L40 55 M30 30 L30 45 M40 30 L40 45"
+          stroke="#9CA3AF" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- Faca (direita) -->
+    <path d="M65 30 L65 55 M62 30 L68 30"
+          stroke="#9CA3AF" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- YumGo text -->
+    <text x="50" y="110" font-family="Arial, sans-serif" font-size="20" font-weight="bold"
+          fill="#9CA3AF" text-anchor="middle">YumGo</text>
+  </g>
+</svg>
