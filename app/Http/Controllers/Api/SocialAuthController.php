@@ -112,7 +112,7 @@ class SocialAuthController extends Controller
             }
 
             // 3️⃣ Criar token usando customer CENTRAL (para auth)
-            $customer = \App\Models\Customer::setConnection('pgsql')->find($centralCustomer->id);
+            $customer = (new \App\Models\Customer)->setConnection('pgsql')->find($centralCustomer->id);
             if (!$customer) {
                 throw new \Exception('Erro ao buscar customer para autenticação');
             }
