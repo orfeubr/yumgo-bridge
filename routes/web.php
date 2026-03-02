@@ -15,7 +15,7 @@ Route::get('/test-central', function () {
     ]);
 });
 
-// Página inicial - Landing page OU cardápio do tenant
+// Página inicial - Marketplace OU cardápio do tenant
 Route::get('/', function () {
     $centralDomains = config('tenancy.central_domains');
     $currentHost = request()->getHost();
@@ -26,9 +26,9 @@ Route::get('/', function () {
         'is_central' => in_array($currentHost, $centralDomains),
     ]);
 
-    // Se for domínio central, mostra landing page
+    // Se for domínio central, mostra marketplace de restaurantes
     if (in_array($currentHost, $centralDomains)) {
-        return view('welcome');
+        return app(\App\Http\Controllers\MarketplaceController::class)->index();
     }
 
     // Se for domínio de tenant, inicializa tenancy e mostra cardápio
@@ -46,23 +46,18 @@ Route::get('/', function () {
     return app(\App\Http\Controllers\RestaurantHomeController::class)->index();
 });
 
-// Rota para lista de restaurantes
-Route::get('/restaurantes', function () {
-    $tenants = \App\Models\Tenant::with('domains')
-        ->where('status', 'active')
-        ->get()
-        ->map(function ($tenant) {
-            return [
-                'name' => $tenant->name,
-                'slug' => $tenant->id,
-                'url' => 'https://' . $tenant->domains->first()?->domain,
-                'logo' => $tenant->logo,
-                'description' => $tenant->description,
-                'address' => $tenant->address,
-            ];
-        });
+// Página de planos e preços
+Route::get('/planos', [\App\Http\Controllers\MarketplaceController::class, 'pricing'])
+    ->name('pricing');
 
-    return view('central.restaurants', compact('tenants'));
+// Página seja parceiro (redireciona para planos por enquanto)
+Route::get('/parceiro', function () {
+    return redirect('/planos');
+})->name('partner');
+
+// Rota para lista de restaurantes (legacy - redireciona para home)
+Route::get('/restaurantes', function () {
+    return redirect('/');
 })->name('restaurants.list');
 
 Route::get('/test-deliverypro', function () {
