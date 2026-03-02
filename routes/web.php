@@ -16,9 +16,9 @@ Route::get('/test-central', function () {
 });
 
 // Página inicial - Marketplace OU cardápio do tenant
-Route::get('/', function () {
+Route::get('/', function (Illuminate\Http\Request $request) {
     $centralDomains = config('tenancy.central_domains');
-    $currentHost = request()->getHost();
+    $currentHost = $request->getHost();
 
     \Log::info('ROOT ROUTE - Processando requisição', [
         'host' => $currentHost,
@@ -28,7 +28,7 @@ Route::get('/', function () {
 
     // Se for domínio central, mostra marketplace de restaurantes
     if (in_array($currentHost, $centralDomains)) {
-        return app(\App\Http\Controllers\MarketplaceController::class)->index();
+        return app(\App\Http\Controllers\MarketplaceController::class)->index($request);
     }
 
     // Se for domínio de tenant, inicializa tenancy e mostra cardápio
