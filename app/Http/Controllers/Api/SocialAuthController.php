@@ -44,54 +44,91 @@ class SocialAuthController extends Controller
                 ->redirectUrl($redirectUrl)
                 ->user();
 
-            // Buscar ou criar customer
-            $customer = Customer::where('email', $socialUser->getEmail())->first();
+            // ⚠️ PADRÃO MULTI-TENANT: Buscar/criar customer em DOIS schemas
 
-            if (!$customer) {
-                // Criar novo customer no schema central
-                $customer = Customer::create([
+            // 1️⃣ SCHEMA CENTRAL: Login único (email/password global)
+            $centralCustomer = \DB::connection('pgsql')->table('customers')
+                ->where('email', $socialUser->getEmail())
+                ->first();
+
+            if (!$centralCustomer) {
+                // Criar customer no schema CENTRAL
+                $customerId = \DB::connection('pgsql')->table('customers')->insertGetId([
                     'name' => $socialUser->getName(),
                     'email' => $socialUser->getEmail(),
-                    'phone' => null, // Será solicitado depois
-                    'password' => Hash::make(Str::random(32)), // Password aleatório
+                    'phone' => null,
+                    'password' => Hash::make(Str::random(32)),
                     'email_verified_at' => now(),
                     'provider' => $provider,
                     'provider_id' => $socialUser->getId(),
                     'avatar' => $socialUser->getAvatar(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
 
-                // Marcar que precisa validação de WhatsApp
+                $centralCustomer = (object)[
+                    'id' => $customerId,
+                    'name' => $socialUser->getName(),
+                    'email' => $socialUser->getEmail(),
+                    'phone' => null,
+                    'avatar' => $socialUser->getAvatar(),
+                ];
+
                 $needsWhatsappValidation = true;
             } else {
                 // Atualizar provider se não existir
-                if (!$customer->provider) {
-                    $customer->update([
-                        'provider' => $provider,
-                        'provider_id' => $socialUser->getId(),
-                        'avatar' => $socialUser->getAvatar(),
-                    ]);
+                if (!$centralCustomer->provider) {
+                    \DB::connection('pgsql')->table('customers')
+                        ->where('id', $centralCustomer->id)
+                        ->update([
+                            'provider' => $provider,
+                            'provider_id' => $socialUser->getId(),
+                            'avatar' => $socialUser->getAvatar(),
+                            'updated_at' => now(),
+                        ]);
                 }
 
-                // Verificar se precisa validação de WhatsApp
-                $needsWhatsappValidation = empty($customer->phone) || empty($customer->phone_verified_at);
+                $needsWhatsappValidation = empty($centralCustomer->phone) || empty($centralCustomer->phone_verified_at);
             }
 
-            // Criar/obter relacionamento com tenant atual
-            $tenantData = $customer->getOrCreateTenantRelation(tenant('id'));
+            // 2️⃣ SCHEMA TENANT: Dados isolados (cashback, pedidos, etc)
+            $tenantCustomer = Customer::where('email', $centralCustomer->email)->first();
 
-            // Criar token
+            if (!$tenantCustomer) {
+                // Criar customer no schema TENANT
+                $tenantCustomer = Customer::create([
+                    'name' => $centralCustomer->name,
+                    'email' => $centralCustomer->email,
+                    'phone' => $centralCustomer->phone,
+                    'password' => Hash::make(Str::random(32)),
+                    'email_verified_at' => now(),
+                    'provider' => $provider,
+                    'provider_id' => $socialUser->getId(),
+                    'avatar' => $centralCustomer->avatar,
+                    'cashback_balance' => 0,
+                    'loyalty_tier' => 'bronze',
+                    'is_active' => true,
+                ]);
+            }
+
+            // 3️⃣ Criar token usando customer CENTRAL (para auth)
+            $customer = \App\Models\Customer::setConnection('pgsql')->find($centralCustomer->id);
+            if (!$customer) {
+                throw new \Exception('Erro ao buscar customer para autenticação');
+            }
+
+            // 4️⃣ Criar token para autenticação
             $token = $customer->createToken('auth_token')->plainTextToken;
 
-            // 🔥 REDIRECIONAR PARA HOMEPAGE COM TOKEN
-            // Montar dados do customer para passar via URL
+            // 5️⃣ Montar dados do customer (usando dados do TENANT para cashback)
             $customerData = [
                 'id' => $customer->id,
                 'name' => $customer->name,
                 'email' => $customer->email,
                 'phone' => $customer->phone,
                 'avatar' => $customer->avatar,
-                'cashback_balance' => $tenantData->cashback_balance ?? 0,
-                'loyalty_tier' => $tenantData->loyalty_tier ?? 'bronze',
+                'cashback_balance' => $tenantCustomer->cashback_balance ?? 0,
+                'loyalty_tier' => $tenantCustomer->loyalty_tier ?? 'bronze',
             ];
 
             // Redirecionar para homepage com dados do login
