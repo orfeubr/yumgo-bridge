@@ -34,7 +34,7 @@
         "options": {
           "maxTokens": 4000,
           "temperature": 0.3,
-          "systemPrompt": "Você é um assistente especializado em corrigir erros de produção no YumGo (sistema Laravel de delivery multi-tenant). Analise erros e forneça soluções práticas e testadas. Sempre responda em JSON válido."
+          "systemPrompt": "Você é um assistente especializado em corrigir erros de produção no YumGo (sistema Laravel 11 de delivery multi-tenant).\n\n# REGRAS CRÍTICAS DO PROJETO\n\n## Multi-Tenant (PostgreSQL Schemas)\n- NUNCA misture dados entre tenants - cada restaurante tem schema isolado\n- SEMPRE verifique se tenancy está inicializado antes de queries\n- Schema PUBLIC = plataforma (tenants, plans, subscriptions)\n- Schema TENANT_* = dados do restaurante (customers, orders, products)\n- NUNCA execute queries em tabelas tenant sem tenancy inicializado\n\n## Cashback System\n- Cashback SOMENTE é creditado quando payment_status='paid'\n- NUNCA use status='completed' para gerar cashback\n- Auto-reverse cashback em cancelamentos/estornos\n- Cada restaurante configura % próprio (verificar cashback_settings)\n- Campos separados: cashback_used (desconto usado) ≠ cashback_earned (ganho novo)\n\n## Pagamento (Asaas)\n- Split automático (97% restaurante + 3% plataforma)\n- NUNCA duplique taxas (1 transação = 1 split)\n- Webhook DEVE validar assinatura antes de processar\n- Sub-conta isolada por tenant (asaas_account_id)\n\n## Segurança\n- SEMPRE use prepared statements (Eloquent/Query Builder)\n- NUNCA concatene input do usuário em queries SQL\n- Valide TODOS os inputs (Request->validate())\n- Proteja contra XSS (escape outputs com {{ }} no Blade)\n- Mantenha CSRF tokens em formulários\n- LGPD: nunca exponha dados de clientes entre tenants\n\n## Padrões Laravel 11\n- Use Service Layer para lógica de negócio (AsaasService, CashbackService, OrderService)\n- Dependency Injection em controllers (NUNCA use new Class())\n- Observers para eventos automáticos (OrderObserver para cashback)\n- Jobs assíncronos para tarefas pesadas (emails, webhooks)\n- Validação via Form Requests quando complexa\n\n## Middleware\n- NUNCA misture 'web' + 'api' no mesmo route group (causa SIGSEGV)\n- Rotas tenant SEMPRE com InitializeTenancyByDomain::class\n- API usa Sanctum + middleware 'web' (não 'api' em multi-tenant)\n\n## NFC-e / Fiscal\n- Emissão SOMENTE após payment_status='paid'\n- Processo assíncrono via fila 'nfce' (não trava request)\n- Rate limiting: 10 NFC-e/min por tenant\n- Lock distribuído previne duplicação\n- Classificação fiscal: SELECT categorias (grátis) > Tributa AI (IA paga)\n\n## ANTES DE APLICAR FIX\n1. Verifique se mudança não quebra features funcionando\n2. Considere side effects em multi-tenant\n3. Valide regras de negócio (cashback, pagamento, fiscal)\n4. Teste mentalmente com dados reais\n5. Se não tiver 100% certeza, marque can_auto_fix=false\n\n## AUTO-FIX PERMITIDO\n✅ Use statements faltando\n✅ Typos em nomes de métodos/propriedades\n✅ Parâmetros faltando em funções\n✅ Syntax errors (vírgula, parêntese)\n✅ Type hints incorretos\n\n## REQUER REVISÃO MANUAL\n❌ Queries que afetam múltiplos tenants\n❌ Lógica de cashback/pagamento\n❌ Emissão de nota fiscal\n❌ Migrations ou schema changes\n❌ Webhooks de pagamento\n❌ Autenticação/autorização\n❌ Qualquer mudança em dados financeiros\n\nSempre responda em JSON válido com esta estrutura:\n{\n  \"severity\": \"critical|high|medium|low\",\n  \"cause\": \"descrição clara da causa raiz\",\n  \"solution\": \"explicação da solução proposta\",\n  \"code_fix\": \"código corrigido completo (se aplicável)\",\n  \"file_path\": \"caminho exato do arquivo\",\n  \"can_auto_fix\": true|false,\n  \"security_impact\": \"nenhum|baixo|médio|alto\",\n  \"tests_needed\": [\"lista de testes que devem ser executados\"]\n}"
         }
       },
       "id": "claude-analyze",
@@ -55,25 +55,30 @@
     },
     {
       "parameters": {
+        "functionCode": "// Validação de segurança antes de aplicar auto-fix\nconst analysis = items[0].json;\n\n// Lista de arquivos BLOQUEADOS para auto-fix\nconst BLOCKED_FILES = [\n  '.env',\n  'composer.json',\n  'composer.lock',\n  'package.json',\n  'database/migrations/',\n  'config/database.php',\n  'app/Providers/AppServiceProvider.php',\n  'app/Providers/TenancyServiceProvider.php'\n];\n\n// Lista de padrões PERIGOSOS no código\nconst DANGEROUS_PATTERNS = [\n  /DB::raw\\(/i,\n  /DB::statement\\(/i,\n  /\\$_GET|\\$_POST|\\$_REQUEST/,\n  /exec\\(|system\\(|shell_exec\\(/,\n  /eval\\(/,\n  /DROP TABLE|TRUNCATE|DELETE FROM.*WHERE 1=1/i,\n  /->whereRaw\\(/,\n  /payment_status|cashback_balance|asaas_/i  // Campos financeiros\n];\n\n// Verifica se arquivo está bloqueado\nconst isBlockedFile = BLOCKED_FILES.some(blocked => \n  analysis.file_path?.includes(blocked)\n);\n\n// Verifica se código contém padrões perigosos\nconst hasDangerousPattern = analysis.code_fix \n  ? DANGEROUS_PATTERNS.some(pattern => pattern.test(analysis.code_fix))\n  : false;\n\n// Verifica impacto de segurança\nconst hasSecurityImpact = analysis.security_impact && \n  ['médio', 'alto', 'medium', 'high'].includes(analysis.security_impact.toLowerCase());\n\n// DECISÃO FINAL\nlet canAutoFix = analysis.can_auto_fix === true;\nlet blockReason = null;\n\nif (isBlockedFile) {\n  canAutoFix = false;\n  blockReason = 'Arquivo está na lista de bloqueio (crítico para o sistema)';\n}\n\nif (hasDangerousPattern) {\n  canAutoFix = false;\n  blockReason = 'Código contém padrões perigosos (raw SQL, exec, dados financeiros)';\n}\n\nif (hasSecurityImpact) {\n  canAutoFix = false;\n  blockReason = 'Impacto de segurança médio/alto - requer revisão manual';\n}\n\n// Se severity for 'low', só aplica se Claude marcou explicitamente can_auto_fix=true\nif (analysis.severity === 'low' && !analysis.can_auto_fix) {\n  canAutoFix = false;\n  blockReason = 'Severidade baixa sem aprovação explícita do Claude';\n}\n\nreturn {\n  json: {\n    ...analysis,\n    validated_auto_fix: canAutoFix,\n    block_reason: blockReason,\n    security_check: {\n      blocked_file: isBlockedFile,\n      dangerous_pattern: hasDangerousPattern,\n      security_impact: hasSecurityImpact\n    }\n  }\n};"
+      },
+      "id": "validate-security",
+      "name": "Validate Security",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
         "conditions": {
           "boolean": [
             {
-              "value1": "={{ $json.can_auto_fix }}",
+              "value1": "={{ $json.validated_auto_fix }}",
               "value2": true
-            },
-            {
-              "value1": "={{ $json.severity }}",
-              "value2": "critical"
             }
           ]
-        },
-        "combineOperation": "any"
+        }
       },
       "id": "check-auto-fix",
       "name": "Can Auto-Fix?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1050, 300]
+      "position": [1250, 300]
     },
     {
       "parameters": {
@@ -94,7 +99,7 @@
     },
     {
       "parameters": {
-        "content": "## 🔴 ERRO DE PRODUÇÃO - YumGo\n\n**Severidade:** {{ $json.severity.toUpperCase() }}\n**Tenant:** {{ $json.original_error.tenant_name || 'Central' }}\n**URL:** {{ $json.original_error.url }}\n\n### Erro\n```\n{{ $json.original_error.exception }}: {{ $json.original_error.message }}\n{{ $json.original_error.file }}:{{ $json.original_error.line }}\n```\n\n### Análise do Claude\n**Causa:** {{ $json.cause }}\n\n**Solução:** {{ $json.solution }}\n\n### Código Corrigido\n```php\n{{ $json.code_fix || 'N/A' }}\n```\n\n**Auto-fix aplicado:** {{ $json.can_auto_fix ? '✅ SIM' : '❌ NÃO (requer revisão manual)' }}",
+        "content": "## 🔴 ERRO DE PRODUÇÃO - YumGo\n\n**Severidade:** {{ $json.severity.toUpperCase() }}\n**Tenant:** {{ $json.original_error.tenant_name || 'Central' }}\n**URL:** {{ $json.original_error.url }}\n\n### Erro\n```\n{{ $json.original_error.exception }}: {{ $json.original_error.message }}\n{{ $json.original_error.file }}:{{ $json.original_error.line }}\n```\n\n### Análise do Claude\n**Causa:** {{ $json.cause }}\n\n**Solução:** {{ $json.solution }}\n\n**Impacto de Segurança:** {{ $json.security_impact || 'Não avaliado' }}\n\n### Código Corrigido\n```php\n{{ $json.code_fix || 'N/A' }}\n```\n\n### Decisão de Auto-Fix\n**Claude recomendou:** {{ $json.can_auto_fix ? '✅ SIM' : '❌ NÃO' }}\n**Validação de Segurança:** {{ $json.validated_auto_fix ? '✅ APROVADO' : '❌ BLOQUEADO' }}\n{{ $json.block_reason ? '**Motivo:** ' + $json.block_reason : '' }}\n\n**Status Final:** {{ $json.validated_auto_fix ? '✅ AUTO-FIX APLICADO' : '⚠️ REQUER REVISÃO MANUAL' }}",
         "channelName": "#production-errors",
         "attachments": []
       },
@@ -140,6 +145,9 @@
       "main": [[{ "node": "Parse Claude Response", "type": "main", "index": 0 }]]
     },
     "Parse Claude Response": {
+      "main": [[{ "node": "Validate Security", "type": "main", "index": 0 }]]
+    },
+    "Validate Security": {
       "main": [[{ "node": "Can Auto-Fix?", "type": "main", "index": 0 }]]
     },
     "Can Auto-Fix?": {

@@ -341,16 +341,16 @@ Route::get('/admin/database', [\App\Http\Controllers\AdminerController::class, '
 
 // 🔥 FLARE - Teste de Error Monitoring
 Route::get('/test-flare', function () {
-    // Adiciona contexto antes do erro
-    if (class_exists('\Spatie\FlareClient\Flare')) {
-        \Spatie\FlareClient\Flare::context('test_mode', true);
-        \Spatie\FlareClient\Flare::context('environment', config('app.env'));
+    // Adiciona contexto antes do erro (usando helper flare())
+    if (function_exists('flare')) {
+        flare()->context('test_mode', true);
+        flare()->context('environment', config('app.env'));
 
         if (tenancy()->initialized) {
             $tenant = tenant();
-            \Spatie\FlareClient\Flare::context('tenant_id', $tenant->id);
-            \Spatie\FlareClient\Flare::context('tenant_slug', $tenant->slug);
-            \Spatie\FlareClient\Flare::context('tenant_name', $tenant->name);
+            flare()->context('tenant_id', $tenant->id);
+            flare()->context('tenant_slug', $tenant->slug);
+            flare()->context('tenant_name', $tenant->name);
         }
     }
 

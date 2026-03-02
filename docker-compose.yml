@@ -46,6 +46,51 @@ services:
     networks:
       - deliverypro
 
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: yumgo-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://n8n.yumgo.com.br/
+      - GENERIC_TIMEZONE=America/Sao_Paulo
+      - N8N_METRICS=true
+      - N8N_LOG_LEVEL=info
+      # Segurança
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=yumgo_n8n_2026
+      # PostgreSQL (usa o mesmo DB do projeto)
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=deliverypro
+      - DB_POSTGRESDB_PASSWORD=secret
+      - DB_POSTGRESDB_SCHEMA=n8n
+      # Execução
+      - EXECUTIONS_PROCESS=main
+      - EXECUTIONS_MODE=regular
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n-workflows:/home/node/workflows:ro
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - deliverypro
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
 networks:
   deliverypro:
     driver: bridge
@@ -53,3 +98,4 @@ networks:
 volumes:
   postgres_data:
   redis_data:
+  n8n_data:
