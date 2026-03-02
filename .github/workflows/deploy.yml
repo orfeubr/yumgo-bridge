@@ -1,0 +1,33 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main  # Deploy automático quando push na main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🚀 Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.AWS_HOST }}
+          username: ${{ secrets.AWS_USERNAME }}
+          key: ${{ secrets.AWS_SSH_KEY }}
+          port: 22
+          script: |
+            cd /var/www/restaurante
+            ./deploy.sh
+
+      - name: ✅ Deploy Success
+        if: success()
+        run: |
+          echo "🎉 Deploy concluído com sucesso!"
+          echo "🌐 Site: https://yumgo.com.br"
+
+      - name: ❌ Deploy Failed
+        if: failure()
+        run: |
+          echo "💥 Deploy falhou! Verifique os logs."
