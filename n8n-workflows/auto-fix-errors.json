@@ -1,0 +1,171 @@
+{
+  "name": "Auto-Fix Production Errors with Claude",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "flare-webhook",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-flare",
+      "name": "Webhook - Flare Error",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extrai informações do erro do Flare\nconst error = items[0].json;\n\nconst errorData = {\n  exception: error.exception?.class || 'Unknown',\n  message: error.exception?.message || 'No message',\n  file: error.exception?.file || '',\n  line: error.exception?.line || 0,\n  trace: error.exception?.trace?.slice(0, 5) || [],\n  context: error.context || {},\n  environment: error.context?.env || 'production',\n  timestamp: new Date().toISOString(),\n  url: error.request?.url || '',\n  method: error.request?.method || '',\n  tenant_id: error.context?.tenant_id || null,\n  tenant_name: error.context?.tenant_name || null\n};\n\nreturn {\n  json: {\n    error: errorData,\n    prompt: `ERRO DE PRODUÇÃO NO YUMGO:\n\nExceção: ${errorData.exception}\nMensagem: ${errorData.message}\nArquivo: ${errorData.file}:${errorData.line}\nURL: ${errorData.url}\nTenant: ${errorData.tenant_name || 'Central'}\n\nStack Trace:\n${errorData.trace.map((t, i) => `${i+1}. ${t.class}@${t.method} (${t.file}:${t.line})`).join('\\n')}\n\nANALISE:\n1. Identifique a causa raiz\n2. Sugira a correção necessária\n3. Forneça o código corrigido se possível\n4. Indique se é crítico ou pode esperar\n\nResposta em formato JSON:\n{\n  \"severity\": \"critical|high|medium|low\",\n  \"cause\": \"descrição da causa\",\n  \"solution\": \"descrição da solução\",\n  \"code_fix\": \"código corrigido (se aplicável)\",\n  \"file_path\": \"caminho do arquivo a corrigir\",\n  \"can_auto_fix\": true|false\n}`\n  }\n};"
+      },
+      "id": "extract-error",
+      "name": "Extract Error Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "resource": "message",
+        "model": "claude-sonnet-4-20250514",
+        "text": "={{ $json.prompt }}",
+        "options": {
+          "maxTokens": 4000,
+          "temperature": 0.3,
+          "systemPrompt": "Você é um assistente especializado em corrigir erros de produção no YumGo (sistema Laravel de delivery multi-tenant). Analise erros e forneça soluções práticas e testadas. Sempre responda em JSON válido."
+        }
+      },
+      "id": "claude-analyze",
+      "name": "Claude - Analyze Error",
+      "type": "n8n-nodes-base.anthropic",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse resposta do Claude\nconst claudeResponse = items[0].json.content[0].text;\n\n// Tenta extrair JSON da resposta\nlet analysis;\ntry {\n  // Remove markdown code blocks se houver\n  const jsonMatch = claudeResponse.match(/```json\\s*([\\s\\S]*?)```/) || \n                    claudeResponse.match(/\\{[\\s\\S]*\\}/);\n  \n  if (jsonMatch) {\n    analysis = JSON.parse(jsonMatch[1] || jsonMatch[0]);\n  } else {\n    analysis = JSON.parse(claudeResponse);\n  }\n} catch (e) {\n  // Se falhar, cria estrutura básica\n  analysis = {\n    severity: 'medium',\n    cause: 'Não foi possível parsear resposta do Claude',\n    solution: claudeResponse,\n    can_auto_fix: false\n  };\n}\n\n// Adiciona dados do erro original\nanalysis.original_error = items[0].json.error;\n\nreturn {\n  json: analysis\n};"
+      },
+      "id": "parse-response",
+      "name": "Parse Claude Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.can_auto_fix }}",
+              "value2": true
+            },
+            {
+              "value1": "={{ $json.severity }}",
+              "value2": "critical"
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "id": "check-auto-fix",
+      "name": "Can Auto-Fix?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "basicAuth",
+        "url": "https://yumgo.com.br/api/auto-fix",
+        "method": "POST",
+        "jsonParameters": true,
+        "bodyParametersJson": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "apply-fix",
+      "name": "Apply Auto-Fix",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "content": "## 🔴 ERRO DE PRODUÇÃO - YumGo\n\n**Severidade:** {{ $json.severity.toUpperCase() }}\n**Tenant:** {{ $json.original_error.tenant_name || 'Central' }}\n**URL:** {{ $json.original_error.url }}\n\n### Erro\n```\n{{ $json.original_error.exception }}: {{ $json.original_error.message }}\n{{ $json.original_error.file }}:{{ $json.original_error.line }}\n```\n\n### Análise do Claude\n**Causa:** {{ $json.cause }}\n\n**Solução:** {{ $json.solution }}\n\n### Código Corrigido\n```php\n{{ $json.code_fix || 'N/A' }}\n```\n\n**Auto-fix aplicado:** {{ $json.can_auto_fix ? '✅ SIM' : '❌ NÃO (requer revisão manual)' }}",
+        "channelName": "#production-errors",
+        "attachments": []
+      },
+      "id": "notify-slack",
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "to": "seu-email@example.com",
+        "subject": "🔴 [{{ $json.severity.toUpperCase() }}] Erro YumGo - {{ $json.original_error.exception }}",
+        "emailType": "html",
+        "html": "<h2>Erro de Produção - YumGo</h2>\n<p><strong>Severidade:</strong> {{ $json.severity }}</p>\n<p><strong>Exceção:</strong> {{ $json.original_error.exception }}</p>\n<p><strong>Mensagem:</strong> {{ $json.original_error.message }}</p>\n<p><strong>Arquivo:</strong> {{ $json.original_error.file }}:{{ $json.original_error.line }}</p>\n<p><strong>URL:</strong> {{ $json.original_error.url }}</p>\n<p><strong>Tenant:</strong> {{ $json.original_error.tenant_name || 'Central' }}</p>\n\n<h3>Análise do Claude</h3>\n<p><strong>Causa:</strong> {{ $json.cause }}</p>\n<p><strong>Solução:</strong> {{ $json.solution }}</p>\n\n<h3>Código Sugerido</h3>\n<pre>{{ $json.code_fix || 'Requer análise manual' }}</pre>\n\n<p><strong>Auto-fix:</strong> {{ $json.can_auto_fix ? '✅ Aplicado automaticamente' : '❌ Requer revisão manual' }}</p>",
+        "options": {}
+      },
+      "id": "notify-email",
+      "name": "Notify Email (Critical Only)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Cria commit automático com a correção\nconst fix = items[0].json;\n\nreturn {\n  json: {\n    message: `fix: ${fix.cause.substring(0, 72)}\\n\\n${fix.solution}\\n\\nAuto-fixed by Claude AI via n8n workflow\\nSeverity: ${fix.severity}\\n\\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>`,\n    files: [\n      {\n        path: fix.file_path,\n        content: fix.code_fix\n      }\n    ],\n    branch: `auto-fix/${Date.now()}`,\n    create_pr: fix.severity === 'critical'\n  }\n};"
+      },
+      "id": "prepare-commit",
+      "name": "Prepare Git Commit",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 100]
+    }
+  ],
+  "connections": {
+    "Webhook - Flare Error": {
+      "main": [[{ "node": "Extract Error Data", "type": "main", "index": 0 }]]
+    },
+    "Extract Error Data": {
+      "main": [[{ "node": "Claude - Analyze Error", "type": "main", "index": 0 }]]
+    },
+    "Claude - Analyze Error": {
+      "main": [[{ "node": "Parse Claude Response", "type": "main", "index": 0 }]]
+    },
+    "Parse Claude Response": {
+      "main": [[{ "node": "Can Auto-Fix?", "type": "main", "index": 0 }]]
+    },
+    "Can Auto-Fix?": {
+      "main": [
+        [
+          { "node": "Apply Auto-Fix", "type": "main", "index": 0 },
+          { "node": "Prepare Git Commit", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Notify Email (Critical Only)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Apply Auto-Fix": {
+      "main": [[{ "node": "Notify Slack", "type": "main", "index": 0 }]]
+    },
+    "Notify Email (Critical Only)": {
+      "main": [[{ "node": "Notify Slack", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-03-02T00:00:00.000Z",
+  "versionId": "1"
+}
