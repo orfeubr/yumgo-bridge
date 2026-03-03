@@ -109,15 +109,41 @@ class TestNfceEmission extends Command
                 'delivery_zipcode' => '01001000',
             ]);
 
+            // Tentar usar produto existente, senão criar teste
+            $product = \App\Models\Product::where('is_active', true)->first();
+
+            if (!$product) {
+                // Criar categoria de teste
+                $category = \App\Models\Category::firstOrCreate(
+                    ['slug' => 'teste-nfce'],
+                    [
+                        'name' => 'Teste NFC-e',
+                        'description' => 'Categoria de teste',
+                        'is_active' => true,
+                    ]
+                );
+
+                // Criar produto de teste
+                $product = \App\Models\Product::create([
+                    'category_id' => $category->id,
+                    'name' => 'Marmitex Teste NFC-e',
+                    'slug' => 'marmitex-teste-nfce-' . time(),
+                    'description' => 'Produto de teste para emissão de NFC-e',
+                    'price' => 50.00,
+                    'is_active' => true,
+                    'ncm' => '19059090',
+                    'cfop' => '5102',
+                ]);
+            }
+
             // Adicionar items
             \App\Models\OrderItem::create([
                 'order_id' => $order->id,
-                'product_name' => 'Marmitex Teste',
+                'product_id' => $product->id,
+                'product_name' => $product->name,
                 'quantity' => 1,
                 'unit_price' => 50.00,
                 'subtotal' => 50.00,
-                'ncm' => '19059090', // Código NCM genérico para alimentos
-                'cfop' => '5102', // Venda dentro do estado
             ]);
 
             $this->line("✅ Pedido: #{$order->order_number}");
@@ -141,7 +167,7 @@ class TestNfceEmission extends Command
 
         try {
             $sefazService = app(\App\Services\SefazService::class);
-            $result = $sefazService->emitirNFCe($order);
+            $result = $sefazService->emitNFCe($order);
 
             if ($result['success']) {
                 $this->info('✅ NFC-e EMITIDA COM SUCESSO!');

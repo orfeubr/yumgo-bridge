@@ -61,15 +61,15 @@ class SefazService
 
         return [
             'atualizacao' => date('Y-m-d H:i:s'),
-            'tpAmb' => $this->environment === 'production' ? 1 : 2,
-            'razaosocial' => $tenant->razao_social,
-            'siglaUF' => $tenant->fiscal_state,
-            'cnpj' => $this->cleanCNPJ($tenant->cnpj),
+            'tpAmb' => $this->environment === 'producao' ? 1 : 2,
+            'razaosocial' => $tenant->company_name ?? $tenant->name ?? 'EMPRESA TESTE LTDA',
+            'siglaUF' => $tenant->fiscal_address_state ?? 'SP',
+            'cnpj' => $this->cleanCNPJ($tenant->cpf_cnpj ?? '11111111000111'),
             'schemes' => 'PL_009_V4',
             'versao' => '4.00',
             'tokenIBPT' => 'AAAAAAA',
-            'CSC' => $tenant->csc_token,
-            'CSCid' => $tenant->csc_id,
+            'CSC' => $tenant->csc_token ?? 'TESTE',
+            'CSCid' => $tenant->csc_id ?? '000001',
             'aProxyConf' => [
                 'proxyIp' => '',
                 'proxyPort' => '',
@@ -86,15 +86,63 @@ class SefazService
     {
         $tenant = $this->tenant;
 
+        // EM HOMOLOGAÇÃO: Permitir certificado fake para testes
+        if ($this->environment === 'homologacao' && !$tenant->certificate_a1) {
+            Log::warning('🧪 HOMOLOGAÇÃO: Usando certificado de teste auto-gerado');
+            return $this->generateTestCertificate();
+        }
+
         if (!$tenant->certificate_a1) {
             throw new \Exception('Certificado digital A1 não configurado');
         }
 
         // Certificado está em base64 no banco
         $pfxContent = base64_decode($tenant->certificate_a1);
-        $password = $tenant->certificate_password;
+        $password = $tenant->certificate_password ?? '';
 
         return Certificate::readPfx($pfxContent, $password);
+    }
+
+    /**
+     * Gera certificado de teste para homologação
+     */
+    private function generateTestCertificate(): Certificate
+    {
+        // Criar certificado auto-assinado temporário
+        $tempPem = tempnam(sys_get_temp_dir(), 'cert_');
+        $tempKey = tempnam(sys_get_temp_dir(), 'key_');
+        $tempPfx = tempnam(sys_get_temp_dir(), 'pfx_');
+
+        try {
+            // Gerar chave privada e certificado
+            $dn = [
+                "countryName" => "BR",
+                "stateOrProvinceName" => "SP",
+                "localityName" => "Sao Paulo",
+                "organizationName" => "Teste Homologacao SEFAZ",
+                "commonName" => "TESTE NFCE HOMOLOG"
+            ];
+
+            $privkey = openssl_pkey_new([
+                "private_key_bits" => 2048,
+                "private_key_type" => OPENSSL_KEYTYPE_RSA,
+            ]);
+
+            $csr = openssl_csr_new($dn, $privkey, ['digest_alg' => 'sha256']);
+            $x509 = openssl_csr_sign($csr, null, $privkey, 365, ['digest_alg' => 'sha256']);
+
+            // Exportar para PFX
+            openssl_pkcs12_export($x509, $pfxOutput, $privkey, 'teste123');
+
+            // Retornar certificado
+            return Certificate::readPfx($pfxOutput, 'teste123');
+
+        } finally {
+            // Limpar arquivos temporários
+            @unlink($tempPem);
+            @unlink($tempKey);
+            @unlink($tempPfx);
+        }
     }
 
     /**
