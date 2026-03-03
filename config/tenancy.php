@@ -26,7 +26,8 @@ return [
         '*.compute.amazonaws.com',               // All AWS compute domains
         '*.elb.amazonaws.com',                   // Elastic Load Balancer
         '*.cloudfront.net',                      // CloudFront CDN
-        '44.250.44.108',                         // EC2 public IP (current)
+        '44.250.44.108',                         // EC2 public IP (old)
+        '34.221.34.95',                          // EC2 public IP (current)
 
         // Common development/testing
         '*.ngrok.io',                            // Ngrok tunnels
