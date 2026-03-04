@@ -228,10 +228,8 @@ class Order extends Model
             return false;
         }
 
-        // Restaurante fechado
-        if (!$this->isRestaurantOpen()) {
-            return false;
-        }
+        // ⭐ REMOVIDO: Não bloqueia se restaurante fechou DEPOIS do pedido criado
+        // Cliente deve poder pagar pedidos já feitos, mesmo se restaurante fechou
 
         return true;
     }
@@ -249,9 +247,7 @@ class Order extends Model
             return 'Pedido expirado';
         }
 
-        if (!$this->isRestaurantOpen()) {
-            return 'Restaurante fechado';
-        }
+        // ⭐ REMOVIDO: Não bloqueia por restaurante fechado
 
         return null;
     }

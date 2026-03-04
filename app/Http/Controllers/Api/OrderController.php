@@ -549,6 +549,19 @@ class OrderController extends Controller
 
         $payment = $order->payments()->latest()->first();
 
+        // ⭐ CASO ESPECIAL: Pagamento com cartão pode não ter payment criado ainda
+        // (será criado quando o cliente preencher os dados do cartão)
+        if (!$payment && in_array($order->payment_method, ['credit_card', 'debit_card'])) {
+            return response()->json([
+                'method' => $order->payment_method,
+                'amount' => $order->total,
+                'status' => 'pending',
+                'order_number' => $order->order_number,
+                'requires_card_data' => true, // Flag para frontend exibir formulário
+            ]);
+        }
+
+        // Para outros métodos, payment é obrigatório
         if (!$payment) {
             return response()->json([
                 'message' => 'Pagamento não encontrado.',
