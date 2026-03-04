@@ -133,6 +133,12 @@ class OrderService
             // Define expiração do pedido (final do dia)
             $expiresAt = now()->endOfDay();
 
+            // Processar delivery_address (converter array para JSON se necessário)
+            $deliveryAddress = $data['delivery_address'] ?? null;
+            if (is_array($deliveryAddress)) {
+                $deliveryAddress = json_encode($deliveryAddress, JSON_UNESCAPED_UNICODE);
+            }
+
             // Cria pedido
             $order = Order::create([
                 'order_number' => $this->generateOrderNumber(),
@@ -147,7 +153,7 @@ class OrderService
                 'payment_status' => 'pending',
                 'payment_method' => $data['payment_method'] ?? null,
                 'delivery_type' => $data['delivery_type'] ?? 'delivery',
-                'delivery_address' => $data['delivery_address'] ?? null,
+                'delivery_address' => $deliveryAddress,
                 'delivery_city' => $data['delivery_city'] ?? null,
                 'delivery_neighborhood' => $data['delivery_neighborhood'] ?? null,
                 'customer_notes' => $data['notes'] ?? null,
@@ -171,8 +177,8 @@ class OrderService
                 \Log::info('🎟️ Contador do cupom incrementado', ['code' => $couponCode]);
             }
 
-            // Se for pagamento online (PIX ou cartão), criar cobrança no gateway configurado
-            if (in_array($data['payment_method'], ['pix', 'credit_card', 'debit_card'])) {
+            // ⭐ PAGAMENTO: Criar cobrança apenas para PIX (cartão será processado na página de pagamento)
+            if ($data['payment_method'] === 'pix') {
                 try {
                     // PROTEÇÃO: Garantir que customer tem relação carregada
                     $order->load('customer');
@@ -181,7 +187,7 @@ class OrderService
                     $tenant = tenant();
                     $gateway = $tenant->payment_gateway ?? 'pagarme';
 
-                    \Log::info('💳 Criando pagamento', [
+                    \Log::info('💳 Criando pagamento PIX', [
                         'gateway' => $gateway,
                         'method' => $data['payment_method'],
                         'tenant_id' => $tenant->id,

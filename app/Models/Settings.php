@@ -245,14 +245,10 @@ class Settings extends Model
     }
 
     /**
-     * Verificar se está aberto agora
+     * Verificar se está aberto agora (baseado APENAS no horário de atendimento)
      */
     public function isOpenNow(): bool
     {
-        if (!$this->is_open_now) {
-            return false;
-        }
-
         $now = now();
         $dayOfWeek = strtolower($now->format('l')); // monday, tuesday...
         $dayInPortuguese = static::getDayNameInPortuguese($dayOfWeek);
@@ -267,6 +263,12 @@ class Settings extends Model
         // Formato: "18:00 - 23:00"
         if (is_string($hours) && str_contains($hours, ' - ')) {
             [$open, $close] = explode(' - ', $hours);
+
+            // Verifica se o horário está vazio ou é "Fechado"
+            if (empty(trim($open)) || empty(trim($close)) || strtolower(trim($hours)) === 'fechado') {
+                return false;
+            }
+
             return $currentTime >= trim($open) && $currentTime <= trim($close);
         }
 

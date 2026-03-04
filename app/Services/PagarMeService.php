@@ -639,6 +639,127 @@ class PagarMeService
     }
 
     /**
+     * Processa pagamento com cartão (após tokenização no frontend)
+     * ⭐ Este método é chamado DEPOIS que o cliente preencheu dados do cartão
+     */
+    public function processCardPayment(Order $order, array $cardData): ?array
+    {
+        $tenant = tenant();
+
+        if (!$tenant->pagarme_recipient_id) {
+            throw new \Exception('Tenant não possui recebedor Pagar.me');
+        }
+
+        // Comissão da plataforma
+        $commissionPercentage = $tenant->plan->commission_percentage ?? 1.00;
+        $platformValue = ($order->total * $commissionPercentage) / 100;
+        $restaurantValue = $order->total - $platformValue;
+
+        // Cliente
+        $customer = $this->getOrCreateCustomer($order->customer);
+
+        // Payload base
+        $payload = [
+            'customer' => [
+                'id' => $customer['id'],
+                'name' => $customer['name'] ?? $order->customer->name ?? 'Cliente',
+                'email' => $customer['email'] ?? $order->customer->email,
+            ],
+            'items' => $this->formatOrderItems($order),
+            'metadata' => [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'tenant_id' => $tenant->id,
+            ],
+        ];
+
+        // Split de pagamento
+        $payload['split'] = [
+            [
+                'recipient_id' => $tenant->pagarme_recipient_id,
+                'amount' => (int)($restaurantValue * 100),
+                'type' => 'flat',
+                'options' => [
+                    'charge_processing_fee' => true,
+                    'charge_remainder' => false,
+                    'liable' => true,
+                ],
+            ],
+            [
+                'recipient_id' => config('services.pagarme.platform_recipient_id'),
+                'amount' => (int)($platformValue * 100),
+                'type' => 'flat',
+                'options' => [
+                    'charge_processing_fee' => false,
+                    'charge_remainder' => true,
+                    'liable' => false,
+                ],
+            ],
+        ];
+
+        // Configuração do cartão
+        $payload['payments'] = [[
+            'payment_method' => $cardData['method'] ?? 'credit_card', // credit_card ou debit_card
+            'credit_card' => [
+                'card' => [
+                    'number' => $cardData['number'],
+                    'holder_name' => $cardData['holder_name'],
+                    'exp_month' => (int)$cardData['exp_month'],
+                    'exp_year' => (int)$cardData['exp_year'],
+                    'cvv' => $cardData['cvv'],
+                    'billing_address' => [
+                        'line_1' => $order->delivery_address ?? 'Rua Principal, 123',
+                        'zip_code' => preg_replace('/[^0-9]/', '', $order->delivery_zipcode ?? '01310100'),
+                        'city' => $order->delivery_city ?? 'São Paulo',
+                        'state' => $order->delivery_state ?? 'SP',
+                        'country' => 'BR',
+                    ],
+                ],
+                'installments' => (int)($cardData['installments'] ?? 1),
+                'statement_descriptor' => substr($tenant->name, 0, 13),
+            ],
+        ]];
+
+        \Log::info('💳 Processando pagamento com cartão', [
+            'order_id' => $order->id,
+            'method' => $cardData['method'] ?? 'credit_card',
+            'installments' => $cardData['installments'] ?? 1,
+        ]);
+
+        // Enviar para Pagar.me
+        $response = Http::timeout(30)
+            ->withBasicAuth($this->apiKey, '')
+            ->withHeaders(['Content-Type' => 'application/json'])
+            ->post("{$this->baseUrl}/orders", $payload);
+
+        if ($response->successful()) {
+            $result = $response->json();
+
+            \Log::info('✅ Pagar.me: Pagamento com cartão processado', [
+                'order_id' => $result['id'] ?? null,
+                'status' => $result['status'] ?? null,
+                'amount' => $result['amount'] ?? null,
+            ]);
+
+            return [
+                'id' => $result['id'] ?? null,
+                'status' => $result['status'] ?? null,
+                'amount' => $result['amount'] ?? null,
+                'charges' => $result['charges'] ?? [],
+            ];
+        }
+
+        // Log de erro
+        \Log::error('❌ Erro ao processar pagamento com cartão', [
+            'order_id' => $order->id,
+            'status' => $response->status(),
+            'body' => $response->body(),
+        ]);
+
+        return null;
+    }
+
+    /**
      * Gera CPF válido para testes em sandbox
      */
     private function generateValidCPF(): string

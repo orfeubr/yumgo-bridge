@@ -61,6 +61,40 @@
 
 <!-- Área de Produtos com Alpine -->
 <div x-data="catalogApp()" x-init="init()" class="bg-gray-50">
+
+    <!-- Banner: Restaurante Fechado -->
+    <div x-show="!isOpenNow"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 -translate-y-4"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4">
+        <div class="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 md:p-5">
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0 w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-amber-900 text-lg mb-2">🔒 Estamos fechados no momento</h3>
+                    <p class="text-amber-800 text-sm mb-3">Você pode visualizar o cardápio, mas não é possível fazer pedidos agora.</p>
+
+                    <!-- Horários de Funcionamento -->
+                    <div class="bg-white rounded-lg p-3 border border-amber-100">
+                        <p class="font-semibold text-amber-900 text-xs uppercase mb-2">⏰ Horários de Atendimento:</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs">
+                            <template x-for="(hours, day) in businessHours" :key="day">
+                                <div class="flex justify-between py-1">
+                                    <span class="font-medium text-gray-700" x-text="day"></span>
+                                    <span class="text-gray-600" x-text="hours || 'Fechado'"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- Loading -->
     <div x-show="loading" class="max-w-2xl mx-auto px-4 py-12">
         <div class="bg-white rounded-lg border border-gray-200 p-12 text-center">
@@ -74,8 +108,10 @@
         <!-- Grid Responsivo -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
             <template x-for="product in filteredProducts" :key="product.id">
-                <div @click="openProduct(product)"
-                     class="bg-white border border-gray-200 rounded-xl overflow-hidden card-hover transition-smooth cursor-pointer hover:shadow-lg group">
+                <div @click="isOpenNow && openProduct(product)"
+                     :class="!isOpenNow && 'opacity-50 cursor-not-allowed'"
+                     class="bg-white border border-gray-200 rounded-xl overflow-hidden card-hover transition-smooth hover:shadow-lg group"
+                     :style="!isOpenNow && 'pointer-events: none; filter: grayscale(100%);'">
                     <!-- Imagem com Lazy Loading -->
                     <div class="relative h-48 md:h-52 lg:h-56 bg-gray-200 overflow-hidden">
                         <!-- Skeleton Loader -->
@@ -91,29 +127,44 @@
                              onerror="this.src='https://via.placeholder.com/600x400?text=Sem+Foto'">
 
                         <!-- Badge Destaque -->
-                        <div x-show="product.is_featured"
+                        <div x-show="product.is_featured && isOpenNow"
                              class="absolute top-3 left-3 bg-primary-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md z-20">
                             ⭐ Destaque
+                        </div>
+
+                        <!-- Badge Fechado -->
+                        <div x-show="!isOpenNow"
+                             class="absolute top-3 left-3 bg-gray-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md z-20">
+                            🔒 Fechado
                         </div>
                     </div>
 
                     <!-- Info -->
                     <div class="p-4 md:p-5">
-                        <h3 class="font-bold text-gray-900 mb-2 text-base md:text-lg" x-text="product.name"></h3>
-                        <p class="text-xs md:text-sm text-gray-600 mb-4 line-clamp-2" x-text="product.description"></p>
+                        <h3 class="font-bold mb-2 text-base md:text-lg"
+                            :class="isOpenNow ? 'text-gray-900' : 'text-gray-500'"
+                            x-text="product.name"></h3>
+                        <p class="text-xs md:text-sm mb-4 line-cloak-2"
+                           :class="isOpenNow ? 'text-gray-600' : 'text-gray-400'"
+                           x-text="product.description"></p>
 
                         <!-- Preços -->
                         <div class="flex items-center justify-between">
                             <div class="flex gap-3 md:gap-4">
                                 <template x-for="variation in product.variations" :key="variation.id">
                                     <div class="text-center">
-                                        <p class="text-xs text-gray-500 font-medium mb-1" x-text="variation.name"></p>
-                                        <p class="text-sm md:text-base font-bold text-primary-500"
+                                        <p class="text-xs font-medium mb-1"
+                                           :class="isOpenNow ? 'text-gray-500' : 'text-gray-400'"
+                                           x-text="variation.name"></p>
+                                        <p class="text-sm md:text-base font-bold"
+                                           :class="isOpenNow ? 'text-primary-500' : 'text-gray-400'"
                                            x-text="'R$ ' + (parseFloat(product.price) + parseFloat(variation.price_modifier)).toFixed(2)"></p>
                                     </div>
                                 </template>
                             </div>
-                            <button class="p-2.5 md:p-3 bg-primary-50 text-primary-500 rounded-lg hover:bg-primary-100 transition-smooth group-hover:bg-primary-500 group-hover:text-white">
+                            <button :disabled="!isOpenNow"
+                                    :class="isOpenNow ? 'bg-primary-50 text-primary-500 hover:bg-primary-100 group-hover:bg-primary-500 group-hover:text-white cursor-pointer' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
+                                    class="p-2.5 md:p-3 rounded-lg transition-smooth">
                                 <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                                 </svg>
@@ -237,14 +288,21 @@
 
                     <!-- Botão Fixo Compacto -->
                     <div class="flex-shrink-0 p-4 pt-2 bg-white border-t border-gray-100">
-                        <button @click="addToCart()"
-                                :disabled="!selectedVariation"
-                                :class="selectedVariation ? 'bg-primary-500 hover:bg-primary-600 active:bg-primary-700' : 'bg-gray-300 cursor-not-allowed'"
+                        <!-- Mensagem quando fechado -->
+                        <div x-show="!isOpenNow" class="text-center mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <p class="text-sm font-semibold text-amber-900">🔒 Não é possível adicionar itens</p>
+                            <p class="text-xs text-amber-700 mt-1">Estamos fechados no momento</p>
+                        </div>
+
+                        <button @click="isOpenNow && addToCart()"
+                                :disabled="!selectedVariation || !isOpenNow"
+                                :class="selectedVariation && isOpenNow ? 'bg-primary-500 hover:bg-primary-600 active:bg-primary-700' : 'bg-gray-300 cursor-not-allowed'"
                                 class="w-full py-3.5 text-white rounded-xl font-bold text-base transition-all active:scale-98 disabled:active:scale-100 shadow-sm">
-                            <span x-show="selectedVariation">
+                            <span x-show="selectedVariation && isOpenNow">
                                 Adicionar R$ <span x-text="((parseFloat(selectedProduct.price) + parseFloat(selectedVariation?.price_modifier || 0)) * quantity).toFixed(2)"></span>
                             </span>
-                            <span x-show="!selectedVariation">Escolha um tamanho</span>
+                            <span x-show="!selectedVariation && isOpenNow">Escolha um tamanho</span>
+                            <span x-show="!isOpenNow">Restaurante Fechado</span>
                         </button>
                     </div>
                 </div>
@@ -297,11 +355,14 @@ function catalogApp() {
         quantity: 1,
         notes: '',
         searchQuery: '',
+        isOpenNow: true, // Status do restaurante
+        businessHours: {}, // Horários de funcionamento
 
         async init() {
             await Promise.all([
                 this.loadProducts(),
                 this.loadCategories(),
+                this.loadSettings(), // Carrega status do horário
                 this.loadCart()
             ]);
             this.loading = false;
@@ -325,6 +386,19 @@ function catalogApp() {
                 }
             } catch (error) {
                 console.error('Erro ao carregar produtos:', error);
+            }
+        },
+
+        async loadSettings() {
+            try {
+                const response = await fetch('/api/v1/settings');
+                if (response.ok) {
+                    const data = await response.json();
+                    this.isOpenNow = data.settings.is_open_now || false;
+                    this.businessHours = data.settings.business_hours || {};
+                }
+            } catch (error) {
+                console.error('Erro ao carregar configurações:', error);
             }
         },
 
@@ -447,3 +521,4 @@ function catalogApp() {
 }
 </script>
 @endsection
+// Cache bust: 1772616380

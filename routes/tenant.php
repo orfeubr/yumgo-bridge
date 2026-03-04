@@ -229,6 +229,7 @@ Route::prefix('api/v1')->middleware([
     // Pedidos por ORDER_NUMBER (segurança - oculta IDs sequenciais)
     Route::get('/orders/number/{orderNumber}', [OrderController::class, 'showByOrderNumber']);
     Route::get('/orders/number/{orderNumber}/payment', [OrderController::class, 'paymentByOrderNumber']);
+    Route::post('/orders/{orderNumber}/pay-with-card', [OrderController::class, 'processCardPayment'])->middleware('throttle:5,1'); // ⭐ Processar pagamento com cartão
 
     // Endereços (temporário: inline para evitar crash)
     Route::get('/addresses', function(Request $request) {

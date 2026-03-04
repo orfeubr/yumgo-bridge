@@ -151,23 +151,99 @@
                 </div>
 
                 <!-- Pagamento com Cartão -->
-                <div x-show="paymentMethod === 'credit_card' || paymentMethod === 'debit_card'" class="bg-white rounded-xl shadow-sm p-8 text-center">
-                    <h2 class="text-lg font-bold mb-4 text-gray-900">Pagamento com Cartão</h2>
-                    <div class="mb-6">
-                        <p class="text-gray-600 text-sm mb-4">Você será redirecionado para a página segura de pagamento</p>
-                        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
-                            </svg>
+                <div x-show="paymentMethod === 'credit_card' || paymentMethod === 'debit_card'" class="bg-white rounded-xl shadow-sm p-6">
+                    <h2 class="text-lg font-bold mb-4 text-gray-900 flex items-center gap-2">
+                        <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                        </svg>
+                        Dados do Cartão
+                    </h2>
+
+                    <!-- Formulário de Cartão -->
+                    <form @submit.prevent="submitCardPayment()" class="space-y-4">
+                        <!-- Número do Cartão -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Número do Cartão *</label>
+                            <input
+                                type="text"
+                                x-model="cardNumber"
+                                @input="formatCardNumber()"
+                                placeholder="0000 0000 0000 0000"
+                                maxlength="19"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                                required>
                         </div>
-                    </div>
-                    <a x-show="paymentUrl" :href="paymentUrl" target="_blank"
-                       class="inline-block px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-red-700 transition">
-                        Ir para Pagamento Seguro
-                    </a>
-                    <p class="text-xs text-gray-500 mt-4">
-                        Pagamento processado pelo Asaas - ambiente 100% seguro
-                    </p>
+
+                        <!-- Nome no Cartão -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nome no Cartão *</label>
+                            <input
+                                type="text"
+                                x-model="cardHolder"
+                                placeholder="NOME COMO ESTÁ NO CARTÃO"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none uppercase"
+                                required>
+                        </div>
+
+                        <!-- Validade e CVV -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Validade *</label>
+                                <input
+                                    type="text"
+                                    x-model="cardExpiry"
+                                    @input="formatExpiry()"
+                                    placeholder="MM/AA"
+                                    maxlength="5"
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                                    required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">CVV *</label>
+                                <input
+                                    type="text"
+                                    x-model="cardCVV"
+                                    placeholder="000"
+                                    maxlength="3"
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                                    required>
+                            </div>
+                        </div>
+
+                        <!-- Parcelas (apenas crédito) -->
+                        <div x-show="paymentMethod === 'credit_card'">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Parcelas</label>
+                            <select
+                                x-model="cardInstallments"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none">
+                                <option value="1">1x sem juros - R$ <span x-text="totalAmount"></span></option>
+                                <option value="2">2x sem juros - R$ <span x-text="(parseFloat(totalAmount.replace(',', '.')) / 2).toFixed(2).replace('.', ',')"></span></option>
+                                <option value="3">3x sem juros - R$ <span x-text="(parseFloat(totalAmount.replace(',', '.')) / 3).toFixed(2).replace('.', ',')"></span></option>
+                            </select>
+                        </div>
+
+                        <!-- Mensagem de Erro -->
+                        <div x-show="cardError" x-transition class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p class="text-sm text-red-700" x-text="cardError"></p>
+                        </div>
+
+                        <!-- Botão de Pagamento -->
+                        <button
+                            type="submit"
+                            :disabled="processingPayment"
+                            :class="processingPayment ? 'bg-gray-300 cursor-not-allowed' : 'bg-primary hover:bg-red-700'"
+                            class="w-full py-4 text-white font-bold text-lg rounded-lg transition">
+                            <span x-show="!processingPayment">Pagar R$ <span x-text="totalAmount"></span></span>
+                            <span x-show="processingPayment" class="inline-flex items-center gap-2">
+                                <x-loading-spinner size="sm" />
+                                Processando...
+                            </span>
+                        </button>
+
+                        <p class="text-xs text-center text-gray-500 mt-3">
+                            🔒 Pagamento seguro processado pelo Pagar.me
+                        </p>
+                    </form>
                 </div>
 
                 <!-- Status Check -->
@@ -198,6 +274,14 @@
             totalAmount: '',
             copied: false,
             checkInterval: null,
+            // Dados do Cartão
+            cardNumber: '',
+            cardHolder: '',
+            cardExpiry: '',
+            cardCVV: '',
+            cardInstallments: 1,
+            processingPayment: false,
+            cardError: '',
 
             async init() {
                 await this.loadPaymentInfo();
@@ -252,6 +336,91 @@
                     }, 2000);
                 } catch (err) {
                     console.error('Erro ao copiar:', err);
+                }
+            },
+
+            formatCardNumber() {
+                // Remove não-dígitos
+                let value = this.cardNumber.replace(/\D/g, '');
+                // Adiciona espaços a cada 4 dígitos
+                value = value.replace(/(\d{4})(?=\d)/g, '$1 ');
+                this.cardNumber = value;
+            },
+
+            formatExpiry() {
+                // Remove não-dígitos
+                let value = this.cardExpiry.replace(/\D/g, '');
+                // Adiciona barra após 2 dígitos
+                if (value.length >= 2) {
+                    value = value.slice(0, 2) + '/' + value.slice(2, 4);
+                }
+                this.cardExpiry = value;
+            },
+
+            async submitCardPayment() {
+                this.processingPayment = true;
+                this.cardError = '';
+
+                try {
+                    const token = localStorage.getItem('auth_token');
+
+                    // Extrair dados do cartão
+                    const cardNumberClean = this.cardNumber.replace(/\s/g, '');
+                    const [expMonth, expYear] = this.cardExpiry.split('/');
+
+                    // Validações básicas
+                    if (cardNumberClean.length !== 16) {
+                        throw new Error('Número do cartão inválido');
+                    }
+                    if (!expMonth || !expYear) {
+                        throw new Error('Validade do cartão inválida');
+                    }
+                    if (this.cardCVV.length !== 3) {
+                        throw new Error('CVV inválido');
+                    }
+
+                    // Enviar para backend
+                    const response = await fetch(`/api/v1/orders/${this.orderNumber}/pay-with-card`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            number: cardNumberClean,
+                            holder_name: this.cardHolder.toUpperCase(),
+                            exp_month: parseInt(expMonth),
+                            exp_year: parseInt('20' + expYear), // 25 -> 2025
+                            cvv: this.cardCVV,
+                            method: this.paymentMethod,
+                            installments: parseInt(this.cardInstallments)
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.message || 'Erro ao processar pagamento');
+                    }
+
+                    // Se aprovado, redirecionar
+                    if (data.status === 'paid') {
+                        console.log('✅ Pagamento aprovado!');
+                        window.location.href = `/pedido/${this.orderNumber}/confirmado`;
+                    } else {
+                        // Se pendente, continuar verificando status
+                        this.cardError = 'Pagamento em análise. Aguarde...';
+                        setTimeout(() => {
+                            this.cardError = '';
+                        }, 3000);
+                    }
+
+                } catch (error) {
+                    console.error('Erro ao processar pagamento:', error);
+                    this.cardError = error.message || 'Erro ao processar pagamento';
+                } finally {
+                    this.processingPayment = false;
                 }
             },
 

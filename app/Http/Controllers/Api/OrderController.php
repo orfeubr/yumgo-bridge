@@ -664,6 +664,108 @@ class OrderController extends Controller
     }
 
     /**
+     * ⭐ Processa pagamento com cartão (após cliente preencher dados)
+     * POST /api/v1/orders/{orderNumber}/pay-with-card
+     */
+    public function processCardPayment(Request $request, string $orderNumber)
+    {
+        // Validar dados do cartão
+        $validated = $request->validate([
+            'number' => 'required|string|size:16',
+            'holder_name' => 'required|string|max:100',
+            'exp_month' => 'required|integer|min:1|max:12',
+            'exp_year' => 'required|integer|min:' . date('Y'),
+            'cvv' => 'required|string|size:3',
+            'method' => 'required|in:credit_card,debit_card',
+            'installments' => 'nullable|integer|min:1|max:12',
+        ]);
+
+        // Buscar pedido
+        $order = Order::where('order_number', $orderNumber)->firstOrFail();
+
+        // Validar que pedido está pendente
+        if ($order->payment_status !== 'pending') {
+            return response()->json([
+                'message' => 'Este pedido já foi processado',
+            ], 400);
+        }
+
+        // Validar que método de pagamento é cartão
+        if (!in_array($order->payment_method, ['credit_card', 'debit_card'])) {
+            return response()->json([
+                'message' => 'Método de pagamento inválido para este pedido',
+            ], 400);
+        }
+
+        try {
+            // Determinar gateway
+            $tenant = tenant();
+            $gateway = $tenant->payment_gateway ?? 'pagarme';
+
+            \Log::info('💳 Processando pagamento com cartão', [
+                'order_number' => $orderNumber,
+                'gateway' => $gateway,
+                'method' => $validated['method'],
+            ]);
+
+            // Processar com Pagar.me
+            if ($gateway === 'pagarme') {
+                $pagarmeService = app(\App\Services\PagarMeService::class);
+                $payment = $pagarmeService->processCardPayment($order, $validated);
+
+                if (!$payment) {
+                    throw new \Exception('Erro ao processar pagamento no gateway');
+                }
+
+                // Criar/atualizar registro de pagamento
+                \App\Models\Payment::updateOrCreate(
+                    ['order_id' => $order->id],
+                    [
+                        'gateway' => 'pagarme',
+                        'method' => $validated['method'],
+                        'transaction_id' => $payment['id'],
+                        'amount' => $order->total,
+                        'status' => $payment['status'] === 'paid' ? 'paid' : 'pending',
+                    ]
+                );
+
+                // Se pagamento aprovado, confirmar pedido
+                if ($payment['status'] === 'paid') {
+                    $this->orderService->confirmPayment($order);
+
+                    return response()->json([
+                        'message' => 'Pagamento aprovado!',
+                        'status' => 'paid',
+                        'order_number' => $orderNumber,
+                    ]);
+                }
+
+                // Se pendente (análise), retornar status
+                return response()->json([
+                    'message' => 'Pagamento em análise',
+                    'status' => 'pending',
+                    'order_number' => $orderNumber,
+                ]);
+            }
+
+            // Se for Asaas (legado)
+            return response()->json([
+                'message' => 'Gateway não suportado para pagamento direto',
+            ], 400);
+
+        } catch (\Exception $e) {
+            \Log::error('❌ Erro ao processar pagamento com cartão', [
+                'order_number' => $orderNumber,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Erro ao processar pagamento: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Obter label traduzido do status
      */
     private function getStatusLabel(string $status): string
