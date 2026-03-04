@@ -730,6 +730,11 @@ class OrderController extends Controller
                     throw new \Exception('Erro ao processar pagamento no gateway');
                 }
 
+                // Calcular fee (taxa do gateway) e net_amount (valor líquido)
+                // Para Pagar.me: Fee já está incluso no split, então registramos 0 aqui
+                $fee = 0; // Taxa já descontada no split do gateway
+                $netAmount = $order->total; // Valor que o restaurante receberá (após split)
+
                 // Criar/atualizar registro de pagamento
                 \App\Models\Payment::updateOrCreate(
                     ['order_id' => $order->id],
@@ -738,6 +743,8 @@ class OrderController extends Controller
                         'method' => $validated['method'],
                         'transaction_id' => $payment['id'],
                         'amount' => $order->total,
+                        'fee' => $fee,
+                        'net_amount' => $netAmount,
                         'status' => $payment['status'] === 'paid' ? 'paid' : 'pending',
                     ]
                 );
