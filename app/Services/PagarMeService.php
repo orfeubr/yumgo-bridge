@@ -697,27 +697,36 @@ class PagarMeService
             ],
         ];
 
-        // Configuração do cartão
-        $payload['payments'] = [[
-            'payment_method' => $cardData['method'] ?? 'credit_card', // credit_card ou debit_card
-            'credit_card' => [
-                'card' => [
-                    'number' => $cardData['number'],
-                    'holder_name' => $cardData['holder_name'],
-                    'exp_month' => (int)$cardData['exp_month'],
-                    'exp_year' => (int)$cardData['exp_year'],
-                    'cvv' => $cardData['cvv'],
-                    'billing_address' => [
-                        'line_1' => $order->delivery_address ?? 'Rua Principal, 123',
-                        'zip_code' => preg_replace('/[^0-9]/', '', $order->delivery_zipcode ?? '01310100'),
-                        'city' => $order->delivery_city ?? 'São Paulo',
-                        'state' => $order->delivery_state ?? 'SP',
-                        'country' => 'BR',
-                    ],
+        // Configuração do cartão (chave dinâmica baseada no método)
+        $method = $cardData['method'] ?? 'credit_card';
+
+        // Dados comuns do cartão
+        $cardInfo = [
+            'card' => [
+                'number' => $cardData['number'],
+                'holder_name' => $cardData['holder_name'],
+                'exp_month' => (int)$cardData['exp_month'],
+                'exp_year' => (int)$cardData['exp_year'],
+                'cvv' => $cardData['cvv'],
+                'billing_address' => [
+                    'line_1' => $order->delivery_address ?? 'Rua Principal, 123',
+                    'zip_code' => preg_replace('/[^0-9]/', '', $order->delivery_zipcode ?? '01310100'),
+                    'city' => $order->delivery_city ?? 'São Paulo',
+                    'state' => $order->delivery_state ?? 'SP',
+                    'country' => 'BR',
                 ],
-                'installments' => (int)($cardData['installments'] ?? 1),
-                'statement_descriptor' => substr($tenant->name, 0, 13),
             ],
+            'statement_descriptor' => substr($tenant->name, 0, 13),
+        ];
+
+        // Adicionar installments apenas para crédito (débito não tem parcelamento)
+        if ($method === 'credit_card') {
+            $cardInfo['installments'] = (int)($cardData['installments'] ?? 1);
+        }
+
+        $payload['payments'] = [[
+            'payment_method' => $method,
+            $method => $cardInfo, // ⭐ Usa chave dinâmica: 'credit_card' ou 'debit_card'
         ]];
 
         \Log::info('💳 Processando pagamento com cartão', [
