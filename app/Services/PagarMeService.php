@@ -749,12 +749,28 @@ class PagarMeService
             ];
         }
 
-        // Log de erro
-        \Log::error('❌ Erro ao processar pagamento com cartão', [
+        // Log de erro DETALHADO
+        $errorBody = $response->body();
+        $errorData = json_decode($errorBody, true);
+
+        \Log::error('❌ Erro ao processar pagamento com cartão - Pagar.me', [
             'order_id' => $order->id,
-            'status' => $response->status(),
-            'body' => $response->body(),
+            'http_status' => $response->status(),
+            'error_message' => $errorData['message'] ?? 'Sem mensagem',
+            'errors' => $errorData['errors'] ?? [],
+            'full_response' => $errorBody,
         ]);
+
+        // Retornar erro mais amigável para o usuário
+        $userMessage = $errorData['message'] ?? 'Erro ao processar pagamento no gateway';
+        if (isset($errorData['errors']) && is_array($errorData['errors'])) {
+            $firstError = reset($errorData['errors']);
+            if (is_array($firstError) && isset($firstError[0])) {
+                $userMessage = $firstError[0];
+            }
+        }
+
+        throw new \Exception($userMessage);
 
         return null;
     }
