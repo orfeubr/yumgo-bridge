@@ -28,6 +28,16 @@ use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 |
 */
 
+// 🔥 OAuth Social Login - SEM PreventAccessFromCentralDomains
+// Permite que yumgo.com.br processe callbacks do Google/Facebook
+Route::middleware([
+    'web',
+    // InitializeTenancyByDomain NÃO é necessário aqui - o controller detecta tenant pela sessão
+])->group(function () {
+    Route::get('/auth/{provider}/redirect', [SocialAuthController::class, 'redirect'])->name('social.redirect');
+    Route::get('/auth/{provider}/callback', [SocialAuthController::class, 'callback'])->name('social.callback');
+});
+
 Route::middleware([
     'web',
     InitializeTenancyByDomain::class,
@@ -76,9 +86,7 @@ Route::middleware([
         return view('tenant.auth.login');
     })->name('login');
 
-    // Login Social - Rotas de redirecionamento e callback
-    Route::get('/auth/{provider}/redirect', [SocialAuthController::class, 'redirect'])->name('social.redirect');
-    Route::get('/auth/{provider}/callback', [SocialAuthController::class, 'callback'])->name('social.callback');
+    // Login Social - MOVIDO para grupo sem PreventAccessFromCentralDomains (linhas 31-38)
 
     // Página de checkout (requer autenticação via JavaScript)
     Route::get('/checkout', function () {
@@ -219,6 +227,36 @@ Route::prefix('api/v1')->middleware([
     Route::get('/me', [AuthController::class, 'me']);
     Route::put('/me', [AuthController::class, 'updateProfile']);
 
+    // 🔒 Perfil do Customer (TENANT-SPECIFIC)
+    Route::get('/customer/profile', function(Request $request) {
+        $centralCustomer = $request->user();
+        if (!$centralCustomer) {
+            return response()->json(['success' => false, 'message' => 'Não autenticado'], 401);
+        }
+
+        // Buscar customer no schema TENANT (isolamento multi-tenant)
+        $customer = \App\Models\Customer::where('email', $centralCustomer->email)
+            ->orWhere('phone', $centralCustomer->phone)
+            ->first();
+
+        if (!$customer) {
+            return response()->json(['success' => false, 'message' => 'Customer não encontrado neste restaurante'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'customer' => [
+                'id' => $centralCustomer->id, // ID do CENTRAL (para auth)
+                'name' => $customer->name,
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+                'avatar' => $centralCustomer->avatar,
+                'cashback_balance' => number_format((float)$customer->cashback_balance, 2, '.', ''),
+                'loyalty_tier' => $customer->loyalty_tier ?? 'bronze',
+            ]
+        ]);
+    });
+
     // Pedidos (apenas para usuários autenticados) (🔒 RATE LIMITED)
     Route::get('/orders', [OrderController::class, 'index'])->middleware('throttle:60,1'); // 60 req/min
     Route::get('/orders/{id}', [OrderController::class, 'show'])->middleware('throttle:60,1'); // 60 req/min
@@ -229,7 +267,8 @@ Route::prefix('api/v1')->middleware([
     // Pedidos por ORDER_NUMBER (segurança - oculta IDs sequenciais)
     Route::get('/orders/number/{orderNumber}', [OrderController::class, 'showByOrderNumber']);
     Route::get('/orders/number/{orderNumber}/payment', [OrderController::class, 'paymentByOrderNumber']);
-    Route::post('/orders/{orderNumber}/pay-with-card', [OrderController::class, 'processCardPayment'])->middleware('throttle:5,1'); // ⭐ Processar pagamento com cartão
+    Route::post('/orders/{orderNumber}/pay-with-card', [OrderController::class, 'processCardPayment'])
+        ->middleware(['throttle:5,1', 'block.card.data']); // 🔒 Rate limit + bloqueio de dados sensíveis
 
     // Endereços (temporário: inline para evitar crash)
     Route::get('/addresses', function(Request $request) {

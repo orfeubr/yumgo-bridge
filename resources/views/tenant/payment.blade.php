@@ -2,10 +2,12 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=0.5">
     <title>Pagamento - {{ $tenant->name }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- 🔐 Pagar.me JS SDK para tokenização segura -->
+    <script src="https://assets.pagar.me/pagarme-js/5.x/pagarme.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Poppins', sans-serif; }
@@ -375,11 +377,28 @@
                     if (!expMonth || !expYear) {
                         throw new Error('Validade do cartão inválida');
                     }
-                    if (this.cardCVV.length !== 3) {
+                    if (this.cardCVV.length < 3) {
                         throw new Error('CVV inválido');
                     }
 
-                    // Enviar para backend
+                    // 🔐 TOKENIZAÇÃO SEGURA - Dados NUNCA passam pelo servidor!
+                    console.log('🔐 Tokenizando cartão no navegador...');
+
+                    const cardToken = await this.tokenizeCard({
+                        number: cardNumberClean,
+                        holder_name: this.cardHolder.toUpperCase(),
+                        exp_month: parseInt(expMonth),
+                        exp_year: parseInt('20' + expYear),
+                        cvv: this.cardCVV
+                    });
+
+                    if (!cardToken) {
+                        throw new Error('Erro ao processar dados do cartão');
+                    }
+
+                    console.log('✅ Cartão tokenizado com sucesso:', cardToken);
+
+                    // Enviar APENAS o token para backend (não dados sensíveis!)
                     const response = await fetch(`/api/v1/orders/${this.orderNumber}/pay-with-card`, {
                         method: 'POST',
                         headers: {
@@ -388,11 +407,7 @@
                             'Accept': 'application/json'
                         },
                         body: JSON.stringify({
-                            number: cardNumberClean,
-                            holder_name: this.cardHolder.toUpperCase(),
-                            exp_month: parseInt(expMonth),
-                            exp_year: parseInt('20' + expYear), // 25 -> 2025
-                            cvv: this.cardCVV,
+                            card_id: cardToken,  // ✅ Token seguro
                             method: this.paymentMethod,
                             installments: parseInt(this.cardInstallments)
                         })
@@ -417,10 +432,51 @@
                     }
 
                 } catch (error) {
-                    console.error('Erro ao processar pagamento:', error);
+                    console.error('❌ Erro ao processar pagamento:', error);
                     this.cardError = error.message || 'Erro ao processar pagamento';
                 } finally {
                     this.processingPayment = false;
+                }
+            },
+
+            /**
+             * 🔐 Tokeniza cartão usando Pagar.me JS SDK
+             * Dados NUNCA passam pelo servidor!
+             */
+            async tokenizeCard(cardData) {
+                try {
+                    // Chave de criptografia pública (seguro expor no frontend)
+                    const encryptionKey = '{{ config("services.pagarme.encryption_key") }}';
+
+                    if (!encryptionKey || encryptionKey === '') {
+                        console.error('❌ PAGARME_ENCRYPTION_KEY não configurada no .env');
+                        throw new Error('Erro de configuração. Contate o suporte.');
+                    }
+
+                    // Inicializa cliente Pagar.me
+                    const pagarme = await window.pagarme.client.connect({
+                        encryption_key: encryptionKey
+                    });
+
+                    console.log('🔐 Cliente Pagar.me conectado');
+
+                    // Tokeniza o cartão (criptografia acontece no navegador)
+                    const card = await pagarme.security.encrypt(cardData);
+
+                    console.log('✅ Cartão tokenizado:', card.id);
+
+                    return card.id; // Retorna apenas o token (ex: card_abc123xyz)
+
+                } catch (error) {
+                    console.error('❌ Erro na tokenização:', error);
+
+                    // Mensagens de erro mais amigáveis
+                    if (error.response?.errors) {
+                        const firstError = error.response.errors[0];
+                        throw new Error(firstError.message || 'Dados do cartão inválidos');
+                    }
+
+                    throw new Error('Erro ao processar cartão. Verifique os dados.');
                 }
             },
 

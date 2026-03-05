@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Middleware customizado temporário para auth
         $middleware->alias([
             'temp.auth' => \App\Http\Middleware\TempAuthMiddleware::class,
+            'block.card.data' => \App\Http\Middleware\BlockSensitiveCardData::class, // 🔒 Segurança PCI-DSS
         ]);
 
         // Exceções CSRF para webhooks

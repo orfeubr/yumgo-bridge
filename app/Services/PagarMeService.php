@@ -218,28 +218,15 @@ class PagarMeService
                     'expires_in' => 3600, // 1 hora
                 ],
             ]];
-        } elseif ($data['payment_method'] === 'credit_card') {
-            $payload['payments'] = [[
-                'payment_method' => 'credit_card',
-                'credit_card' => [
-                    'card' => [
-                        'number' => $data['card']['number'],
-                        'holder_name' => $data['card']['holder_name'],
-                        'exp_month' => $data['card']['exp_month'],
-                        'exp_year' => $data['card']['exp_year'],
-                        'cvv' => $data['card']['cvv'],
-                        'billing_address' => [
-                            'line_1' => $order->delivery_address ?? 'Rua Principal, 123',
-                            'zip_code' => preg_replace('/[^0-9]/', '', $order->delivery_zipcode ?? '01310100'),
-                            'city' => $order->delivery_city ?? 'São Paulo',
-                            'state' => $order->delivery_state ?? 'SP',
-                            'country' => 'BR',
-                        ],
-                    ],
-                    'installments' => $data['installments'] ?? 1,
-                    'statement_descriptor' => substr($tenant->name, 0, 13), // Até 13 caracteres
-                ],
-            ]];
+        } elseif ($data['payment_method'] === 'credit_card' || $data['payment_method'] === 'debit_card') {
+            // 🔐 ATENÇÃO: Este método NÃO deve ser usado para pagamentos com cartão
+            // Use processCardPayment() com tokenização segura!
+            \Log::warning('⚠️ createPayment() chamado com cartão - use processCardPayment() com token!', [
+                'order_id' => $order->id,
+                'method' => $data['payment_method'],
+            ]);
+
+            throw new \Exception('Pagamentos com cartão devem usar tokenização segura. Use o fluxo correto.');
         }
 
         // PROTEÇÃO: Timeout de 15 segundos
@@ -640,8 +627,15 @@ class PagarMeService
     }
 
     /**
-     * Processa pagamento com cartão (após tokenização no frontend)
-     * ⭐ Este método é chamado DEPOIS que o cliente preencheu dados do cartão
+     * 🔐 Processa pagamento com cartão tokenizado (SEGURO)
+     *
+     * ⚠️ IMPORTANTE: Este método aceita APENAS tokens (card_id)
+     * ❌ NUNCA aceita dados brutos de cartão (número, CVV, etc.)
+     *
+     * @param Order $order - Pedido a ser pago
+     * @param array $cardData - DEVE conter 'card_id' (token do Pagar.me)
+     * @return array|null
+     * @throws \Exception
      */
     public function processCardPayment(Order $order, array $cardData): ?array
     {
@@ -649,6 +643,29 @@ class PagarMeService
 
         if (!$tenant->pagarme_recipient_id) {
             throw new \Exception('Tenant não possui recebedor Pagar.me');
+        }
+
+        // 🔒 VALIDAÇÃO DE SEGURANÇA: Garantir que recebemos TOKEN (não dados brutos)
+        if (!isset($cardData['card_id']) || empty($cardData['card_id'])) {
+            \Log::alert('❌ TENTATIVA DE ENVIAR DADOS DE CARTÃO SEM TOKENIZAÇÃO!', [
+                'order_id' => $order->id,
+                'tenant_id' => $tenant->id,
+                'has_number' => isset($cardData['number']),
+                'has_cvv' => isset($cardData['cvv']),
+            ]);
+
+            throw new \Exception('Dados do cartão devem ser tokenizados no frontend. Erro de segurança.');
+        }
+
+        // 🔒 SEGURANÇA EXTRA: Bloquear se tentarem enviar dados brutos junto com token
+        if (isset($cardData['number']) || isset($cardData['cvv']) || isset($cardData['exp_month'])) {
+            \Log::alert('❌ TENTATIVA DE ENVIAR DADOS BRUTOS DE CARTÃO!', [
+                'order_id' => $order->id,
+                'tenant_id' => $tenant->id,
+                'ip' => request()->ip(),
+            ]);
+
+            throw new \Exception('Violação de segurança: dados sensíveis não devem ser enviados.');
         }
 
         // Comissão da plataforma
@@ -698,25 +715,12 @@ class PagarMeService
             ],
         ];
 
-        // Configuração do cartão (chave dinâmica baseada no método)
+        // Método de pagamento
         $method = $cardData['method'] ?? 'credit_card';
 
-        // Dados comuns do cartão
+        // 🔐 Configuração SEGURA: Usa TOKEN (não dados brutos)
         $cardInfo = [
-            'card' => [
-                'number' => $cardData['number'],
-                'holder_name' => $cardData['holder_name'],
-                'exp_month' => (int)$cardData['exp_month'],
-                'exp_year' => (int)$cardData['exp_year'],
-                'cvv' => $cardData['cvv'],
-                'billing_address' => [
-                    'line_1' => $order->delivery_address ?? 'Rua Principal, 123',
-                    'zip_code' => preg_replace('/[^0-9]/', '', $order->delivery_zipcode ?? '01310100'),
-                    'city' => $order->delivery_city ?? 'São Paulo',
-                    'state' => $order->delivery_state ?? 'SP',
-                    'country' => 'BR',
-                ],
-            ],
+            'card_id' => $cardData['card_id'], // ✅ Token gerado pelo Pagar.me JS SDK
             'statement_descriptor' => substr($tenant->name, 0, 13),
         ];
 
@@ -730,10 +734,11 @@ class PagarMeService
             $method => $cardInfo, // ⭐ Usa chave dinâmica: 'credit_card' ou 'debit_card'
         ]];
 
-        \Log::info('💳 Processando pagamento com cartão', [
+        \Log::info('🔐 Processando pagamento com cartão TOKENIZADO (seguro)', [
             'order_id' => $order->id,
-            'method' => $cardData['method'] ?? 'credit_card',
-            'installments' => $cardData['installments'] ?? 1,
+            'method' => $method,
+            'installments' => $cardInfo['installments'] ?? 1,
+            'card_id' => substr($cardData['card_id'], 0, 12) . '...', // Log parcial do token
         ]);
 
         // Enviar para Pagar.me
@@ -781,8 +786,6 @@ class PagarMeService
         }
 
         throw new \Exception($userMessage);
-
-        return null;
     }
 
     /**
