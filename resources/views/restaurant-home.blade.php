@@ -18,6 +18,84 @@
     <link rel="apple-touch-icon" href="{{ route('stancl.tenancy.asset', ['path' => $settings->logo]) }}">
     @endif
 
+    <!-- 🔥 OAuth Auto-Login - EXECUTA PRIMEIRO! -->
+    <script>
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('oauth_success')) {
+                const authToken = urlParams.get('auth_token');
+                const customerData = urlParams.get('customer_data');
+                if (authToken && customerData) {
+                    const customer = JSON.parse(decodeURIComponent(customerData));
+                    // ⭐ Adicionar tenant_id aos dados do customer
+                    customer.tenant_id = '{{ tenant("id") }}';
+                    customer.tenant_domain = '{{ request()->getHost() }}';
+
+                    localStorage.setItem('auth_token', authToken);
+                    localStorage.setItem('customer', JSON.stringify(customer));
+                    window.location.href = '/';
+                }
+            }
+        })();
+
+        // 🔒 VALIDADOR DE TENANT - Previne vazamento de dados entre restaurantes
+        (function() {
+            const currentTenantId = '{{ tenant("id") }}';
+            const currentDomain = '{{ request()->getHost() }}';
+            const savedCustomer = localStorage.getItem('customer');
+
+            if (savedCustomer && currentTenantId) {
+                try {
+                    const customer = JSON.parse(savedCustomer);
+
+                    // Se o tenant_id salvo for diferente do atual, LIMPAR dados!
+                    if (customer.tenant_id && customer.tenant_id !== currentTenantId) {
+                        console.warn('⚠️ Mudou de restaurante! Limpando dados do restaurante anterior...');
+                        console.log('Anterior:', customer.tenant_domain, '→ Atual:', currentDomain);
+
+                        // Limpar dados do restaurante anterior
+                        localStorage.removeItem('customer');
+                        localStorage.removeItem('cart'); // Limpar carrinho também
+
+                        // Buscar dados do customer neste restaurante via API
+                        const authToken = localStorage.getItem('auth_token');
+                        if (authToken) {
+                            fetch('/api/v1/customer/profile', {
+                                headers: {
+                                    'Authorization': 'Bearer ' + authToken,
+                                    'Accept': 'application/json'
+                                }
+                            })
+                            .then(r => r.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Adicionar tenant_id aos dados
+                                    data.customer.tenant_id = currentTenantId;
+                                    data.customer.tenant_domain = currentDomain;
+                                    localStorage.setItem('customer', JSON.stringify(data.customer));
+                                    console.log('✅ Dados atualizados para o novo restaurante:', data.customer);
+                                    window.location.reload();
+                                }
+                            })
+                            .catch(err => {
+                                console.error('❌ Erro ao buscar perfil:', err);
+                                // Se falhar, limpar token também
+                                localStorage.clear();
+                            });
+                        }
+                    } else if (!customer.tenant_id) {
+                        // Se não tem tenant_id, adicionar agora
+                        customer.tenant_id = currentTenantId;
+                        customer.tenant_domain = currentDomain;
+                        localStorage.setItem('customer', JSON.stringify(customer));
+                    }
+                } catch (e) {
+                    console.error('Erro ao validar tenant:', e);
+                }
+            }
+        })();
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>

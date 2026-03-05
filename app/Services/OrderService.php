@@ -12,8 +12,8 @@ class OrderService
 {
     public function __construct(
         private CashbackService $cashbackService,
-        private AsaasService $asaasService,
         private PagarMeService $pagarmeService
+        // AsaasService removido - usar apenas Pagar.me
     ) {}
 
     /**
@@ -193,37 +193,25 @@ class OrderService
                         'tenant_id' => $tenant->id,
                     ]);
 
-                    // Usar serviço correspondente
-                    if ($gateway === 'asaas') {
-                        $payment = $this->asaasService->createPayment($order, [
-                            'payment_method' => $data['payment_method']
-                        ]);
-                    } else {
-                        $payment = $this->pagarmeService->createPayment($order, [
-                            'payment_method' => $data['payment_method']
-                        ]);
-                    }
+                    // Criar pagamento no Pagar.me
+                    $payment = $this->pagarmeService->createPayment($order, [
+                        'payment_method' => $data['payment_method']
+                    ]);
 
-                    // Se for PIX, buscar QR Code (segunda chamada necessária)
+                    // Se for PIX, buscar QR Code (segunda chamada necessária no Pagar.me)
                     $pixQrCode = null;
                     $pixCopyPaste = null;
                     $pixExpiresAt = null;
 
                     if ($data['payment_method'] === 'pix' && isset($payment['id'])) {
-                        if ($gateway === 'asaas') {
-                            // Asaas já retorna QR Code na primeira chamada
-                            $pixQrCode = $payment['encodedImage'] ?? null;
-                            $pixCopyPaste = $payment['payload'] ?? null;
-                        } else {
-                            // Pagar.me precisa de segunda chamada
-                            $qrCodeData = $this->pagarmeService->getPixQrCode($payment['id']);
-                            if ($qrCodeData && isset($qrCodeData['encodedImage'])) {
-                                $pixQrCode = $qrCodeData['encodedImage'];
-                                $pixCopyPaste = $qrCodeData['payload'] ?? null;
-                                $pixExpiresAt = isset($qrCodeData['expirationDate'])
-                                    ? Carbon::parse($qrCodeData['expirationDate'])
-                                    : null;
-                            }
+                        // Pagar.me precisa de segunda chamada para obter QR Code
+                        $qrCodeData = $this->pagarmeService->getPixQrCode($payment['id']);
+                        if ($qrCodeData && isset($qrCodeData['encodedImage'])) {
+                            $pixQrCode = $qrCodeData['encodedImage'];
+                            $pixCopyPaste = $qrCodeData['payload'] ?? null;
+                            $pixExpiresAt = isset($qrCodeData['expirationDate'])
+                                ? Carbon::parse($qrCodeData['expirationDate'])
+                                : null;
                         }
 
                         \Log::info('✅ QR Code PIX obtido', [
@@ -245,7 +233,7 @@ class OrderService
                         'status' => 'pending',
                         'pix_qrcode' => $pixQrCode,
                         'pix_copy_paste' => $pixCopyPaste,
-                        'asaas_payment_url' => $payment['invoiceUrl'] ?? null,
+                        // Pagar.me não usa payment_url como Asaas
                     ]);
 
                     \Log::info('✅ Payment criado', [
@@ -274,7 +262,7 @@ class OrderService
                         'fee' => 0,
                         'net_amount' => $order->total,
                         'status' => 'pending',
-                        'metadata' => json_encode(['asaas_error' => $e->getMessage()]),
+                        'metadata' => json_encode(['gateway_error' => $e->getMessage()]),
                     ]);
 
                     \Log::warning('⚠️ Pagamento criado em modo FALLBACK (manual)', [

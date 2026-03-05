@@ -10,9 +10,10 @@ use Illuminate\Support\Facades\DB;
 
 class TenantService
 {
-    public function __construct(
-        private AsaasService $asaasService
-    ) {}
+    // AsaasService removido - usar Pagar.me (configurar manualmente via painel)
+    public function __construct()
+    {
+    }
 
     /**
      * Cria novo tenant (restaurante)
@@ -42,20 +43,9 @@ class TenantService
             $tenant->plan_id = $data['plan_id'] ?? null;
             $tenant->save();
 
-            // Cria sub-conta Asaas
-            try {
-                $asaasAccountId = $this->asaasService->createSubAccount($tenant);
-                if ($asaasAccountId) {
-                    $tenant->asaas_account_id = $asaasAccountId;
-                    $tenant->save();
-                }
-            } catch (\Exception $e) {
-                // Log erro mas não falha a criação do tenant
-                logger()->error('Erro ao criar sub-conta Asaas', [
-                    'tenant_id' => $tenant->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+            // ⚠️ Criação de sub-conta Asaas REMOVIDA
+            // Usar Pagar.me: Configurar recebedor manualmente no painel admin do tenant
+            // Veja: /painel → Dados para Recebimento → Criar Recebedor Pagar.me
 
             // Cria domínio
             if (isset($data['domain'])) {

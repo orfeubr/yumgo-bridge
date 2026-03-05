@@ -21,8 +21,8 @@ class CreateTenant extends CreateRecord
     {
         // O Observer já cria:
         // - Domínio ({slug}.yumgo.com.br)
-        // - Sub-conta Asaas
         // - Usuário Admin
+        // ⚠️ Recebedor Pagar.me: Configurar manualmente no painel do tenant
 
         $domain = $this->record->slug . '.yumgo.com.br';
         $email = $this->record->email;

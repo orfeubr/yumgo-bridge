@@ -8,8 +8,30 @@ use Illuminate\Support\Facades\DB;
 return new class extends Migration
 {
     /**
+     * Cria índice apenas se não existir
+     */
+    private function createIndexIfNotExists(string $table, string $column): void
+    {
+        $indexName = "{$table}_{$column}_index";
+
+        // Verifica se o índice já existe
+        $indexExists = DB::select("
+            SELECT 1
+            FROM pg_indexes
+            WHERE tablename = ?
+            AND indexname = ?
+        ", [$table, $indexName]);
+
+        if (empty($indexExists)) {
+            Schema::table($table, function (Blueprint $blueprint) use ($column) {
+                $blueprint->index($column);
+            });
+        }
+    }
+
+    /**
      * Run the migrations.
-     * 
+     *
      * IMPORTANTE: Esta migration REMOVE a tabela customers do schema do tenant
      * e atualiza as tabelas para apontar para customers centrais (schema public).
      */
@@ -43,26 +65,12 @@ return new class extends Migration
         // Então vamos manter customer_id como bigInteger sem FK constraint
         // A integridade será garantida pelo código da aplicação
 
-        // 4. Adicionar índices nas tabelas que usam customer_id
-        Schema::table('orders', function (Blueprint $table) {
-            $table->index('customer_id');
-        });
-
-        Schema::table('cashback_transactions', function (Blueprint $table) {
-            $table->index('customer_id');
-        });
-
-        Schema::table('reviews', function (Blueprint $table) {
-            $table->index('customer_id');
-        });
-
-        Schema::table('addresses', function (Blueprint $table) {
-            $table->index('customer_id');
-        });
-
-        Schema::table('loyalty_badges', function (Blueprint $table) {
-            $table->index('customer_id');
-        });
+        // 4. Adicionar índices nas tabelas que usam customer_id (se não existirem)
+        $this->createIndexIfNotExists('orders', 'customer_id');
+        $this->createIndexIfNotExists('cashback_transactions', 'customer_id');
+        $this->createIndexIfNotExists('reviews', 'customer_id');
+        $this->createIndexIfNotExists('addresses', 'customer_id');
+        $this->createIndexIfNotExists('loyalty_badges', 'customer_id');
     }
 
     /**

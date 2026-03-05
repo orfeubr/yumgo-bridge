@@ -4,6 +4,12 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use App\Http\Controllers\Api\SocialAuthController;
+
+// 🔥 OAuth Social Login - Domínio Central (DEVE vir ANTES de outras rotas)
+// Estas rotas processam OAuth de TODOS os tenants via domínio central
+Route::get('/auth/{provider}/redirect', [SocialAuthController::class, 'redirect'])->name('central.social.redirect');
+Route::get('/auth/{provider}/callback', [SocialAuthController::class, 'callback'])->name('central.social.callback');
 
 // Teste simples
 Route::get('/test-central', function () {
@@ -356,3 +362,4 @@ Route::get('/test-flare', function () {
 
     throw new \Exception('🔥 Teste Flare - Multi-Tenant Error Monitoring (' . (tenancy()->initialized ? tenant('name') : 'Central') . ')');
 });
+

@@ -3,18 +3,12 @@
 namespace App\Observers;
 
 use App\Models\Tenant;
-use App\Services\AsaasService;
 use Stancl\Tenancy\Database\Models\Domain;
 use Illuminate\Support\Facades\Log;
 
 class TenantObserver
 {
-    protected AsaasService $asaasService;
-
-    public function __construct(AsaasService $asaasService)
-    {
-        $this->asaasService = $asaasService;
-    }
+    // AsaasService removido - agora usa apenas Pagar.me
 
     /**
      * Handle the Tenant "created" event.
@@ -24,8 +18,8 @@ class TenantObserver
         // 1. Criar domínio automaticamente
         $this->createDomain($tenant);
 
-        // 2. Criar sub-conta Asaas automaticamente
-        $this->createAsaasAccount($tenant);
+        // 2. ⚠️ Asaas REMOVIDO - usar Pagar.me (configurar manualmente no painel)
+        // $this->createAsaasAccount($tenant);
 
         // 3. Criar usuário admin automaticamente
         $this->createAdminUser($tenant);
@@ -59,9 +53,19 @@ class TenantObserver
 
     /**
      * Cria sub-conta Asaas para o tenant
+     *
+     * @deprecated Asaas foi substituído por Pagar.me como gateway principal
+     * Mantido apenas para compatibilidade com tenants antigos
      */
     protected function createAsaasAccount(Tenant $tenant): void
     {
+        // ⚠️ MÉTODO DESABILITADO - Asaas é legado, usar Pagar.me
+        // Para criar recebedor Pagar.me, use o painel admin ou o TenantResource
+
+        Log::info("ℹ️ Criação automática de conta Asaas desabilitada para tenant {$tenant->name}. Use Pagar.me.");
+        return;
+
+        /*
         try {
             // Pular se já tem asaas_account_id
             if (!empty($tenant->asaas_account_id)) {
@@ -95,6 +99,7 @@ class TenantObserver
             Log::error("❌ Erro ao criar sub-conta Asaas para tenant {$tenant->id}: " . $e->getMessage());
             // Não bloqueia a criação do tenant se falhar
         }
+        */
     }
 
     /**
@@ -146,20 +151,35 @@ class TenantObserver
      */
     public function updated(Tenant $tenant): void
     {
-        // Se o slug mudou, atualizar o domínio
+        // Se o slug mudou, atualizar o domínio principal (.yumgo.com.br)
         if ($tenant->isDirty('slug')) {
             try {
                 $oldSlug = $tenant->getOriginal('slug');
-                $oldDomain = $oldSlug . '.yumgo.com.br';
                 $newDomain = $tenant->slug . '.yumgo.com.br';
 
-                $domain = Domain::where('domain', $oldDomain)
-                    ->where('tenant_id', $tenant->id)
+                // Buscar domínio principal (*.yumgo.com.br) - pode estar com slug antigo OU com ID
+                $domain = Domain::where('tenant_id', $tenant->id)
+                    ->where('domain', 'like', '%.yumgo.com.br')
+                    ->whereNotIn('domain', function($query) use ($tenant) {
+                        // Excluir domínios personalizados/extras
+                        $query->select('domain')
+                            ->from('domains')
+                            ->where('tenant_id', $tenant->id)
+                            ->whereNotLike('domain', '%.yumgo.com.br');
+                    })
                     ->first();
 
                 if ($domain) {
+                    $oldDomain = $domain->domain;
                     $domain->update(['domain' => $newDomain]);
                     Log::info("✅ Domínio atualizado: {$oldDomain} → {$newDomain}");
+                } else {
+                    // Se não encontrou domínio, criar um novo
+                    Domain::create([
+                        'domain' => $newDomain,
+                        'tenant_id' => $tenant->id,
+                    ]);
+                    Log::info("✅ Domínio criado: {$newDomain}");
                 }
             } catch (\Exception $e) {
                 Log::error("❌ Erro ao atualizar domínio: " . $e->getMessage());

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste SDK Pagar.me</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .result {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Teste de Carregamento do SDK Pagar.me</h1>
+    <div id="results"></div>
+
+    <!-- SDK Pagar.me -->
+    <script src="https://assets.pagar.me/pagarme-js/5.x/pagarme.min.js"></script>
+
+    <script>
+        const results = document.getElementById('results');
+
+        function addResult(message, isSuccess) {
+            const div = document.createElement('div');
+            div.className = `result ${isSuccess ? 'success' : 'error'}`;
+            div.textContent = message;
+            results.appendChild(div);
+        }
+
+        // Verificar se SDK carregou
+        setTimeout(() => {
+            console.log('Tipo de window.pagarme:', typeof window.pagarme);
+
+            if (typeof window.pagarme !== 'undefined') {
+                addResult('✅ SDK Pagar.me carregou com sucesso!', true);
+                addResult(`✅ Versão encontrada: ${window.pagarme.version || 'N/A'}`, true);
+                console.log('Pagar.me object:', window.pagarme);
+            } else {
+                addResult('❌ SDK Pagar.me NÃO carregou!', false);
+                addResult('Verifique o console do navegador (F12) para ver erros de rede', false);
+            }
+        }, 2000);
+
+        // Log de tentativa de carregamento
+        console.log('⏳ Aguardando SDK carregar...');
+    </script>
+</body>
+</html>

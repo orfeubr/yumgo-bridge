@@ -4,7 +4,6 @@ namespace App\Jobs;
 
 use App\Models\Tenant;
 use App\Models\Payment;
-use App\Services\AsaasService;
 use App\Services\OrderService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -13,6 +12,11 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * @deprecated Job específico para Asaas - gateway descontinuado
+ * Pagar.me usa webhooks automáticos e não precisa de polling
+ * Manter apenas para compatibilidade com tenants antigos
+ */
 class CheckPendingPayments implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
@@ -24,9 +28,15 @@ class CheckPendingPayments implements ShouldQueue
 
     /**
      * Verifica todos os pagamentos pendentes em todos os tenants
+     *
+     * @deprecated Asaas descontinuado - Pagar.me usa webhooks
      */
     public function handle(): void
     {
+        Log::info('⚠️ CheckPendingPayments desabilitado - Asaas foi descontinuado. Pagar.me usa webhooks automáticos.');
+        return; // Job desabilitado
+
+        /* CÓDIGO ORIGINAL COMENTADO - MANTER PARA REFERÊNCIA
         Log::info('🔍 Iniciando verificação de pagamentos pendentes');
 
         $tenants = Tenant::where('status', 'active')->get();
@@ -67,6 +77,7 @@ class CheckPendingPayments implements ShouldQueue
             'payments_checked' => $checkedCount,
             'payments_confirmed' => $confirmedCount,
         ]);
+        */ // FIM DO CÓDIGO COMENTADO
     }
 
     /**

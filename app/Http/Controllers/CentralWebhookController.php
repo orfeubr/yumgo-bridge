@@ -3,28 +3,37 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tenant;
-use App\Services\AsaasService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * @deprecated Asaas foi substituído por Pagar.me como gateway principal
+ * Use PagarMeWebhookController para processar webhooks de pagamento
+ * Mantido apenas para compatibilidade com tenants antigos
+ */
 class CentralWebhookController extends Controller
 {
     /**
      * Webhook GLOBAL do Asaas para eventos de pagamento
-     * Identifica o tenant e processa o webhook
+     *
+     * @deprecated Usar webhook do Pagar.me (/api/webhooks/pagarme)
      */
     public function asaas(Request $request)
     {
-        // LOG SEGURO (sem dados sensíveis - LGPD compliant)
-        Log::info('🔔 Webhook Asaas GLOBAL recebido', [
+        Log::warning('⚠️ Webhook Asaas recebido mas GATEWAY DESABILITADO. Sistema migrou para Pagar.me!', [
             'timestamp' => now()->toDateTimeString(),
             'ip' => $request->ip(),
             'event' => $request->input('event'),
             'payment_id' => $request->input('payment.id'),
-            // ⚠️ NÃO logar: headers completos, body completo (podem conter dados sensíveis)
         ]);
 
+        return response()->json([
+            'message' => 'Asaas webhook desabilitado. Sistema migrado para Pagar.me.',
+            'new_webhook_url' => url('/api/webhooks/pagarme')
+        ], 410); // 410 Gone - recurso não está mais disponível
+
+        /* CÓDIGO ORIGINAL COMENTADO - MANTER PARA REFERÊNCIA
         $data = $request->all();
         $event = $data['event'] ?? null;
 
@@ -186,6 +195,7 @@ class CentralWebhookController extends Controller
 
             return response()->json(['message' => 'Erro interno'], 500);
         }
+        */ // FIM DO CÓDIGO COMENTADO
     }
 
     /**
@@ -239,32 +249,22 @@ class CentralWebhookController extends Controller
 
     /**
      * Webhook do Asaas para eventos de conta (aprovação/rejeição)
+     *
+     * @deprecated Asaas descontinuado - usar Pagar.me
      */
     public function asaasAccountWebhook(Request $request)
     {
-        $data = $request->all();
-        $event = $data['event'] ?? null;
+        Log::warning('⚠️ Webhook Asaas Account desabilitado. Sistema migrou para Pagar.me!');
 
-        // LOG SEGURO (sem dados sensíveis - LGPD compliant)
-        Log::info('Webhook Asaas Account recebido', [
-            'event' => $event,
-            'account_id' => $data['account']['id'] ?? null,
-            'status' => $data['account']['status'] ?? null,
-            // ⚠️ NÃO logar: $data completo (pode conter CPF, dados pessoais)
-        ]);
-
-        switch ($event) {
-            case 'ACCOUNT_STATUS_UPDATED':
-                return $this->handleAccountStatusUpdate($data);
-
-            default:
-                Log::warning('Evento de conta não tratado', ['event' => $event]);
-                return response()->json(['message' => 'Evento não tratado'], 200);
-        }
+        return response()->json([
+            'message' => 'Asaas webhook desabilitado. Sistema migrado para Pagar.me.'
+        ], 410); // 410 Gone
     }
 
     /**
      * Trata atualização de status de conta (aprovação/rejeição)
+     *
+     * @deprecated Não usado mais - Asaas descontinuado
      */
     protected function handleAccountStatusUpdate(array $data): \Illuminate\Http\JsonResponse
     {

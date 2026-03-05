@@ -5,9 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=0.5">
     <title>Pagamento - {{ $tenant->name }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 🔐 Pagar.me Tokenizecard JS (URL CORRETA da documentação oficial) -->
+    <script src="https://checkout.pagar.me/v1/tokenizecard.js"
+            data-pagarmecheckout-app-id="{{ config('services.pagarme.encryption_key') }}"
+            onload="console.log('✅ Pagar.me Tokenizecard carregado com sucesso')"
+            onerror="console.error('❌ Erro ao carregar Pagar.me Tokenizecard')"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <!-- 🔐 Pagar.me JS SDK para tokenização segura -->
-    <script src="https://assets.pagar.me/pagarme-js/5.x/pagarme.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Poppins', sans-serif; }
@@ -161,15 +164,17 @@
                         Dados do Cartão
                     </h2>
 
-                    <!-- Formulário de Cartão -->
-                    <form @submit.prevent="submitCardPayment()" class="space-y-4">
+                    <!-- Formulário de Cartão (Pagar.me Tokenizecard) -->
+                    <form id="cardForm" data-pagarmecheckout-form class="space-y-4">
+                        <!-- Campo hidden para o token -->
+                        <input type="hidden" name="pagarmetoken" id="pagarmetoken">
+
                         <!-- Número do Cartão -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Número do Cartão *</label>
                             <input
                                 type="text"
-                                x-model="cardNumber"
-                                @input="formatCardNumber()"
+                                data-pagarmecheckout-element="number"
                                 placeholder="0000 0000 0000 0000"
                                 maxlength="19"
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none font-mono"
@@ -181,7 +186,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Nome no Cartão *</label>
                             <input
                                 type="text"
-                                x-model="cardHolder"
+                                data-pagarmecheckout-element="holder_name"
                                 placeholder="NOME COMO ESTÁ NO CARTÃO"
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none uppercase"
                                 required>
@@ -190,23 +195,31 @@
                         <!-- Validade e CVV -->
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Validade *</label>
-                                <input
-                                    type="text"
-                                    x-model="cardExpiry"
-                                    @input="formatExpiry()"
-                                    placeholder="MM/AA"
-                                    maxlength="5"
-                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none font-mono"
-                                    required>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Mês/Ano *</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input
+                                        type="text"
+                                        data-pagarmecheckout-element="exp_month"
+                                        placeholder="MM"
+                                        maxlength="2"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                                        required>
+                                    <input
+                                        type="text"
+                                        data-pagarmecheckout-element="exp_year"
+                                        placeholder="AAAA"
+                                        maxlength="4"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none font-mono"
+                                        required>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">CVV *</label>
                                 <input
                                     type="text"
-                                    x-model="cardCVV"
+                                    data-pagarmecheckout-element="cvv"
                                     placeholder="000"
-                                    maxlength="3"
+                                    maxlength="4"
                                     class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none font-mono"
                                     required>
                             </div>
@@ -438,11 +451,21 @@
                         exp: cardData.exp_month + '/' + cardData.exp_year
                     });
 
+                    // Tentar esperar SDK carregar (máximo 2 segundos)
+                    try {
+                        await this.waitForPagarmeSDK(2000);
+                    } catch (e) {
+                        console.warn('⚠️ SDK não carregou, usando fallback (backend)');
+                        return await this.tokenizeCardBackend(cardData);
+                    }
+
                     // Verificar se SDK carregou
                     if (typeof window.pagarme === 'undefined') {
-                        console.error('❌ Pagar.me SDK não carregou!');
-                        throw new Error('SDK de pagamento não carregou. Recarregue a página.');
+                        console.warn('⚠️ SDK não disponível, usando fallback (backend)');
+                        return await this.tokenizeCardBackend(cardData);
                     }
+
+                    console.log('✅ SDK disponível, tokenizando no navegador');
 
                     // Chave de criptografia pública (seguro expor no frontend)
                     const encryptionKey = '{{ config("services.pagarme.encryption_key") }}';
@@ -497,6 +520,25 @@
 
                     throw new Error(errorMessage);
                 }
+            },
+
+            /**
+             * Espera o SDK do Pagar.me carregar (máximo 10 segundos)
+             */
+            async waitForPagarmeSDK(maxWait = 10000) {
+                const startTime = Date.now();
+
+                while (typeof window.pagarme === 'undefined') {
+                    if (Date.now() - startTime > maxWait) {
+                        console.error('⏱️ Timeout esperando SDK carregar');
+                        throw new Error('SDK demorou muito para carregar');
+                    }
+
+                    console.log('⏳ Esperando SDK carregar...');
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+
+                console.log('✅ SDK carregou após', Date.now() - startTime, 'ms');
             },
 
             startPaymentCheck() {

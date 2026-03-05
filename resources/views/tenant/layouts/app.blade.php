@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=0.5, maximum-scale=2.0, user-scalable=yes, viewport-fit=cover">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,6 +12,27 @@
 
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/icon-192.png">
+
+    <!-- 🔥 OAuth Auto-Login - EXECUTA PRIMEIRO! -->
+    <script>
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+
+            if (urlParams.has('oauth_success')) {
+                const authToken = urlParams.get('auth_token');
+                const customerData = urlParams.get('customer_data');
+
+                if (authToken && customerData) {
+                    // Salvar no localStorage
+                    localStorage.setItem('auth_token', authToken);
+                    localStorage.setItem('customer', decodeURIComponent(customerData));
+
+                    // Redirecionar para home sem parâmetros
+                    window.location.href = '/';
+                }
+            }
+        })();
+    </script>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -63,6 +84,8 @@
         html {
             scroll-behavior: smooth;
             -webkit-overflow-scrolling: touch;
+            /* Tamanho base reduzido para 62.5% (equivalente a zoom 50%) */
+            font-size: 62.5%;
         }
 
         body {
@@ -273,6 +296,53 @@
             }
         }
 
+        // 🔥 OAuth Callback Handler - Executa IMEDIATAMENTE (não espera DOMContentLoaded)
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+
+            if (urlParams.has('oauth_success')) {
+                console.log('🔍 OAuth callback detectado na URL');
+
+                const authToken = urlParams.get('auth_token');
+                const customerData = JSON.parse(decodeURIComponent(urlParams.get('customer_data') || '{}'));
+                const needsWhatsapp = urlParams.get('needs_whatsapp') === '1';
+
+                console.log('📦 Dados recebidos:', { authToken, customerData, needsWhatsapp });
+
+                if (authToken) {
+                    // Salvar token no localStorage
+                    localStorage.setItem('auth_token', authToken);
+                    localStorage.setItem('customer', JSON.stringify(customerData));
+
+                    console.log('💾 Dados salvos no localStorage');
+                    console.log('Token:', localStorage.getItem('auth_token'));
+                    console.log('Customer:', localStorage.getItem('customer'));
+
+                    // Limpar URL (remover parâmetros OAuth)
+                    window.history.replaceState({}, document.title, window.location.pathname);
+
+                    // Mostrar notificação de sucesso
+                    console.log('✅ Login com Google realizado com sucesso!', customerData);
+
+                    // Recarregar página para atualizar estado de autenticação
+                    setTimeout(() => {
+                        console.log('🔄 Recarregando página...');
+                        window.location.reload();
+                    }, 500);
+                } else {
+                    console.error('❌ Token não encontrado nos parâmetros da URL');
+                }
+            } else if (urlParams.has('oauth_error')) {
+                const errorMessage = decodeURIComponent(urlParams.get('error_message') || 'Erro desconhecido');
+                console.error('❌ Erro OAuth:', errorMessage);
+                alert('Erro ao fazer login: ' + errorMessage);
+
+                // Limpar URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        })();
+
+        // Haptic feedback para botões (aguarda DOM)
         document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('button, a').forEach(el => {
                 el.addEventListener('touchstart', () => vibrate(5), { passive: true });
