@@ -677,18 +677,17 @@ class OrderController extends Controller
     }
 
     /**
-     * ⭐ Processa pagamento com cartão (após cliente preencher dados)
+     * 🔐 Processa pagamento com cartão TOKENIZADO (seguro)
      * POST /api/v1/orders/{orderNumber}/pay-with-card
+     *
+     * ⚠️ IMPORTANTE: Aceita APENAS token do cartão (card_id)
+     * ❌ NÃO aceita dados brutos (number, cvv, etc.)
      */
     public function processCardPayment(Request $request, string $orderNumber)
     {
-        // Validar dados do cartão
+        // 🔐 Validar TOKEN do cartão (não dados brutos!)
         $validated = $request->validate([
-            'number' => 'required|string|size:16',
-            'holder_name' => 'required|string|max:100',
-            'exp_month' => 'required|integer|min:1|max:12',
-            'exp_year' => 'required|integer|min:' . date('Y'),
-            'cvv' => 'required|string|size:3',
+            'card_id' => 'required|string', // Token gerado pelo Pagar.me JS SDK
             'method' => 'required|in:credit_card,debit_card',
             'installments' => 'nullable|integer|min:1|max:12',
         ]);
