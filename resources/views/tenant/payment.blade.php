@@ -212,16 +212,11 @@
                             </div>
                         </div>
 
-                        <!-- Parcelas (apenas crédito) -->
-                        <div x-show="paymentMethod === 'credit_card'">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Parcelas</label>
-                            <select
-                                x-model="cardInstallments"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none">
-                                <option value="1">1x sem juros - R$ <span x-text="totalAmount"></span></option>
-                                <option value="2">2x sem juros - R$ <span x-text="(parseFloat(totalAmount.replace(',', '.')) / 2).toFixed(2).replace('.', ',')"></span></option>
-                                <option value="3">3x sem juros - R$ <span x-text="(parseFloat(totalAmount.replace(',', '.')) / 3).toFixed(2).replace('.', ',')"></span></option>
-                            </select>
+                        <!-- Pagamento à vista (sem parcelamento) -->
+                        <div class="p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <p class="text-sm text-green-800">
+                                <strong>💳 Pagamento à vista:</strong> R$ <span x-text="totalAmount"></span>
+                            </p>
                         </div>
 
                         <!-- Mensagem de Erro -->
@@ -281,7 +276,6 @@
             cardHolder: '',
             cardExpiry: '',
             cardCVV: '',
-            cardInstallments: 1,
             processingPayment: false,
             cardError: '',
 
@@ -409,7 +403,7 @@
                         body: JSON.stringify({
                             card_id: cardToken,  // ✅ Token seguro
                             method: this.paymentMethod,
-                            installments: parseInt(this.cardInstallments)
+                            installments: 1  // 💳 Sempre à vista (sem parcelamento)
                         })
                     });
 

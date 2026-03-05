@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Tokenização - Pagar.me</title>
+    <script src="https://assets.pagar.me/pagarme-js/5.x/pagarme.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #EA1D2C;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #d01828;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔐 Teste de Tokenização Pagar.me</h1>
+        <p>Digite os dados do cartão para testar a tokenização:</p>
+
+        <form id="cardForm">
+            <input type="text" id="cardNumber" placeholder="Número do Cartão" value="4111111111111111">
+            <input type="text" id="holderName" placeholder="Nome no Cartão" value="JOAO SILVA">
+            <input type="text" id="expiry" placeholder="Validade (MM/AA)" value="12/28">
+            <input type="text" id="cvv" placeholder="CVV" value="123">
+            <button type="submit">🔐 Tokenizar Cartão</button>
+        </form>
+
+        <div id="result" class="result"></div>
+
+        <hr style="margin: 30px 0;">
+
+        <h3>📋 Informações de Debug:</h3>
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; font-size: 12px;">
+            <p><strong>Pagar.me SDK carregado:</strong> <span id="sdkLoaded"></span></p>
+            <p><strong>Encryption Key:</strong> <span id="encKey"></span></p>
+            <p><strong>Token gerado:</strong> <span id="tokenGenerated"></span></p>
+        </div>
+    </div>
+
+    <script>
+        // Verificar se SDK carregou
+        const sdkLoaded = typeof window.pagarme !== 'undefined';
+        document.getElementById('sdkLoaded').textContent = sdkLoaded ? '✅ Sim' : '❌ Não';
+        document.getElementById('sdkLoaded').style.color = sdkLoaded ? 'green' : 'red';
+
+        // Encryption Key (pegue do .env do Laravel)
+        const ENCRYPTION_KEY = 'pk_test_Ax34XG2Sghx3qNve'; // ⭐ SUBSTITUA pela sua chave
+        document.getElementById('encKey').textContent = ENCRYPTION_KEY;
+
+        // Handler do formulário
+        document.getElementById('cardForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const resultDiv = document.getElementById('result');
+            const tokenSpan = document.getElementById('tokenGenerated');
+
+            resultDiv.style.display = 'none';
+            resultDiv.className = 'result';
+
+            try {
+                console.log('🔐 Iniciando tokenização...');
+
+                // Preparar dados do cartão
+                const [expMonth, expYear] = document.getElementById('expiry').value.split('/');
+                const cardData = {
+                    number: document.getElementById('cardNumber').value.replace(/\s/g, ''),
+                    holder_name: document.getElementById('holderName').value.toUpperCase(),
+                    exp_month: parseInt(expMonth),
+                    exp_year: parseInt('20' + expYear),
+                    cvv: document.getElementById('cvv').value
+                };
+
+                console.log('📋 Dados do cartão:', {
+                    number: cardData.number.substring(0, 6) + '******' + cardData.number.substring(12),
+                    holder_name: cardData.holder_name,
+                    exp_month: cardData.exp_month,
+                    exp_year: cardData.exp_year,
+                    cvv: '***'
+                });
+
+                // Conectar ao Pagar.me
+                console.log('🔌 Conectando ao Pagar.me com encryption key:', ENCRYPTION_KEY);
+                const pagarme = await window.pagarme.client.connect({
+                    encryption_key: ENCRYPTION_KEY
+                });
+
+                console.log('✅ Conectado ao Pagar.me!');
+
+                // Tokenizar cartão
+                console.log('🔐 Tokenizando cartão...');
+                const card = await pagarme.security.encrypt(cardData);
+
+                console.log('✅ Cartão tokenizado com sucesso!');
+                console.log('🎫 Token:', card.id);
+
+                // Mostrar resultado
+                tokenSpan.textContent = card.id;
+                tokenSpan.style.color = 'green';
+
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <strong>✅ Sucesso!</strong><br>
+                    Token gerado: <code>${card.id}</code><br><br>
+                    <em>Agora você pode usar este token para processar o pagamento!</em>
+                `;
+                resultDiv.style.display = 'block';
+
+            } catch (error) {
+                console.error('❌ Erro na tokenização:', error);
+
+                tokenSpan.textContent = 'Erro';
+                tokenSpan.style.color = 'red';
+
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <strong>❌ Erro na tokenização</strong><br>
+                    ${error.message || 'Erro desconhecido'}<br><br>
+                    <strong>Detalhes do erro:</strong><br>
+                    <pre style="background: #fff; padding: 10px; overflow: auto;">${JSON.stringify(error, null, 2)}</pre>
+                `;
+                resultDiv.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
