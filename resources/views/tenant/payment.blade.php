@@ -432,38 +432,70 @@
              */
             async tokenizeCard(cardData) {
                 try {
+                    console.log('🔐 Iniciando tokenização...', {
+                        number: cardData.number.substring(0, 6) + '******',
+                        holder: cardData.holder_name,
+                        exp: cardData.exp_month + '/' + cardData.exp_year
+                    });
+
+                    // Verificar se SDK carregou
+                    if (typeof window.pagarme === 'undefined') {
+                        console.error('❌ Pagar.me SDK não carregou!');
+                        throw new Error('SDK de pagamento não carregou. Recarregue a página.');
+                    }
+
                     // Chave de criptografia pública (seguro expor no frontend)
                     const encryptionKey = '{{ config("services.pagarme.encryption_key") }}';
+                    console.log('🔑 Encryption Key:', encryptionKey ? encryptionKey.substring(0, 10) + '...' : 'VAZIA');
 
                     if (!encryptionKey || encryptionKey === '') {
-                        console.error('❌ PAGARME_ENCRYPTION_KEY não configurada no .env');
+                        console.error('❌ PAGARME_ENCRYPTION_KEY não configurada!');
                         throw new Error('Erro de configuração. Contate o suporte.');
                     }
 
                     // Inicializa cliente Pagar.me
+                    console.log('🔌 Conectando ao Pagar.me...');
                     const pagarme = await window.pagarme.client.connect({
                         encryption_key: encryptionKey
                     });
 
-                    console.log('🔐 Cliente Pagar.me conectado');
+                    console.log('✅ Cliente Pagar.me conectado!');
 
                     // Tokeniza o cartão (criptografia acontece no navegador)
+                    console.log('🔐 Tokenizando cartão...');
                     const card = await pagarme.security.encrypt(cardData);
 
-                    console.log('✅ Cartão tokenizado:', card.id);
+                    console.log('✅ Cartão tokenizado com sucesso!', card.id);
 
                     return card.id; // Retorna apenas o token (ex: card_abc123xyz)
 
                 } catch (error) {
-                    console.error('❌ Erro na tokenização:', error);
+                    console.error('❌ Erro COMPLETO na tokenização:', error);
+                    console.error('Tipo do erro:', typeof error);
+                    console.error('Mensagem:', error.message);
+                    console.error('Stack:', error.stack);
 
-                    // Mensagens de erro mais amigáveis
-                    if (error.response?.errors) {
-                        const firstError = error.response.errors[0];
-                        throw new Error(firstError.message || 'Dados do cartão inválidos');
+                    // Log detalhado do erro
+                    if (error.response) {
+                        console.error('Response do erro:', error.response);
+                        console.error('Errors:', error.response.errors);
                     }
 
-                    throw new Error('Erro ao processar cartão. Verifique os dados.');
+                    // Mensagem mais específica baseada no erro
+                    let errorMessage = 'Erro ao processar cartão. ';
+
+                    if (error.message && error.message.includes('configuration')) {
+                        errorMessage += 'Erro de configuração.';
+                    } else if (error.response?.errors) {
+                        const firstError = error.response.errors[0];
+                        errorMessage += firstError.message || 'Dados inválidos.';
+                    } else if (error.message) {
+                        errorMessage += error.message;
+                    } else {
+                        errorMessage += 'Verifique os dados e tente novamente.';
+                    }
+
+                    throw new Error(errorMessage);
                 }
             },
 

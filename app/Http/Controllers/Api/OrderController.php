@@ -685,12 +685,30 @@ class OrderController extends Controller
      */
     public function processCardPayment(Request $request, string $orderNumber)
     {
-        // 🔐 Validar TOKEN do cartão (não dados brutos!)
-        $validated = $request->validate([
-            'card_id' => 'required|string', // Token gerado pelo Pagar.me JS SDK
-            'method' => 'required|in:credit_card,debit_card',
-            'installments' => 'nullable|integer|min:1|max:12',
+        // 🔍 DEBUG: Log de entrada
+        \Log::info('🔍 processCardPayment - Request recebido', [
+            'order_number' => $orderNumber,
+            'payload' => $request->all(),
+            'has_card_id' => $request->has('card_id'),
+            'card_id_value' => $request->input('card_id') ? substr($request->input('card_id'), 0, 20) . '...' : null,
         ]);
+
+        // 🔐 Validar TOKEN do cartão (não dados brutos!)
+        try {
+            $validated = $request->validate([
+                'card_id' => 'required|string', // Token gerado pelo Pagar.me JS SDK
+                'method' => 'required|in:credit_card,debit_card',
+                'installments' => 'nullable|integer|min:1|max:12',
+            ]);
+
+            \Log::info('✅ Validação passou', ['validated' => $validated]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('❌ Erro de validação', [
+                'errors' => $e->errors(),
+                'payload' => $request->all(),
+            ]);
+            throw $e;
+        }
 
         // Buscar pedido
         $order = Order::where('order_number', $orderNumber)->firstOrFail();
