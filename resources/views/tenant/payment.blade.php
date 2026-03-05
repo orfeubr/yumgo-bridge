@@ -212,13 +212,6 @@
                             </div>
                         </div>
 
-                        <!-- Pagamento à vista (sem parcelamento) -->
-                        <div class="p-3 bg-green-50 border border-green-200 rounded-lg">
-                            <p class="text-sm text-green-800">
-                                <strong>💳 Pagamento à vista:</strong> R$ <span x-text="totalAmount"></span>
-                            </p>
-                        </div>
-
                         <!-- Mensagem de Erro -->
                         <div x-show="cardError" x-transition class="p-3 bg-red-50 border border-red-200 rounded-lg">
                             <p class="text-sm text-red-700" x-text="cardError"></p>
