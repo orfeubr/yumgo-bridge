@@ -323,24 +323,25 @@ class PagarMeService
             ];
         }
 
-        // Adicionar desconto como item negativo (se houver)
-        if ($order->discount > 0) {
-            $items[] = [
-                'amount' => -(int)round($order->discount * 100), // Negativo
-                'description' => 'Desconto',
-                'quantity' => 1,
-                'code' => 'DISCOUNT',
-            ];
-        }
+        // ⭐ NÃO enviar desconto/cashback como items negativos
+        // Pagar.me não aceita amount < 1 nos items
+        // O total já está calculado corretamente no $order->total
+        // Então ajustamos proporcionalmente os items se houver desconto
 
-        // Adicionar cashback usado como item negativo (se houver)
-        if ($order->cashback_used > 0) {
-            $items[] = [
-                'amount' => -(int)round($order->cashback_used * 100), // Negativo
-                'description' => 'Cashback Utilizado',
-                'quantity' => 1,
-                'code' => 'CASHBACK_USED',
-            ];
+        $totalDescontos = $order->discount + $order->cashback_used;
+
+        if ($totalDescontos > 0) {
+            // Calcular total antes dos descontos
+            $totalAntesDesconto = $order->subtotal + $order->delivery_fee;
+
+            // Ajustar proporcionalmente o primeiro item para compensar o desconto
+            if (!empty($items) && $totalAntesDesconto > 0) {
+                $descontoEmCentavos = (int)round($totalDescontos * 100);
+                $items[0]['amount'] = max(1, $items[0]['amount'] - $descontoEmCentavos);
+
+                // Adicionar nota sobre desconto na descrição
+                $items[0]['description'] .= ' (c/ desconto)';
+            }
         }
 
         return $items;
