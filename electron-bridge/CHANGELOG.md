@@ -1,52 +1,88 @@
-# Changelog - YumGo Bridge
+# 📋 Changelog - YumGo Bridge
 
-Todas as mudanças notáveis neste projeto serão documentadas aqui.
+Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
-Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
-e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
+---
 
-## [1.1.2] - 2026-03-06
+## [1.8.0] - 2026-03-06
 
-### 🐛 Debug
-- Adicionado console.log detalhado na função connect()
-- Ajuda a diagnosticar por que o botão não está funcionando
-- Logs mostram: função chamada, campos preenchidos, envio ao main process
+### ✨ Adicionado
+- **Auto-Update Automático**
+  - Verifica atualizações ao iniciar (após 3 segundos)
+  - Dialog pergunta se quer baixar atualização
+  - Barra de progresso durante download
+  - Dialog pergunta se quer instalar e reiniciar
+  - Menu Tray: Item "🔄 Verificar Atualizações"
+  - Configurado via electron-updater + GitHub releases
 
-## [1.1.1] - 2026-03-06
+- **Botão Reimprimir no Painel Web**
+  - Action "Reimprimir" em pedidos pagos (OrderResource)
+  - Modal de confirmação antes de reimprimir
+  - Dispara evento WebSocket manualmente
+  - Notificação de sucesso/erro
+  - Útil quando acaba tinta ou papel
+
+- **Proteção Contra Impressão Duplicada**
+  - Map rastreando pedidos impressos recentemente
+  - Cooldown de 5 minutos por pedido
+  - Impede impressão duplicada por webhook/bug
+  - Log de aviso quando bloqueado
+  - Evento 'print-skipped' para UI
+  - Limpeza automática de registros > 10min
+
+### 📝 Modificado
+- **Painel Web - Aba "Impressora" Reformulada**
+  - Alerta destacado: "Esta página NÃO configura impressoras"
+  - Fluxo claro: Gerar Token → Baixar App → Configurar no App
+  - Cards visuais de download (Windows/macOS)
+  - Links diretos para release v1.8.0
+  - Tamanho dos arquivos exibido
+  - Link "Ver todas as versões"
 
 ### 🐛 Corrigido
-- Erro `ERR_FILE_NOT_FOUND` ao tentar carregar notification.mp3
-- Comentado tag `<audio>` que referenciava arquivo inexistente
-- Notificações agora usam apenas som nativo do sistema
+- N/A (release focada em features)
 
-## [1.1.0] - 2026-03-06
+---
 
-### ✅ Corrigido
-- Conexão WebSocket via Nginx SSL proxy (ws.yumgo.com.br:443)
-- Autenticação Pusher com assinatura HMAC-SHA256 correta
-- Path WebSocket correto (vazio - Pusher adiciona /app/{key} automaticamente)
-- forceTLS ativado em produção para conexão segura
-- Certificado Let's Encrypt instalado (substituiu auto-assinado)
+## [1.7.0] - 2026-03-06
 
-### 🔧 Melhorado
-- Logging de erros mais detalhado (JSON.stringify)
-- Notificações de erro mais amigáveis ao usuário
-- Removido workaround SSL inseguro (NODE_TLS_REJECT_UNAUTHORIZED)
+### ✨ Adicionado
+- **Configurações Avançadas de Impressão** (inspirado no Anota Aí)
+  - Número de cópias (1-4 vias)
+  - Largura do papel (58mm / 80mm)
+  - Tamanho da fonte (Pequeno / Normal / Grande)
+  - Logo do restaurante (PNG/JPG/BMP)
+  - Toggle remover acentos (impressoras antigas)
 
-### 📝 Técnico
-- wsHost: ws.yumgo.com.br (subdomínio dedicado)
-- wsPort: 443 (HTTPS via Nginx proxy)
-- wsPath: '' (vazio)
-- enabledTransports: ['wss'] em produção
-- Certificado SSL válido com renovação automática
+---
 
-## [1.0.0] - 2026-03-06
+## [1.6.0] - 2026-03-06
 
-### 🎉 Lançamento Inicial
-- Conexão WebSocket com Laravel Reverb/Pusher
-- Recebimento de eventos de pedidos em tempo real
-- Suporte a impressoras térmicas (USB e Rede)
-- Configuração de múltiplas impressoras (Cozinha, Bar, Entrega)
-- Interface gráfica com Electron
-- Autenticação via token Sanctum
-- Suporte a Windows, Linux e macOS
+### ✨ Adicionado
+- **Lista de Impressoras USB com Nomes Amigáveis**
+  - Dicionário de fabricantes (Epson, Bematech, Elgin, etc)
+  - Dropdown selecionável: "Epson TM-T20"
+  - Campos técnicos (vendor/product ID) escondidos
+
+---
+
+## [1.5.0] - 2026-03-06
+
+### ✨ Adicionado
+- **WebSocket Funcionando 100%**
+  - Conexão estável com Laravel Reverb
+  - Autenticação de canal privado
+  - Recebe pedidos em tempo real
+
+---
+
+## 🔗 Links
+
+- **Repositório:** https://github.com/orfeubr/yumgo
+- **Releases:** https://github.com/orfeubr/yumgo/releases
+- **Issues:** https://github.com/orfeubr/yumgo/issues
+
+---
+
+**Formato:** Baseado em [Keep a Changelog](https://keepachangelog.com/)
+**Versionamento:** [Semantic Versioning](https://semver.org/)
