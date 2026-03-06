@@ -646,6 +646,7 @@ const KNOWN_MODELS = {
 };
 
 // Buscar impressoras USB disponíveis
+// Detectar impressoras USB (método antigo - ainda funciona)
 ipcMain.handle('find-usb-printers', async () => {
     try {
         const escpos = require('escpos');
@@ -679,6 +680,58 @@ ipcMain.handle('find-usb-printers', async () => {
 
     } catch (error) {
         log.error('Erro ao buscar impressoras USB:', error);
+        return [];
+    }
+});
+
+// NOVO: Detectar TODAS impressoras instaladas no sistema (v1.9.3+)
+// Inclui: USB, Rede, Virtuais (Print to PDF), etc
+ipcMain.handle('find-system-printers', async () => {
+    try {
+        log.info('🔍 Buscando impressoras instaladas no sistema...');
+
+        if (!mainWindow || !mainWindow.webContents) {
+            log.warn('⚠️ MainWindow não disponível');
+            return [];
+        }
+
+        // Electron API nativa - lista TODAS impressoras do SO
+        const printers = mainWindow.webContents.getPrinters();
+
+        log.info(`✅ Encontradas ${printers.length} impressora(s) no sistema`);
+
+        return printers.map(printer => {
+            // Adiciona emoji baseado no tipo/nome
+            let emoji = '🖨️';
+            const nameLower = printer.name.toLowerCase();
+
+            if (nameLower.includes('pdf')) emoji = '📄';
+            else if (nameLower.includes('thermal') || nameLower.includes('térmica')) emoji = '🎫';
+            else if (nameLower.includes('epson') || nameLower.includes('bematech')) emoji = '🎫';
+            else if (nameLower.includes('network') || nameLower.includes('rede')) emoji = '🌐';
+            else if (nameLower.includes('usb')) emoji = '🔌';
+
+            // Status da impressora
+            let statusText = 'Disponível';
+            if (printer.status === 3) statusText = 'Offline';
+            else if (printer.status === 4) statusText = 'Erro';
+            else if (printer.isDefault) statusText = 'Padrão';
+
+            return {
+                name: printer.name,
+                displayName: printer.displayName || printer.name,
+                description: printer.description || '',
+                status: printer.status,
+                statusText: statusText,
+                isDefault: printer.isDefault,
+                emoji: emoji,
+                // Nome formatado para exibição
+                label: `${emoji} ${printer.displayName || printer.name}${printer.isDefault ? ' (Padrão)' : ''}`
+            };
+        });
+
+    } catch (error) {
+        log.error('❌ Erro ao buscar impressoras do sistema:', error);
         return [];
     }
 });

@@ -132,21 +132,34 @@ function updatePrinterFields(location) {
     if (type === 'usb') {
         fieldsDiv.innerHTML = `
             <div class="form-group">
-                <label>Impressora USB</label>
+                <label>Impressora</label>
                 <select id="${location}PrinterSelect" onchange="selectPrinter('${location}')" style="width: 100%; padding: 8px; margin-bottom: 10px;">
-                    <option value="">Clique em "Buscar" abaixo</option>
+                    <option value="">Selecione uma impressora abaixo</option>
                 </select>
             </div>
-            <button class="btn btn-secondary" onclick="findUSBPrinters('${location}')">
-                🔍 Buscar Impressoras USB
-            </button>
+
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="findSystemPrinters('${location}')" style="flex: 1; min-width: 200px;">
+                    🖨️ Detectar Impressoras do Sistema
+                </button>
+                <button class="btn btn-secondary" onclick="findUSBPrinters('${location}')" style="flex: 1; min-width: 200px;">
+                    🔌 Buscar USB (Avançado)
+                </button>
+            </div>
 
             <!-- Campos técnicos escondidos (preenchidos automaticamente) -->
             <input type="hidden" id="${location}VendorId">
             <input type="hidden" id="${location}ProductId">
+            <input type="hidden" id="${location}PrinterName">
 
-            <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 12px; color: #666;">
-                💡 <strong>Dica:</strong> Conecte sua impressora USB e clique em "Buscar" para detectar automaticamente.
+            <div style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px; font-size: 12px; color: #1565c0;">
+                <strong>⭐ RECOMENDADO:</strong> Use "Detectar Impressoras do Sistema" para ver TODAS as impressoras instaladas
+                (USB, Rede, PDF, etc). Funciona mesmo se a impressora não estiver conectada no momento.
+            </div>
+
+            <div style="margin-top: 10px; padding: 10px; background: #fff3e0; border-left: 4px solid #ff9800; border-radius: 4px; font-size: 11px; color: #e65100;">
+                <strong>🔧 Modo Avançado:</strong> "Buscar USB" detecta apenas impressoras USB conectadas AGORA.
+                Use somente se "Detectar Sistema" não encontrar sua impressora térmica.
             </div>
 
             <!-- ==================== CONFIGURAÇÕES AVANÇADAS v1.7.0 ==================== -->
@@ -315,6 +328,58 @@ function updatePrinterFields(location) {
 // Armazena lista de impressoras encontradas por localização
 const foundPrinters = {};
 
+// NOVO: Detectar TODAS impressoras instaladas no sistema (v1.9.3+)
+// Inclui USB, Rede, Virtuais (Print to PDF), etc
+async function findSystemPrinters(location) {
+    try {
+        const printers = await ipcRenderer.invoke('find-system-printers');
+        const select = document.getElementById(`${location}PrinterSelect`);
+
+        if (printers.length === 0) {
+            alert('❌ Nenhuma impressora encontrada no sistema.\n\n' +
+                  'Verifique se há impressoras instaladas:\n' +
+                  '• Windows: Configurações → Impressoras\n' +
+                  '• macOS: Preferências → Impressoras\n' +
+                  '• Linux: Settings → Printers');
+            return;
+        }
+
+        // Armazena lista para uso posterior
+        foundPrinters[location] = printers.map(p => ({
+            ...p,
+            // Marca como impressora do sistema (não USB)
+            isSystemPrinter: true
+        }));
+
+        // Limpa e preenche o select
+        select.innerHTML = '<option value="">Selecione uma impressora</option>';
+
+        printers.forEach((printer, index) => {
+            const option = document.createElement('option');
+            option.value = index;
+            // Usa o label formatado com emoji
+            option.textContent = printer.label;
+            select.appendChild(option);
+        });
+
+        // Mensagem de sucesso
+        const defaultPrinter = printers.find(p => p.isDefault);
+        let successMsg = `✅ ${printers.length} impressora(s) encontrada(s)!\n\n`;
+
+        if (defaultPrinter) {
+            successMsg += `⭐ Impressora padrão: ${defaultPrinter.displayName}\n\n`;
+        }
+
+        successMsg += 'Selecione uma impressora na lista acima.';
+        alert(successMsg);
+
+    } catch (error) {
+        console.error('Erro ao buscar impressoras do sistema:', error);
+        alert('Erro ao buscar impressoras: ' + error.message);
+    }
+}
+
+// Detectar impressoras USB (método original - ainda funciona)
 async function findUSBPrinters(location) {
     try {
         const printers = await ipcRenderer.invoke('find-usb-printers');
@@ -325,12 +390,16 @@ async function findUSBPrinters(location) {
                   'Certifique-se de que:\n' +
                   '• A impressora está conectada via USB\n' +
                   '• A impressora está ligada\n' +
-                  '• Os drivers estão instalados');
+                  '• Os drivers estão instalados\n\n' +
+                  '💡 Dica: Experimente o botão "Detectar Impressoras do Sistema"');
             return;
         }
 
         // Armazena lista para uso posterior
-        foundPrinters[location] = printers;
+        foundPrinters[location] = printers.map(p => ({
+            ...p,
+            isSystemPrinter: false // Marca como USB
+        }));
 
         // Limpa e preenche o select
         select.innerHTML = '<option value="">Selecione uma impressora</option>';
@@ -343,7 +412,7 @@ async function findUSBPrinters(location) {
         });
 
         // Mensagem de sucesso
-        alert(`✅ ${printers.length} impressora(s) encontrada(s)!\n\n` +
+        alert(`✅ ${printers.length} impressora(s) USB encontrada(s)!\n\n` +
               'Selecione uma impressora na lista acima.');
 
     } catch (error) {
@@ -351,7 +420,7 @@ async function findUSBPrinters(location) {
     }
 }
 
-// Nova função para quando o usuário seleciona uma impressora
+// Função chamada quando o usuário seleciona uma impressora
 function selectPrinter(location) {
     const select = document.getElementById(`${location}PrinterSelect`);
     const selectedIndex = select.value;
@@ -366,13 +435,27 @@ function selectPrinter(location) {
         return;
     }
 
-    // Preenche os campos escondidos automaticamente
-    document.getElementById(`${location}VendorId`).value = `0x${printer.vendorId.toString(16).padStart(4, '0')}`;
-    document.getElementById(`${location}ProductId`).value = `0x${printer.productId.toString(16).padStart(4, '0')}`;
+    // Verifica se é impressora do sistema ou USB
+    if (printer.isSystemPrinter) {
+        // Impressora do sistema: usa nome
+        document.getElementById(`${location}PrinterName`).value = printer.name;
+        document.getElementById(`${location}VendorId`).value = '';
+        document.getElementById(`${location}ProductId`).value = '';
 
-    console.log(`Impressora selecionada: ${printer.displayName}`);
-    console.log(`Vendor ID: 0x${printer.vendorId.toString(16).padStart(4, '0')}`);
-    console.log(`Product ID: 0x${printer.productId.toString(16).padStart(4, '0')}`);
+        console.log(`✅ Impressora do sistema selecionada: ${printer.displayName}`);
+        console.log(`   Nome: ${printer.name}`);
+        console.log(`   Status: ${printer.statusText}`);
+
+    } else {
+        // Impressora USB: usa vendor/product ID
+        document.getElementById(`${location}VendorId`).value = `0x${printer.vendorId.toString(16).padStart(4, '0')}`;
+        document.getElementById(`${location}ProductId`).value = `0x${printer.productId.toString(16).padStart(4, '0')}`;
+        document.getElementById(`${location}PrinterName`).value = '';
+
+        console.log(`✅ Impressora USB selecionada: ${printer.displayName}`);
+        console.log(`   Vendor ID: 0x${printer.vendorId.toString(16).padStart(4, '0')}`);
+        console.log(`   Product ID: 0x${printer.productId.toString(16).padStart(4, '0')}`);
+    }
 }
 
 // Função para selecionar logo (v1.7.0)
