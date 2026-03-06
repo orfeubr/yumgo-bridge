@@ -1,0 +1,85 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd electron-bridge
+          npm install
+
+      - name: Build Windows
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd electron-bridge
+          npm run build:win
+
+      - name: Build macOS
+        if: matrix.os == 'macos-latest'
+        run: |
+          cd electron-bridge
+          npm run build:mac
+
+      - name: Build Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd electron-bridge
+          npm run build:linux
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-build
+          path: |
+            electron-bridge/dist/*.exe
+            electron-bridge/dist/*.dmg
+            electron-bridge/dist/*.zip
+            electron-bridge/dist/*.AppImage
+            electron-bridge/dist/*.deb
+            electron-bridge/dist/latest*.yml
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            **/*.exe
+            **/*.dmg
+            **/*.zip
+            **/*.AppImage
+            **/*.deb
+            **/*latest*.yml
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
