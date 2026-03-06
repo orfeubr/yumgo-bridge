@@ -375,3 +375,20 @@ Route::get('/test-flare', function () {
     throw new \Exception('🔥 Teste Flare - Multi-Tenant Error Monitoring (' . (tenancy()->initialized ? tenant('name') : 'Central') . ')');
 });
 
+
+// 📥 Download YumGo Bridge (app de impressão)
+Route::get('/download/bridge', function () {
+    // Detecta sistema operacional do usuário
+    $userAgent = request()->header('User-Agent');
+    
+    if (str_contains(strtolower($userAgent), 'windows')) {
+        // Windows: redireciona para .exe da última release
+        return redirect('https://github.com/orfeubr/yumgo/releases/latest/download/YumGo-Bridge-win-x64.exe');
+    } elseif (str_contains(strtolower($userAgent), 'mac')) {
+        // macOS: redireciona para .dmg
+        return redirect('https://github.com/orfeubr/yumgo/releases/latest/download/YumGo-Bridge-mac-arm64.dmg');
+    } else {
+        // Outros: página de releases
+        return redirect('https://github.com/orfeubr/yumgo/releases/latest');
+    }
+})->name('download.bridge');
