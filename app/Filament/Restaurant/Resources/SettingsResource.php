@@ -506,26 +506,43 @@ class SettingsResource extends Resource
                                                 </div>
                                             ')),
 
-                                        Forms\Components\TextInput::make('restaurant_id')
+                                        Forms\Components\Placeholder::make('restaurant_id_display')
                                             ->label('ID do Restaurante')
-                                            ->default(fn () => tenancy()->tenant?->id)
-                                            ->disabled()
-                                            ->dehydrated(false)
-                                            ->helperText('Cole este ID no app YumGo Bridge')
-                                            ->suffixAction(
-                                                Forms\Components\Actions\Action::make('copy_id')
-                                                    ->icon('heroicon-o-clipboard-document')
-                                                    ->action(fn () => null)
-                                                    ->extraAttributes([
-                                                        'x-on:click' => "
-                                                            navigator.clipboard.writeText(\$el.closest('.fi-fo-text-input').querySelector('input').value);
-                                                            new FilamentNotification()
-                                                                .title('Copiado!')
-                                                                .success()
-                                                                .send();
-                                                        "
-                                                    ])
-                                            ),
+                                            ->content(function () {
+                                                $tenantId = tenancy()->tenant?->id ?? 'N/A';
+                                                return new \Illuminate\Support\HtmlString('
+                                                    <div class="space-y-2">
+                                                        <div class="flex gap-2 items-center">
+                                                            <input
+                                                                type="text"
+                                                                value="' . e($tenantId) . '"
+                                                                readonly
+                                                                id="tenant-id-input"
+                                                                class="flex-1 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 font-mono text-sm"
+                                                            >
+                                                            <button
+                                                                type="button"
+                                                                onclick="
+                                                                    navigator.clipboard.writeText(\'' . e($tenantId) . '\');
+                                                                    new FilamentNotification()
+                                                                        .title(\'Copiado!\')
+                                                                        .success()
+                                                                        .send();
+                                                                "
+                                                                class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                                                            >
+                                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                                                </svg>
+                                                                Copiar
+                                                            </button>
+                                                        </div>
+                                                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                                                            Cole este ID no app YumGo Bridge
+                                                        </p>
+                                                    </div>
+                                                ');
+                                            }),
 
                                         Forms\Components\Placeholder::make('token_instructions')
                                             ->label('Token de Acesso')
