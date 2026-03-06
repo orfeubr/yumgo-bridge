@@ -3,7 +3,7 @@ const path = require('path');
 const Store = require('electron-store');
 const log = require('electron-log');
 const Pusher = require('pusher-js');
-const Echo = require('laravel-echo');
+const Echo = require('laravel-echo').default;  // FIX: ES6 default export
 const axios = require('axios');
 const ThermalPrinter = require('./printer');
 
