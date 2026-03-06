@@ -2,7 +2,7 @@
 
 ## Histórico de Problemas e Soluções
 
-### ❌ Problema: "Echo is not a constructor" (v1.1.4)
+### ❌ Problema 1: "Echo is not a constructor" (v1.1.4)
 
 **Data:** 06/03/2026
 **Versão afetada:** 1.1.4
@@ -70,6 +70,76 @@ _Nota: Requer `"type": "module"` no package.json e Electron configurado para ES6
 npm run dev  # Testar em modo desenvolvimento
 npm run build:win  # Testar build completo
 ```
+
+---
+
+### ❌ Problema 2: "Pusher is not defined" (v1.1.5)
+
+**Data:** 06/03/2026
+**Versão afetada:** 1.1.5
+**Versão corrigida:** 1.1.6
+
+#### Sintomas
+```
+ReferenceError: Pusher is not defined
+at PusherConnector.connect (.../laravel-echo/dist/echo.common.js:1103:27)
+```
+
+- App consegue carregar configurações
+- Logs mostram "🔵 Conectando ao servidor..."
+- Configuração WebSocket aparece nos logs
+- Erro acontece ao tentar criar conexão Pusher
+
+#### Causa Raiz
+
+O Laravel Echo usa internamente o `PusherConnector` que espera encontrar `Pusher` no escopo global. Apenas importar o Pusher com `require()` não o disponibiliza globalmente.
+
+**Código incorreto:**
+```javascript
+const Pusher = require('pusher-js');  // ❌ Apenas importa localmente
+const Echo = require('laravel-echo').default;
+
+echo = new Echo({
+    broadcaster: 'reverb',
+    // ... Laravel Echo tenta acessar global.Pusher → undefined!
+});
+```
+
+**Código correto:**
+```javascript
+// ✅ Disponibiliza Pusher globalmente
+global.Pusher = require('pusher-js');
+
+const Echo = require('laravel-echo').default;
+
+echo = new Echo({
+    broadcaster: 'reverb',
+    // ... Laravel Echo encontra global.Pusher ✓
+});
+```
+
+#### Solução Aplicada
+
+**Arquivo:** `src/main.js` (linhas 5-7)
+
+```diff
+const log = require('electron-log');
+- const Pusher = require('pusher-js');
++ // FIX: Pusher precisa estar disponível globalmente para Laravel Echo
++ global.Pusher = require('pusher-js');
++
+const Echo = require('laravel-echo').default;
+```
+
+**Versão atualizada:** `1.1.5` → `1.1.6`
+
+#### Por que isso aconteceu?
+
+No Node.js, `require()` importa módulos no escopo local. O Laravel Echo foi originalmente feito para navegadores (onde `window.Pusher` seria global), mas em Electron/Node.js precisamos usar `global.Pusher`.
+
+#### Testado em:
+- ✅ Windows 10 Pro
+- ✅ Windows 11
 
 ---
 
@@ -187,3 +257,30 @@ git push origin v1.x.x
 ---
 
 **Última atualização:** 06/03/2026 - v1.1.5
+
+## 📝 Histórico de Versões Detalhado
+
+### v1.1.6 (06/03/2026) ← ATUAL ✅
+**Correção:**
+- Fix: Pusher disponível globalmente (`global.Pusher = require('pusher-js')`)
+- Resolve: `ReferenceError: Pusher is not defined`
+- Docs: Troubleshooting atualizado
+
+**Status:** Conexão WebSocket deve funcionar! 🎉
+
+### v1.1.5 (06/03/2026)
+**Correção:**
+- Fix: Importação correta do Laravel Echo (`.default`)
+- Resolve: `TypeError: Echo is not a constructor`
+- Docs: Guia de troubleshooting criado
+
+**Status:** Echo funciona, mas Pusher ainda quebrava
+
+### v1.1.4 (06/03/2026)
+**Bug:**
+- ❌ `TypeError: Echo is not a constructor`
+- Importação incorreta do Laravel Echo
+
+**Status:** Versão quebrada - não usar!
+
+---
