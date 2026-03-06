@@ -272,9 +272,10 @@ ipcRenderer.on('print-error', (event, data) => {
 
 // Tocar som de notificação
 ipcRenderer.on('play-sound', () => {
-    notificationSound.play().catch(err => {
-        console.error('Erro ao tocar som:', err);
-    });
+    // Som desabilitado - notificações do sistema já têm som
+    // notificationSound.play().catch(err => {
+    //     console.error('Erro ao tocar som:', err);
+    // });
 });
 
 // ===== INICIALIZAÇÃO =====
