@@ -481,6 +481,30 @@ ipcMain.on('test-print', async (event, { location }) => {
     }
 });
 
+// Dicionário de fabricantes conhecidos (Vendor IDs)
+const KNOWN_VENDORS = {
+    0x04b8: 'Epson',
+    0x0519: 'Bematech',
+    0x0483: 'Elgin',
+    0x1504: 'Daruma',
+    0x154f: 'Diebold',
+    0x0fe6: 'IVI',
+    0x0dd4: 'Zebra',
+    0x2730: 'Sewoo',
+    0x0519: 'Custom Engineering',
+    0x0924: 'Star Micronics'
+};
+
+// Dicionário de modelos conhecidos (Product IDs)
+const KNOWN_MODELS = {
+    0x0e15: 'TM-T20',
+    0x0e03: 'TM-T88',
+    0x0e01: 'TM-T81',
+    0x2008: 'MP-4200 TH',
+    0x7070: 'i9',
+    0x0202: 'DR700'
+};
+
 // Buscar impressoras USB disponíveis
 ipcMain.handle('find-usb-printers', async () => {
     try {
@@ -489,12 +513,29 @@ ipcMain.handle('find-usb-printers', async () => {
 
         const devices = USB.findPrinter();
 
-        return devices.map(device => ({
-            vendorId: device.deviceDescriptor.idVendor,
-            productId: device.deviceDescriptor.idProduct,
-            manufacturer: device.deviceDescriptor.iManufacturer,
-            product: device.deviceDescriptor.iProduct
-        }));
+        return devices.map(device => {
+            const vendorId = device.deviceDescriptor.idVendor;
+            const productId = device.deviceDescriptor.idProduct;
+
+            // Nome amigável do fabricante
+            const vendorName = KNOWN_VENDORS[vendorId] || 'Desconhecido';
+
+            // Nome amigável do modelo
+            const modelName = KNOWN_MODELS[productId] || `Modelo ${productId.toString(16).toUpperCase()}`;
+
+            // Nome completo: Fabricante + Modelo
+            const displayName = `${vendorName} ${modelName}`;
+
+            return {
+                vendorId: vendorId,
+                productId: productId,
+                vendorName: vendorName,
+                modelName: modelName,
+                displayName: displayName,
+                manufacturer: device.deviceDescriptor.iManufacturer,
+                product: device.deviceDescriptor.iProduct
+            };
+        });
 
     } catch (error) {
         log.error('Erro ao buscar impressoras USB:', error);

@@ -132,16 +132,22 @@ function updatePrinterFields(location) {
     if (type === 'usb') {
         fieldsDiv.innerHTML = `
             <div class="form-group">
-                <label>Vendor ID</label>
-                <input type="text" id="${location}VendorId" placeholder="Ex: 0x04b8">
-            </div>
-            <div class="form-group">
-                <label>Product ID</label>
-                <input type="text" id="${location}ProductId" placeholder="Ex: 0x0e15">
+                <label>Impressora USB</label>
+                <select id="${location}PrinterSelect" onchange="selectPrinter('${location}')" style="width: 100%; padding: 8px; margin-bottom: 10px;">
+                    <option value="">Clique em "Buscar" abaixo</option>
+                </select>
             </div>
             <button class="btn btn-secondary" onclick="findUSBPrinters('${location}')">
-                Buscar Impressoras USB
+                🔍 Buscar Impressoras USB
             </button>
+
+            <!-- Campos técnicos escondidos (preenchidos automaticamente) -->
+            <input type="hidden" id="${location}VendorId">
+            <input type="hidden" id="${location}ProductId">
+
+            <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 12px; color: #666;">
+                💡 <strong>Dica:</strong> Conecte sua impressora USB e clique em "Buscar" para detectar automaticamente.
+            </div>
         `;
     } else if (type === 'network') {
         fieldsDiv.innerHTML = `
@@ -157,31 +163,67 @@ function updatePrinterFields(location) {
     }
 }
 
+// Armazena lista de impressoras encontradas por localização
+const foundPrinters = {};
+
 async function findUSBPrinters(location) {
     try {
         const printers = await ipcRenderer.invoke('find-usb-printers');
+        const select = document.getElementById(`${location}PrinterSelect`);
 
         if (printers.length === 0) {
-            alert('Nenhuma impressora USB encontrada');
+            alert('❌ Nenhuma impressora USB encontrada.\n\n' +
+                  'Certifique-se de que:\n' +
+                  '• A impressora está conectada via USB\n' +
+                  '• A impressora está ligada\n' +
+                  '• Os drivers estão instalados');
             return;
         }
 
-        let message = 'Impressoras encontradas:\n\n';
-        printers.forEach((p, i) => {
-            message += `${i + 1}. Vendor ID: ${p.vendorId}, Product ID: ${p.productId}\n`;
+        // Armazena lista para uso posterior
+        foundPrinters[location] = printers;
+
+        // Limpa e preenche o select
+        select.innerHTML = '<option value="">Selecione uma impressora</option>';
+
+        printers.forEach((printer, index) => {
+            const option = document.createElement('option');
+            option.value = index;
+            option.textContent = `📄 ${printer.displayName}`;
+            select.appendChild(option);
         });
 
-        alert(message);
-
-        // Preencher com a primeira impressora encontrada
-        if (printers[0]) {
-            document.getElementById(`${location}VendorId`).value = `0x${printers[0].vendorId.toString(16).padStart(4, '0')}`;
-            document.getElementById(`${location}ProductId`).value = `0x${printers[0].productId.toString(16).padStart(4, '0')}`;
-        }
+        // Mensagem de sucesso
+        alert(`✅ ${printers.length} impressora(s) encontrada(s)!\n\n` +
+              'Selecione uma impressora na lista acima.');
 
     } catch (error) {
         alert('Erro ao buscar impressoras: ' + error.message);
     }
+}
+
+// Nova função para quando o usuário seleciona uma impressora
+function selectPrinter(location) {
+    const select = document.getElementById(`${location}PrinterSelect`);
+    const selectedIndex = select.value;
+
+    if (!selectedIndex || selectedIndex === '') {
+        return;
+    }
+
+    const printer = foundPrinters[location][parseInt(selectedIndex)];
+
+    if (!printer) {
+        return;
+    }
+
+    // Preenche os campos escondidos automaticamente
+    document.getElementById(`${location}VendorId`).value = `0x${printer.vendorId.toString(16).padStart(4, '0')}`;
+    document.getElementById(`${location}ProductId`).value = `0x${printer.productId.toString(16).padStart(4, '0')}`;
+
+    console.log(`Impressora selecionada: ${printer.displayName}`);
+    console.log(`Vendor ID: 0x${printer.vendorId.toString(16).padStart(4, '0')}`);
+    console.log(`Product ID: 0x${printer.productId.toString(16).padStart(4, '0')}`);
 }
 
 function configurePrinter(location) {
