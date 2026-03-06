@@ -18,8 +18,7 @@
     "build": "electron-builder",
     "build:win": "electron-builder --win --x64",
     "build:mac": "electron-builder --mac",
-    "build:linux": "electron-builder --linux",
-    "build:all": "electron-builder -mwl",
+    "build:all": "electron-builder -mw",
     "pack": "electron-builder --dir",
     "postinstall": "electron-builder install-app-deps"
   },
@@ -101,14 +100,6 @@
       "category": "public.app-category.business",
       "hardenedRuntime": true,
       "gatekeeperAssess": false
-    },
-    "linux": {
-      "target": [
-        "AppImage"
-      ],
-      "icon": "build/icon.png",
-      "category": "Office",
-      "maintainer": "suporte@yumgo.com.br"
     }
   }
 }
