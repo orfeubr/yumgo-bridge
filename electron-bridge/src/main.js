@@ -189,6 +189,14 @@ function connectWebSocket(restaurantId, token) {
                 disableStats: true,
                 // REMOVIDO enabledTransports - Pusher-JS Node escolhe automaticamente
                 cluster: 'mt1',  // Obrigatório para Pusher-JS, ignorado com wsHost
+                authEndpoint: `${baseUrl}/api/broadcasting/auth`,  // FIX: Auth endpoint no Pusher
+                auth: {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
+                        'X-Restaurant-ID': restaurantId
+                    }
+                }
             });
 
             log.info('✅ Cliente Pusher criado');
