@@ -1,34 +1,124 @@
 <x-filament-panels::page>
     <div class="space-y-6">
-        {{-- ALERTA IMPORTANTE --}}
-        <div class="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-6 border-2 border-blue-300 dark:border-blue-700">
-            <div class="flex items-start gap-4">
-                <div class="flex-shrink-0">
-                    <x-heroicon-o-information-circle class="w-8 h-8 text-blue-600 dark:text-blue-400" />
+        {{-- EXPLICAÇÃO VISUAL DA MECÂNICA --}}
+        <div class="rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 border-2 border-blue-300 dark:border-blue-700 shadow-lg">
+            <div class="space-y-6">
+                {{-- Título --}}
+                <div class="flex items-center gap-3">
+                    <div class="flex-shrink-0 w-12 h-12 bg-blue-600 dark:bg-blue-500 rounded-full flex items-center justify-center">
+                        <x-heroicon-o-question-mark-circle class="w-7 h-7 text-white" />
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-blue-900 dark:text-blue-200">
+                            Como Funciona a Impressão Automática?
+                        </h3>
+                        <p class="text-sm text-blue-700 dark:text-blue-300">
+                            Entenda o sistema em 2 minutos
+                        </p>
+                    </div>
                 </div>
-                <div class="flex-1">
-                    <h3 class="text-lg font-semibold text-blue-900 dark:text-blue-200 mb-2">
-                        ℹ️ Como Funciona a Impressão Automática
-                    </h3>
-                    <div class="text-sm text-blue-800 dark:text-blue-300 space-y-2">
-                        <p>
-                            <strong>⚠️ Esta página NÃO configura impressoras!</strong>
-                        </p>
-                        <p>
-                            As impressoras são configuradas no <strong>app YumGo Bridge</strong> instalado no seu computador.
-                            Aqui você apenas obtém as credenciais de acesso.
-                        </p>
-                        <div class="mt-3 p-3 bg-white dark:bg-blue-950/50 rounded border border-blue-200 dark:border-blue-800">
-                            <p class="font-medium mb-2">📱 Fluxo correto:</p>
-                            <ol class="list-decimal list-inside space-y-1 text-xs">
-                                <li>Gere o <strong>Token de Acesso</strong> abaixo</li>
-                                <li>Baixe e instale o <strong>YumGo Bridge</strong> no computador</li>
-                                <li>Cole as credenciais (ID + Token) no app</li>
-                                <li>Configure suas impressoras <strong>dentro do app</strong></li>
-                                <li>Pronto! Pedidos pagos imprimem automaticamente 🎉</li>
-                            </ol>
+
+                {{-- Alerta Principal --}}
+                <div class="bg-yellow-100 dark:bg-yellow-900/30 border-l-4 border-yellow-500 p-4 rounded">
+                    <div class="flex items-start gap-3">
+                        <x-heroicon-o-exclamation-triangle class="w-6 h-6 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p class="font-semibold text-yellow-900 dark:text-yellow-200 text-base mb-1">
+                                ⚠️ Esta página NÃO configura impressoras!
+                            </p>
+                            <p class="text-sm text-yellow-800 dark:text-yellow-300">
+                                Navegadores (Chrome, Firefox) <strong>não podem acessar</strong> impressoras USB do seu computador por segurança.
+                            </p>
                         </div>
                     </div>
+                </div>
+
+                {{-- Fluxo Visual --}}
+                <div class="bg-white dark:bg-gray-800 rounded-lg p-5 border border-gray-200 dark:border-gray-700">
+                    <p class="font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                        <span class="text-2xl">🔄</span>
+                        <span>Como Funciona (Passo a Passo):</span>
+                    </p>
+
+                    <div class="space-y-4">
+                        {{-- Passo 1 --}}
+                        <div class="flex gap-4 items-start">
+                            <div class="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                                1
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium text-gray-900 dark:text-gray-100">
+                                    🌐 Nesta página (Painel Web)
+                                </p>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">
+                                    Você <strong>gera credenciais</strong> (ID + Token) e <strong>baixa o app</strong>
+                                </p>
+                                <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                    ❌ Não vê impressoras (navegador não pode!)
+                                </p>
+                            </div>
+                        </div>
+
+                        {{-- Passo 2 --}}
+                        <div class="flex gap-4 items-start">
+                            <div class="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold">
+                                2
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium text-gray-900 dark:text-gray-100">
+                                    💻 No Computador (App YumGo Bridge)
+                                </p>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">
+                                    Você <strong>instala o app</strong>, cola as credenciais e <strong>configura impressoras USB/Rede</strong>
+                                </p>
+                                <p class="text-xs text-green-600 dark:text-green-400 mt-1">
+                                    ✅ App vê impressoras locais! (instalado no PC)
+                                </p>
+                            </div>
+                        </div>
+
+                        {{-- Passo 3 --}}
+                        <div class="flex gap-4 items-start">
+                            <div class="flex-shrink-0 w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold">
+                                3
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium text-gray-900 dark:text-gray-100">
+                                    🎉 Cliente Faz Pedido Pago
+                                </p>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">
+                                    Sistema envia notificação via internet para o app no seu computador
+                                </p>
+                                <p class="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                                    ✅ App imprime automaticamente!
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Analogia --}}
+                <div class="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">
+                    <p class="text-sm text-indigo-900 dark:text-indigo-200 font-medium mb-2">
+                        💡 <strong>Pense no WhatsApp Web:</strong>
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-indigo-800 dark:text-indigo-300">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">🌐</span>
+                            <span><strong>WhatsApp Web</strong> = Painel (só interface)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">📱</span>
+                            <span><strong>App Celular</strong> = YumGo Bridge (faz tudo)</span>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Resumo --}}
+                <div class="border-t border-blue-200 dark:border-blue-800 pt-4">
+                    <p class="text-sm text-center text-blue-900 dark:text-blue-200 font-medium">
+                        📌 <strong>Resumo:</strong> Esta página = gera credenciais | App instalado = vê impressoras e imprime
+                    </p>
                 </div>
             </div>
         </div>
@@ -200,7 +290,7 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {{-- Windows --}}
-                <a href="https://github.com/orfeubr/yumgo/releases/latest/download/YumGo-Bridge-1.7.0-win-x64.exe"
+                <a href="https://github.com/orfeubr/yumgo/releases/latest"
                    target="_blank"
                    class="flex items-center gap-4 p-6 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition group">
                     <div class="flex-shrink-0 text-4xl">
@@ -214,7 +304,10 @@
                             Windows 10/11 (64-bit)
                         </p>
                         <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                            Versão 1.7.0 • ~80 MB
+                            Última versão • ~80 MB
+                        </p>
+                        <p class="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">
+                            ✨ Sempre atualizado!
                         </p>
                     </div>
                     <div>
@@ -223,7 +316,7 @@
                 </a>
 
                 {{-- macOS --}}
-                <a href="https://github.com/orfeubr/yumgo/releases/latest/download/YumGo-Bridge-1.7.0-mac.dmg"
+                <a href="https://github.com/orfeubr/yumgo/releases/latest"
                    target="_blank"
                    class="flex items-center gap-4 p-6 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition group">
                     <div class="flex-shrink-0 text-4xl">
@@ -237,7 +330,10 @@
                             Intel / Apple Silicon
                         </p>
                         <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                            Versão 1.7.0 • ~90 MB
+                            Última versão • ~90 MB
+                        </p>
+                        <p class="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">
+                            ✨ Sempre atualizado!
                         </p>
                     </div>
                     <div>

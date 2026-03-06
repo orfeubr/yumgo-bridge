@@ -1,162 +1,152 @@
-# 🍔 YumGo - Sistema de Delivery Multi-tenant
+# 🍕 YumGo - Plataforma de Delivery Multi-Tenant
 
-[![Laravel](https://img.shields.io/badge/Laravel-11-FF2D20?style=flat&logo=laravel)](https://laravel.com)
-[![PHP](https://img.shields.io/badge/PHP-8.3-777BB4?style=flat&logo=php)](https://php.net)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat&logo=postgresql)](https://postgresql.org)
-[![Filament](https://img.shields.io/badge/Filament-3-FFAA00?style=flat)](https://filamentphp.com)
-[![License](https://img.shields.io/badge/License-Proprietário-red.svg)](LICENSE)
+> Sistema de delivery completo com comissão justa, cashback configurável e impressão automática de pedidos.
 
-Sistema de delivery multi-tenant completo, com comissão justa, cashback configurável e gestão inteligente de pedidos.
-
----
-
-## 🎯 Diferenciais
-
-### 💰 **Comissão Muito Menor que iFood**
-- **YumGo:** 1-3% de comissão
-- **iFood:** ~30% de comissão
-- **Economia:** R$ 1.500+/mês em 1000 pedidos!
-
-### 💳 **Pagamentos Baratos (Pagar.me)**
-- **PIX:** R$ 0,99/transação
-- **Cartão:** 2,99% + R$ 0,49
-- **Split automático:** 1 transação = 1 taxa
-
-### 🎁 **Cashback Configurável**
-- Restaurante define % de cada nível
-- Tiers: Bronze → Prata → Ouro → Platina
-- Proteção completa contra fraudes
-- Estorno automático em cancelamentos
-
-### 🔒 **Isolamento Total (Multi-tenant)**
-- PostgreSQL schemas separados
-- Impossível vazamento de dados
-- 1 restaurante = 1 schema isolado
+[![Licença](https://img.shields.io/badge/Licença-MIT-blue.svg)](LICENSE)
+[![Laravel](https://img.shields.io/badge/Laravel-11-red.svg)](https://laravel.com)
+[![Electron](https://img.shields.io/badge/Electron-29-blue.svg)](https://electronjs.org)
+[![PHP](https://img.shields.io/badge/PHP-8.3-purple.svg)](https://php.net)
 
 ---
 
-## ⚡ Stack Tecnológica
+## 📋 Sobre o Projeto
 
-**Backend:**
-- **Laravel 11** (PHP 8.3) - Framework principal
-- **PostgreSQL 16** - Banco de dados multi-schema
-- **Redis 7** - Cache e filas
-- **Filament 3** - Painel administrativo
+**YumGo** é uma plataforma de delivery multi-tenant que oferece:
 
-**Frontend:**
-- **Blade** - Templates server-side
-- **Alpine.js** - Interatividade leve
-- **Tailwind CSS** - Estilização
-- **Design:** Inspirado no iFood (clean e moderno)
-
-**Pagamentos:**
-- **Pagar.me API v5** - Gateway principal
-- **PIX + Cartão** - Métodos suportados
-- **Webhooks** - Confirmação automática
-
-**Infra:**
-- **Nginx** - Web server
-- **Supervisor** - Gerenciamento de filas
-- **Cloudflare** - CDN e SSL
+- **💰 Comissão Baixa:** 1-3% vs 30% do iFood
+- **🎁 Cashback Configurável:** Cada restaurante define suas regras
+- **🖨️ Impressão Automática:** App desktop imprime pedidos em tempo real
+- **🔐 Multi-Tenant:** PostgreSQL schemas isolados por restaurante
+- **💳 Gateway de Pagamento:** Pagar.me (PIX 0,99%, Cartão 3-4%)
+- **📄 Nota Fiscal:** Emissão NFC-e direto na SEFAZ
 
 ---
 
 ## 🚀 Funcionalidades Principais
 
-### 👨‍💼 **Plataforma Central**
-- ✅ Gestão de restaurantes (tenants)
-- ✅ Planos e assinaturas
-- ✅ Dashboard com métricas em tempo real
-- ✅ Auditoria completa de ações
-- ✅ Faturamento automático
+### Para Restaurantes
 
-### 🍕 **Painel do Restaurante**
-- ✅ Gestão de produtos e categorias
-- ✅ Cardápio semanal configurável
-- ✅ Zonas de entrega por bairros
-- ✅ Configurações de pagamento
-- ✅ Relatórios e estatísticas
-- ✅ Gestão de cupons de desconto
+- ✅ **Painel Admin Completo** (Filament)
+  - Gerenciamento de produtos, categorias e variações
+  - Configuração de horários e áreas de entrega
+  - Dashboard com gráficos em tempo real
+  - Relatórios financeiros e de vendas
 
-### 📱 **Aplicativo do Cliente**
-- ✅ Cardápio responsivo (mobile + desktop)
-- ✅ Carrinho persistente
-- ✅ Checkout simplificado
-- ✅ Pagamento PIX com QR Code
-- ✅ Rastreamento de pedidos
-- ✅ Histórico e cashback
+- ✅ **Sistema de Cashback**
+  - 4 níveis (Bronze, Prata, Ouro, Platina)
+  - Configurável por restaurante
+  - Bônus de aniversário
+  - Indique e ganhe
 
-### 🎨 **Produtos Especiais**
-- ✅ **Pizzas:** Meio a meio, bordas, tamanhos
-- ✅ **Marmitex:** Proteínas + acompanhamentos
-- ✅ **Combos:** Produtos agrupados
-- ✅ **Adicionais:** Extras configuráveis
+- ✅ **Impressão Automática** ([YumGo Bridge](./electron-bridge))
+  - App desktop para Windows/macOS/Linux
+  - Detecta impressoras USB automaticamente
+  - Configurações avançadas (cópias, logo, largura papel)
+  - WebSocket em tempo real
+  - Auto-update automático
 
----
+- ✅ **Integração de Pagamento**
+  - Pagar.me (principal)
+  - Asaas (legado)
+  - Split automático (restaurante + plataforma)
+  - PIX e Cartão
 
-## 💰 Sistema de Cashback
+### Para Clientes
 
-### **Configuração Flexível**
-- Restaurante define % de cada tier
-- Validade configurável (30, 60, 90 dias)
-- Bônus de aniversário (dobro)
-- Indique e ganhe
+- ✅ **Loja Online Responsiva**
+  - Design estilo iFood
+  - Busca e filtros por categoria
+  - Carrinho com cashback
+  - Cupons de desconto
 
-### **Segurança Total**
-- ✅ Cashback só em pagamentos aprovados
-- ✅ Estorno automático em cancelamentos
-- ✅ Proteção contra fraudes
-- ✅ Auditoria completa (cashback_transactions)
-
-### **Tiers de Fidelidade**
-```
-Bronze  → 0-10 pedidos   → 2% cashback
-Prata   → 11-30 pedidos  → 3% cashback
-Ouro    → 31-60 pedidos  → 5% cashback
-Platina → 61+ pedidos    → 7% cashback
-```
+- ✅ **Sistema de Pedidos**
+  - Delivery ou retirada
+  - Rastreamento em tempo real
+  - Histórico de pedidos
+  - Favoritos
 
 ---
 
-## 🗄️ Arquitetura do Banco
+## 🏗️ Arquitetura
 
-### **Schema PUBLIC (Plataforma)**
-```sql
-- tenants (restaurantes)
-- plans (planos de assinatura)
-- subscriptions (assinaturas ativas)
-- invoices (faturas)
-- domains (domínios personalizados)
-- platform_users (admins)
-- audit_logs (auditoria)
 ```
-
-### **Schema TENANT_* (Por Restaurante)**
-```sql
-- customers (clientes + cashback)
-- orders (pedidos)
-- order_items (items do pedido)
-- payments (transações)
-- products (cardápio)
-- categories (categorias)
-- cashback_transactions (histórico cashback)
-- cashback_settings (config cashback)
-- neighborhoods (zonas de entrega)
-- coupons (cupons de desconto)
+┌─────────────────────────────────────────────────────────┐
+│ FRONTEND (Cliente)                                      │
+│ ├─ Blade + Alpine.js                                   │
+│ ├─ Tailwind CSS                                        │
+│ └─ PWA (offline-first)                                 │
+└─────────────────────────────────────────────────────────┘
+                           │
+                           ↓
+┌─────────────────────────────────────────────────────────┐
+│ BACKEND (Laravel 11 + PHP 8.3)                         │
+│ ├─ Filament 3 (Admin Panel)                           │
+│ ├─ Multi-Tenant (stancl/tenancy)                      │
+│ ├─ PostgreSQL 16 (Schemas isolados)                   │
+│ ├─ Redis 7 (Cache + Queues)                           │
+│ ├─ Laravel Reverb (WebSocket)                         │
+│ └─ NFePHP (NFC-e SEFAZ)                               │
+└─────────────────────────────────────────────────────────┘
+                           │
+                           ├─ WebSocket ─────────────────┐
+                           │                              │
+                           ↓                              ↓
+┌───────────────────────────────────┐   ┌─────────────────────────────┐
+│ GATEWAY DE PAGAMENTO              │   │ APP DESKTOP                 │
+│ ├─ Pagar.me (PIX + Cartão)       │   │ ├─ Electron 29             │
+│ └─ Asaas (Legado)                 │   │ ├─ Impressão USB/Rede      │
+└───────────────────────────────────┘   │ └─ Auto-update (GitHub)    │
+                                        └─────────────────────────────┘
 ```
 
 ---
 
-## 📦 Instalação
+## 📦 Stack Tecnológica
 
-### **Requisitos**
+### Backend
+- **Framework:** Laravel 11
+- **PHP:** 8.3
+- **Database:** PostgreSQL 16 (multi-schema)
+- **Cache:** Redis 7
+- **Queue:** Redis + Supervisor
+- **WebSocket:** Laravel Reverb
+- **Admin:** Filament 3
+
+### Frontend
+- **Template:** Blade
+- **JS Framework:** Alpine.js
+- **CSS:** Tailwind CSS 3
+- **PWA:** Workbox
+
+### App Desktop (YumGo Bridge)
+- **Framework:** Electron 29
+- **Impressão:** ESC/POS (node-escpos)
+- **WebSocket:** Pusher-js + Laravel Echo
+- **Storage:** electron-store
+- **Update:** electron-updater
+
+### Infraestrutura
+- **Servidor:** AWS EC2
+- **Proxy:** Nginx
+- **SSL:** Let's Encrypt
+- **CI/CD:** GitHub Actions
+
+---
+
+## 🚀 Instalação
+
+### Pré-requisitos
+
+```bash
 - PHP 8.3+
 - PostgreSQL 16+
 - Redis 7+
-- Composer 2+
-- Node.js 20+ (opcional)
+- Composer 2.6+
+- Node.js 18+
+- Nginx
+```
 
-### **Passo a Passo**
+### Passo a Passo
 
 1. **Clone o repositório:**
 ```bash
@@ -164,170 +154,171 @@ git clone https://github.com/orfeubr/yumgo.git
 cd yumgo
 ```
 
-2. **Instale as dependências:**
+2. **Instale dependências:**
 ```bash
 composer install
+npm install
 ```
 
-3. **Configure o .env:**
+3. **Configure ambiente:**
 ```bash
 cp .env.example .env
 php artisan key:generate
 ```
 
-4. **Configure o banco:**
-```bash
-# Edite .env com suas credenciais PostgreSQL
+4. **Configure banco de dados** (.env):
+```env
 DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
 DB_PORT=5432
 DB_DATABASE=yumgo
 DB_USERNAME=postgres
-DB_PASSWORD=sua_senha
+DB_PASSWORD=senha
 ```
 
-5. **Execute as migrations:**
+5. **Execute migrations:**
 ```bash
+# Migrations centrais (plataforma)
 php artisan migrate
-php artisan db:seed
+
+# Migrations tenant (restaurantes)
+php artisan tenants:migrate
 ```
 
-6. **Configure Pagar.me:**
+6. **Inicie serviços:**
 ```bash
-# Obtenha as chaves em: https://dashboard.pagar.me
-PAGARME_API_KEY=sk_test_...
-PAGARME_ENCRYPTION_KEY=pk_test_...
-```
+# Reverb (WebSocket)
+php artisan reverb:start
 
-7. **Inicie o servidor:**
-```bash
+# Queue workers
+php artisan queue:work
+
+# Servidor dev
 php artisan serve
 ```
 
-8. **Acesse:**
-- **Plataforma:** http://localhost:8000/admin
-- **Restaurante:** http://tenant.localhost:8000
+### Docker (Alternativa)
 
----
-
-## 🧪 Testes Realizados
-
-### ✅ **QR Code PIX**
-```
-✅ Pedido criado com sucesso
-✅ QR Code gerado automaticamente
-✅ Imagem base64 salva no banco
-✅ Código copiar/colar disponível
-✅ Transaction ID registrado
-```
-
-### ✅ **Cashback**
-```
-✅ Só gerado em pagamentos aprovados
-✅ Estorno completo em cancelamentos
-✅ Proteção contra webhooks duplicados
-✅ Previne saldo negativo
-✅ Logs completos para auditoria
+```bash
+cp .env.docker .env
+docker-compose up -d
+docker-compose exec php php artisan migrate
+docker-compose exec php php artisan tenants:migrate
 ```
 
 ---
 
-## 📊 Modelo de Negócio
+## 📱 YumGo Bridge (App de Impressão)
 
-### **Planos para Restaurantes**
+### Para Usuários (Restaurantes)
 
-| Plano | Mensalidade | Comissão | Features |
-|-------|-------------|----------|----------|
-| **Starter** | R$ 79/mês | 3% | Básico completo |
-| **Pro** | R$ 149/mês | 2% | + Relatórios avançados |
-| **Enterprise** | R$ 299/mês | 1% | + API, webhook, suporte |
+**Download:**
+- [Windows (64-bit)](https://github.com/orfeubr/yumgo/releases/latest)
+- [macOS (Intel/M1/M2)](https://github.com/orfeubr/yumgo/releases/latest)
+- [Linux (AppImage)](https://github.com/orfeubr/yumgo/releases/latest)
 
-**Trial:** 15 dias grátis em todos os planos
+**Instalação e Configuração:**
+1. Baixe e instale o app
+2. Acesse o painel: `https://seurestaurante.yumgo.com.br/painel/configuracoes?tab=-impressora-tab`
+3. Gere Token de Acesso
+4. Cole credenciais no app
+5. Configure impressoras (USB/Rede)
+6. Pronto! Pedidos imprimem automaticamente
 
-### **ROI Estimado**
+**Documentação Completa:** [electron-bridge/README.md](./electron-bridge/README.md)
+
+### Para Desenvolvedores
+
+**Setup:**
+```bash
+cd electron-bridge
+npm install
+npm run dev
 ```
-1000 pedidos/mês × R$ 50 = R$ 50.000
 
-Receita comissão: R$ 1.500 (3%)
-Custo Pagar.me PIX: R$ 990
-Lucro líquido: R$ 510/mês
-
-vs Mercado Pago: PREJUÍZO -R$ 995/mês
-ECONOMIA: R$ 1.505/mês! 🚀
+**Build:**
+```bash
+npm run build:win    # Windows
+npm run build:mac    # macOS
+npm run build:linux  # Linux
 ```
 
----
-
-## 🔧 Últimas Atualizações
-
-### **01/03/2026**
-
-**✅ QR Code PIX Corrigido**
-- Validação obrigatória de credenciais
-- Logs detalhados em todas etapas
-- Mensagens de erro claras
-- [Ver detalhes](CORRECAO-PAGARME-01-03-2026.md)
-
-**✅ Proteção de Cashback**
-- Cashback só em pagamentos aprovados
-- Estorno completo em cancelamentos
-- Proteção contra fraudes
-- [Ver detalhes](PROTECAO-CASHBACK-01-03-2026.md)
-
-**✅ Animação de Cozinha**
-- Animação CSS temática no checkout
-- Textos em português claro
-- [Ver detalhes](ANIMACAO-COZINHA-01-03-2026.md)
+**Release Automático:**
+```bash
+git tag -a v1.9.0 -m "Release v1.9.0"
+git push origin v1.9.0
+# GitHub Actions compila automaticamente!
+```
 
 ---
 
 ## 📚 Documentação
 
-- [Visão Geral do Projeto](PROJETO.md)
-- [Guia de Instalação](INSTALL.md)
-- [Sistema de Cashback](README-CASHBACK.md)
-- [Integração Pagar.me](docs/ASAAS-INTEGRATION.md)
-- [API REST](docs/API-LOCALIZACAO.md)
-- [Roadmap](docs/ROADMAP-FUNCIONALIDADES.md)
+- [Arquitetura Multi-Tenant](docs/ARQUITETURA-MULTI-TENANT.md)
+- [Sistema de Cashback](docs/CASHBACK.md)
+- [Integração Pagar.me](docs/PAGARME-INTEGRATION.md)
+- [Emissão NFC-e](docs/NFCE-EMISSION.md)
+- [API REST](docs/API.md)
+- [YumGo Bridge](electron-bridge/README.md)
 
 ---
 
 ## 🤝 Contribuindo
 
-Este é um projeto proprietário. Para colaborar, entre em contato.
+Contribuições são bem-vindas! Por favor:
+
+1. Fork o projeto
+2. Crie uma branch (`git checkout -b feature/NovaFuncionalidade`)
+3. Commit suas mudanças (`git commit -m 'Adiciona nova funcionalidade'`)
+4. Push para a branch (`git push origin feature/NovaFuncionalidade`)
+5. Abra um Pull Request
+
+### Convenção de Commits
+
+```
+feat: Nova funcionalidade
+fix: Correção de bug
+docs: Documentação
+style: Formatação
+refactor: Refatoração
+test: Testes
+chore: Manutenção
+```
 
 ---
 
-## 📝 Licença
+## 🐛 Reportar Bugs
 
-Código proprietário. Todos os direitos reservados.
-
----
-
-## 🏆 Créditos
-
-**Desenvolvido com:**
-- Laravel Framework
-- Filament Admin Panel
-- Pagar.me Payment Gateway
-- PostgreSQL Database
-
-**Inspiração de Design:**
-- iFood Brasil
+Encontrou um problema? [Abra uma issue](https://github.com/orfeubr/yumgo/issues/new)
 
 ---
 
-## 📞 Contato
+## 📄 Licença
 
-- **GitHub:** [@orfeubr](https://github.com/orfeubr)
-- **Repositório:** [github.com/orfeubr/yumgo](https://github.com/orfeubr/yumgo)
+Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
 
 ---
 
-<div align="center">
+## 👥 Autores
 
-**💪 Feito com Laravel e ❤️ para revolucionar o mercado de delivery!**
+- **Equipe YumGo** - [GitHub](https://github.com/orfeubr)
+- **Claude Code** - Assistente AI de desenvolvimento
 
-[🚀 Ver Demo](https://yumgo.com.br) · [📖 Documentação](docs/) · [🐛 Reportar Bug](https://github.com/orfeubr/yumgo/issues)
+---
 
-</div>
+## 🔗 Links Úteis
+
+- **Site:** https://yumgo.com.br
+- **Documentação:** https://docs.yumgo.com.br
+- **Suporte:** suporte@yumgo.com.br
+- **WhatsApp:** (11) 99999-9999
+
+---
+
+## ⭐ Star o Projeto!
+
+Se este projeto te ajudou, deixe uma ⭐ no GitHub!
+
+---
+
+**Desenvolvido com ❤️ no Brasil 🇧🇷**
