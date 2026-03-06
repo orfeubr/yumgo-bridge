@@ -6,13 +6,10 @@ on:
       - 'v*'
 
 jobs:
-  build:
-    name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
-
+  # Job 1: Build Windows
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,65 +18,153 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: electron-bridge/package-lock.json
 
       - name: Install dependencies
-        run: |
-          cd electron-bridge
-          npm install
+        working-directory: electron-bridge
+        run: npm ci
 
       - name: Build Windows
-        if: matrix.os == 'windows-latest'
-        run: |
-          cd electron-bridge
-          npm run build:win
+        working-directory: electron-bridge
+        run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build macOS
-        if: matrix.os == 'macos-latest'
-        run: |
-          cd electron-bridge
-          npm run build:mac
+      - name: List dist files
+        working-directory: electron-bridge
+        run: dir dist
 
-      - name: Build Linux
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          cd electron-bridge
-          npm run build:linux
-
-      - name: Upload artifacts
+      - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-build
+          name: windows-artifacts
           path: |
             electron-bridge/dist/*.exe
+            electron-bridge/dist/latest*.yml
+          if-no-files-found: error
+
+  # Job 2: Build macOS
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: electron-bridge/package-lock.json
+
+      - name: Install dependencies
+        working-directory: electron-bridge
+        run: npm ci
+
+      - name: Build macOS
+        working-directory: electron-bridge
+        run: npm run build:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List dist files
+        working-directory: electron-bridge
+        run: ls -la dist/
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-artifacts
+          path: |
             electron-bridge/dist/*.dmg
             electron-bridge/dist/*.zip
+            electron-bridge/dist/latest*.yml
+          if-no-files-found: error
+
+  # Job 3: Build Linux
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: electron-bridge/package-lock.json
+
+      - name: Install dependencies
+        working-directory: electron-bridge
+        run: npm ci
+
+      - name: Build Linux
+        working-directory: electron-bridge
+        run: npm run build:linux
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List dist files
+        working-directory: electron-bridge
+        run: ls -la dist/
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-artifacts
+          path: |
             electron-bridge/dist/*.AppImage
             electron-bridge/dist/*.deb
             electron-bridge/dist/latest*.yml
+          if-no-files-found: error
 
+  # Job 4: Create GitHub Release
   release:
-    name: Create Release
-    needs: build
+    name: Create GitHub Release
+    needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Download all artifacts
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Windows artifacts
         uses: actions/download-artifact@v4
+        with:
+          name: windows-artifacts
+          path: artifacts/
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-artifacts
+          path: artifacts/
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-artifacts
+          path: artifacts/
+
+      - name: List all artifacts
+        run: |
+          echo "=== All downloaded artifacts ==="
+          ls -laR artifacts/
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          files: |
-            **/*.exe
-            **/*.dmg
-            **/*.zip
-            **/*.AppImage
-            **/*.deb
-            **/*latest*.yml
+          files: artifacts/*
+          body_path: electron-bridge/CHANGELOG.md
           draft: false
           prerelease: false
-          generate_release_notes: true
+          generate_release_notes: false
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
