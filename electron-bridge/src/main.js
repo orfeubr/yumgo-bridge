@@ -146,6 +146,16 @@ function connectWebSocket(restaurantId, token) {
     const wsPort = isDev ? 8081 : 443;  // HTTPS/443 em produção
     const wsPath = '';  // Empty - Pusher adds /app/{key} automatically
 
+    // FIX: Configurar Pusher para Node.js/Electron environment
+    if (!global.Pusher.Runtime) {
+        global.Pusher.Runtime = {
+            createXHR: function() {
+                const xhr = require('https').request ||  require('http').request;
+                return xhr;
+            }
+        };
+    }
+
     log.info(`📡 Configuração WebSocket:`);
     log.info(`   - baseUrl: ${baseUrl}`);
     log.info(`   - wsHost: ${wsHost}`);
@@ -155,7 +165,7 @@ function connectWebSocket(restaurantId, token) {
 
     try {
         // Configurar Laravel Echo com Pusher/Reverb
-        echo = new Echo({
+        const echoConfig = {
             broadcaster: 'pusher',  // FIX: Use 'pusher' mesmo com Reverb
             key: 't9pg2dslmpl5y1cp6rrf',  // REVERB_APP_KEY from .env
             wsHost: wsHost,
@@ -174,7 +184,11 @@ function connectWebSocket(restaurantId, token) {
                     'X-Restaurant-ID': restaurantId
                 }
             }
-        });
+        };
+
+        log.info(`📡 Echo config:`, JSON.stringify(echoConfig, null, 2));
+
+        echo = new Echo(echoConfig);
 
         // Eventos de conexão do Pusher
         echo.connector.pusher.connection.bind('connected', () => {
