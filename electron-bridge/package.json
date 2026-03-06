@@ -53,7 +53,8 @@
         "provider": "github",
         "owner": "orfeubr",
         "repo": "yumgo",
-        "releaseType": "release"
+        "releaseType": "release",
+        "publishAutoUpdate": false
       }
     ],
     "directories": {
