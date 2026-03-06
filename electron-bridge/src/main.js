@@ -1,7 +1,8 @@
-const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, dialog } = require('electron');
 const path = require('path');
 const Store = require('electron-store');
 const log = require('electron-log');
+const { autoUpdater } = require('electron-updater');
 
 // FIX: Pusher precisa estar disponível globalmente para Laravel Echo
 global.Pusher = require('pusher-js');
@@ -14,6 +15,11 @@ const ThermalPrinter = require('./printer');
 const store = new Store();
 const isDev = process.argv.includes('--dev');
 
+// Configurar electron-updater
+autoUpdater.logger = log;
+autoUpdater.logger.transports.file.level = 'info';
+autoUpdater.autoDownload = false; // Perguntar antes de baixar
+
 // Estado global
 let mainWindow;
 let tray;
@@ -23,6 +29,97 @@ let printerManager;
 let isConnected = false;
 let currentToken = null;
 let currentRestaurantId = null;
+
+// Proteção contra impressão duplicada (v1.8.0)
+const printedOrders = new Map(); // orderId -> timestamp
+const PRINT_COOLDOWN = 5 * 60 * 1000; // 5 minutos
+
+// ===== AUTO-UPDATER (v1.7.0) =====
+
+// Evento: Atualização disponível
+autoUpdater.on('update-available', (info) => {
+    log.info('🔄 Atualização disponível:', info.version);
+
+    dialog.showMessageBox({
+        type: 'info',
+        title: 'Atualização Disponível',
+        message: `Nova versão ${info.version} disponível!`,
+        detail: `Você está usando a versão ${app.getVersion()}.\n\nDeseja baixar a atualização agora?`,
+        buttons: ['Sim, Baixar', 'Mais Tarde'],
+        defaultId: 0,
+        cancelId: 1
+    }).then(result => {
+        if (result.response === 0) {
+            log.info('Usuário escolheu baixar atualização');
+            autoUpdater.downloadUpdate();
+        } else {
+            log.info('Usuário adiou atualização');
+        }
+    });
+});
+
+// Evento: Nenhuma atualização disponível
+autoUpdater.on('update-not-available', (info) => {
+    log.info('✅ App está atualizado:', info.version);
+});
+
+// Evento: Erro ao verificar atualização
+autoUpdater.on('error', (err) => {
+    log.error('❌ Erro ao verificar atualização:', err);
+});
+
+// Evento: Download em progresso
+autoUpdater.on('download-progress', (progressObj) => {
+    const percent = Math.round(progressObj.percent);
+    log.info(`📥 Baixando atualização: ${percent}%`);
+
+    if (mainWindow) {
+        mainWindow.webContents.send('download-progress', {
+            percent: percent,
+            transferred: progressObj.transferred,
+            total: progressObj.total
+        });
+    }
+});
+
+// Evento: Download concluído
+autoUpdater.on('update-downloaded', (info) => {
+    log.info('✅ Atualização baixada:', info.version);
+
+    dialog.showMessageBox({
+        type: 'info',
+        title: 'Atualização Pronta',
+        message: 'Atualização baixada com sucesso!',
+        detail: `A versão ${info.version} está pronta para instalar.\n\nO app será reiniciado para aplicar a atualização.`,
+        buttons: ['Instalar e Reiniciar', 'Instalar Depois'],
+        defaultId: 0,
+        cancelId: 1
+    }).then(result => {
+        if (result.response === 0) {
+            log.info('Usuário escolheu instalar agora');
+            autoUpdater.quitAndInstall();
+        } else {
+            log.info('Usuário adiou instalação');
+        }
+    });
+});
+
+// Função para verificar atualizações manualmente
+function checkForUpdates() {
+    if (isDev) {
+        log.info('Modo dev: Verificação de atualizações desabilitada');
+        dialog.showMessageBox({
+            type: 'info',
+            title: 'Modo Desenvolvimento',
+            message: 'Auto-update desabilitado em modo dev',
+            buttons: ['OK']
+        });
+        return;
+    }
+
+    log.info('Verificando atualizações...');
+    autoUpdater.checkForUpdates();
+}
 
 // ===== INICIALIZAÇÃO =====
 
@@ -94,6 +191,12 @@ function createTray() {
             id: 'status'
         },
         { type: 'separator' },
+        {
+            label: '🔄 Verificar Atualizações',
+            click: () => {
+                checkForUpdates();
+            }
+        },
         {
             label: 'Sair',
             click: () => {
@@ -323,6 +426,43 @@ function connectWebSocket(restaurantId, token) {
 
                 try {
                     const order = data.order;
+                    const orderId = order.id;
+                    const now = Date.now();
+
+                    // ===== PROTEÇÃO CONTRA IMPRESSÃO DUPLICADA (v1.8.0) =====
+                    if (printedOrders.has(orderId)) {
+                        const lastPrinted = printedOrders.get(orderId);
+                        const timeSinceLastPrint = now - lastPrinted;
+
+                        if (timeSinceLastPrint < PRINT_COOLDOWN) {
+                            const minutesLeft = Math.ceil((PRINT_COOLDOWN - timeSinceLastPrint) / 60000);
+                            log.warn(`⚠️ Pedido #${order.order_number} (ID: ${orderId}) já foi impresso há ${Math.floor(timeSinceLastPrint / 1000)}s. Ignorando impressão duplicada.`);
+
+                            mainWindow.webContents.send('print-skipped', {
+                                order_id: orderId,
+                                order_number: order.order_number,
+                                reason: `Já impresso há ${Math.floor(timeSinceLastPrint / 1000)}s (cooldown: ${minutesLeft} min)`
+                            });
+
+                            return; // Não imprimir novamente
+                        } else {
+                            // Cooldown expirou, pode reimprimir
+                            log.info(`✅ Cooldown expirado para pedido #${order.order_number}. Permitindo impressão.`);
+                        }
+                    }
+
+                    // Registrar impressão
+                    printedOrders.set(orderId, now);
+
+                    // Limpar registros antigos (mais de 10 minutos)
+                    for (const [id, timestamp] of printedOrders.entries()) {
+                        if (now - timestamp > PRINT_COOLDOWN * 2) {
+                            printedOrders.delete(id);
+                        }
+                    }
+
+                    log.info(`📝 Pedido #${order.order_number} registrado no histórico de impressão`);
+                    // ===== FIM DA PROTEÇÃO =====
 
                     // Tocar som de notificação
                     mainWindow.webContents.send('play-sound');
@@ -576,6 +716,15 @@ ipcMain.on('clear-config', () => {
 
 app.whenReady().then(() => {
     createWindow();
+
+    // Verificar atualizações ao iniciar (v1.7.0)
+    if (!isDev) {
+        // Aguarda 3 segundos antes de verificar (app já inicializou)
+        setTimeout(() => {
+            log.info('Verificando atualizações automaticamente...');
+            autoUpdater.checkForUpdates();
+        }, 3000);
+    }
 
     // Restaurar impressoras configuradas
     const printers = store.get('printers');

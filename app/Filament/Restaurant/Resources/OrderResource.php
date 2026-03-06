@@ -268,6 +268,36 @@ class OrderResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+
+                // Action para reimprimir pedido (v1.7.0)
+                Tables\Actions\Action::make('reprint')
+                    ->label('Reimprimir')
+                    ->icon('heroicon-o-printer')
+                    ->color('info')
+                    ->visible(fn (Order $record) => $record->payment_status === 'paid')
+                    ->requiresConfirmation()
+                    ->modalHeading('Reimprimir Pedido')
+                    ->modalDescription(fn (Order $record) => "Deseja reimprimir o pedido #{$record->order_number}? O cupom será enviado para as impressoras configuradas.")
+                    ->modalSubmitActionLabel('Sim, Reimprimir')
+                    ->action(function (Order $record) {
+                        try {
+                            // Dispara evento WebSocket para impressão
+                            event(new \App\Events\NewOrderEvent($record));
+
+                            \Filament\Notifications\Notification::make()
+                                ->title('Pedido reenviado para impressão!')
+                                ->success()
+                                ->body("O pedido #{$record->order_number} foi enviado para as impressoras.")
+                                ->send();
+
+                        } catch (\Exception $e) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Erro ao reimprimir')
+                                ->danger()
+                                ->body('Erro: ' . $e->getMessage())
+                                ->send();
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

@@ -1,7 +1,7 @@
 {
   "name": "yumgo-bridge",
   "productName": "YumGo Bridge",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "App local para impressão automática de pedidos YumGo",
   "main": "src/main.js",
   "author": "YumGo",
@@ -27,6 +27,7 @@
     "axios": "^1.6.7",
     "electron-log": "^5.1.0",
     "electron-store": "^8.2.0",
+    "electron-updater": "^6.1.7",
     "escpos": "^3.0.0-alpha.6",
     "escpos-network": "^3.0.0-alpha.1",
     "escpos-usb": "^3.0.0-alpha.4",
@@ -47,6 +48,14 @@
     "productName": "YumGo Bridge",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "copyright": "Copyright © 2026 YumGo",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "orfeubr",
+        "repo": "yumgo",
+        "releaseType": "release"
+      }
+    ],
     "directories": {
       "output": "dist",
       "buildResources": "build"

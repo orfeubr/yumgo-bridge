@@ -1,13 +1,46 @@
 <x-filament-panels::page>
     <div class="space-y-6">
+        {{-- ALERTA IMPORTANTE --}}
+        <div class="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-6 border-2 border-blue-300 dark:border-blue-700">
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0">
+                    <x-heroicon-o-information-circle class="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-blue-900 dark:text-blue-200 mb-2">
+                        ℹ️ Como Funciona a Impressão Automática
+                    </h3>
+                    <div class="text-sm text-blue-800 dark:text-blue-300 space-y-2">
+                        <p>
+                            <strong>⚠️ Esta página NÃO configura impressoras!</strong>
+                        </p>
+                        <p>
+                            As impressoras são configuradas no <strong>app YumGo Bridge</strong> instalado no seu computador.
+                            Aqui você apenas obtém as credenciais de acesso.
+                        </p>
+                        <div class="mt-3 p-3 bg-white dark:bg-blue-950/50 rounded border border-blue-200 dark:border-blue-800">
+                            <p class="font-medium mb-2">📱 Fluxo correto:</p>
+                            <ol class="list-decimal list-inside space-y-1 text-xs">
+                                <li>Gere o <strong>Token de Acesso</strong> abaixo</li>
+                                <li>Baixe e instale o <strong>YumGo Bridge</strong> no computador</li>
+                                <li>Cole as credenciais (ID + Token) no app</li>
+                                <li>Configure suas impressoras <strong>dentro do app</strong></li>
+                                <li>Pronto! Pedidos pagos imprimem automaticamente 🎉</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- Informações do Restaurante --}}
         <x-filament::section>
             <x-slot name="heading">
-                🏪 Informações do Restaurante
+                🔑 Credenciais de Acesso (Para o App)
             </x-slot>
 
             <x-slot name="description">
-                Use estas informações para configurar o app YumGo Bridge
+                Copie estas informações e cole no app YumGo Bridge
             </x-slot>
 
             <div class="space-y-4">
@@ -159,28 +192,77 @@
             </div>
         </x-filament::section>
 
+        {{-- Download do App --}}
+        <x-filament::section>
+            <x-slot name="heading">
+                📥 Download do YumGo Bridge
+            </x-slot>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {{-- Windows --}}
+                <a href="https://github.com/orfeubr/yumgo/releases/latest/download/YumGo-Bridge-1.7.0-win-x64.exe"
+                   target="_blank"
+                   class="flex items-center gap-4 p-6 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition group">
+                    <div class="flex-shrink-0 text-4xl">
+                        🪟
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400">
+                            Windows
+                        </h4>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            Windows 10/11 (64-bit)
+                        </p>
+                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                            Versão 1.7.0 • ~80 MB
+                        </p>
+                    </div>
+                    <div>
+                        <x-heroicon-o-arrow-down-tray class="w-6 h-6 text-gray-400 group-hover:text-primary-600" />
+                    </div>
+                </a>
+
+                {{-- macOS --}}
+                <a href="https://github.com/orfeubr/yumgo/releases/latest/download/YumGo-Bridge-1.7.0-mac.dmg"
+                   target="_blank"
+                   class="flex items-center gap-4 p-6 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition group">
+                    <div class="flex-shrink-0 text-4xl">
+                        🍎
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400">
+                            macOS
+                        </h4>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            Intel / Apple Silicon
+                        </p>
+                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                            Versão 1.7.0 • ~90 MB
+                        </p>
+                    </div>
+                    <div>
+                        <x-heroicon-o-arrow-down-tray class="w-6 h-6 text-gray-400 group-hover:text-primary-600" />
+                    </div>
+                </a>
+            </div>
+
+            <div class="mt-4 text-center">
+                <a href="https://github.com/orfeubr/yumgo/releases" target="_blank" class="text-sm text-gray-500 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400">
+                    Ver todas as versões →
+                </a>
+            </div>
+        </x-filament::section>
+
         {{-- Como Usar --}}
         <x-filament::section>
             <x-slot name="heading">
-                📱 Como Configurar o App
+                📱 Passo a Passo
             </x-slot>
 
             <div class="prose dark:prose-invert max-w-none">
                 <ol class="space-y-3">
                     <li>
-                        <strong>Baixe o app YumGo Bridge:</strong>
-                        <ul class="mt-1 space-y-1">
-                            <li>
-                                <a href="https://github.com/orfeubr/yumgo/releases" target="_blank" class="text-primary-600 hover:underline">
-                                    🪟 Windows (64-bit)
-                                </a>
-                            </li>
-                            <li>
-                                <a href="https://github.com/orfeubr/yumgo/releases" target="_blank" class="text-primary-600 hover:underline">
-                                    🍎 macOS (Intel/Apple Silicon)
-                                </a>
-                            </li>
-                        </ul>
+                        <strong>Baixe o app</strong> clicando no botão acima (Windows ou macOS)
                     </li>
                     <li>
                         <strong>Instale o app</strong> no computador que está conectado à impressora
