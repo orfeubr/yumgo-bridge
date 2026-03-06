@@ -7,6 +7,11 @@
   "author": "YumGo",
   "license": "MIT",
   "homepage": "https://yumgo.com.br",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/orfeubr/yumgo.git",
+    "directory": "electron-bridge"
+  },
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
