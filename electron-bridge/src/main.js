@@ -691,7 +691,41 @@ ipcMain.handle('find-system-printers', async (event) => {
         log.info('🔍 Buscando impressoras instaladas no sistema...');
         console.log('DEBUG: find-system-printers called');
 
-        // CORRETO: Usar o webContents que enviou a requisição
+        // SOLUÇÃO: Usar PowerShell no Windows (mais confiável que getPrinters)
+        if (process.platform === 'win32') {
+            const { execSync } = require('child_process');
+            const stdout = execSync('powershell -Command "Get-Printer | Select-Object Name, DriverName, PortName | ConvertTo-Json"', {
+                encoding: 'utf8',
+                windowsHide: true
+            });
+
+            const windowsPrinters = JSON.parse(stdout);
+            console.log('DEBUG: PowerShell returned printers:', windowsPrinters);
+
+            // Converter para formato compatível
+            const printers = (Array.isArray(windowsPrinters) ? windowsPrinters : [windowsPrinters]).map(p => {
+                let emoji = '🖨️';
+                const nameLower = (p.Name || '').toLowerCase();
+
+                if (nameLower.includes('pdf')) emoji = '📄';
+                else if (nameLower.includes('xps')) emoji = '📄';
+                else if (nameLower.includes('fax')) emoji = '📠';
+
+                return {
+                    name: p.Name,
+                    displayName: p.Name,
+                    status: 0,
+                    isDefault: false,
+                    emoji: emoji,
+                    label: `${emoji} ${p.Name}`
+                };
+            });
+
+            log.info(`✅ Encontradas ${printers.length} impressora(s) no Windows`);
+            return printers;
+        }
+
+        // Fallback: Usar getPrinters() para macOS/Linux
         const printers = event.sender.getPrinters();
         console.log('DEBUG: getPrinters() returned:', printers);
 

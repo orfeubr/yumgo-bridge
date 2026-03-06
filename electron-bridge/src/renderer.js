@@ -332,10 +332,14 @@ const foundPrinters = {};
 // Inclui USB, Rede, Virtuais (Print to PDF), etc
 async function findSystemPrinters(location) {
     try {
+        console.log('🔍 Buscando impressoras do sistema...');
         const printers = await ipcRenderer.invoke('find-system-printers');
+        console.log('✅ Impressoras retornadas:', printers);
+
         const select = document.getElementById(`${location}PrinterSelect`);
 
         if (printers.length === 0) {
+            console.error('❌ Nenhuma impressora encontrada!');
             alert('❌ Nenhuma impressora encontrada no sistema.\n\n' +
                   'Verifique se há impressoras instaladas:\n' +
                   '• Windows: Configurações → Impressoras\n' +
