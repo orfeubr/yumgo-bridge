@@ -490,7 +490,42 @@ function configurePrinter(location) {
         type: type
     };
 
-    if (type === 'usb') {
+    // CORREÇÃO: Detecta se é impressora do sistema (tem nome mas não tem vendor/product ID)
+    const printerName = document.getElementById(`${location}PrinterName`).value;
+    const isSystemPrinter = printerName && printerName.trim() !== '';
+
+    if (isSystemPrinter) {
+        // Impressora do sistema (detectada via PowerShell/getPrinters)
+        config.type = 'system';
+        config.printerName = printerName;
+        config.vendorId = null;
+        config.productId = null;
+
+        // Configurações avançadas para impressoras do sistema
+        const copiesEl = document.getElementById(`${location}Copies`);
+        config.copies = copiesEl ? parseInt(copiesEl.value) : 1;
+
+        const paperWidthEl = document.getElementById(`${location}PaperWidth`);
+        config.paperWidth = paperWidthEl ? parseInt(paperWidthEl.value) : 80;
+
+        const fontSizeEl = document.getElementById(`${location}FontSize`);
+        config.fontSize = fontSizeEl ? fontSizeEl.value : 'normal';
+
+        const printLogoEl = document.getElementById(`${location}PrintLogo`);
+        config.printLogo = printLogoEl ? printLogoEl.checked : false;
+
+        if (config.printLogo) {
+            const logoPathEl = document.getElementById(`${location}LogoPath`);
+            config.logoPath = logoPathEl ? logoPathEl.value : '';
+        }
+
+        const removeAccentsEl = document.getElementById(`${location}RemoveAccents`);
+        config.removeAccents = removeAccentsEl ? removeAccentsEl.checked : false;
+
+        console.log(`✅ Configurando impressora do sistema: ${printerName}`);
+        console.log(`   Cópias: ${config.copies}, Largura: ${config.paperWidth}mm`);
+
+    } else if (type === 'usb') {
         const vendorId = document.getElementById(`${location}VendorId`).value;
         const productId = document.getElementById(`${location}ProductId`).value;
 

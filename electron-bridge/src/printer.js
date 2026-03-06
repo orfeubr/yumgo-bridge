@@ -15,18 +15,27 @@ class ThermalPrinter {
     async configurePrinter(location, config) {
         try {
             let device;
+            let printer;
 
             if (config.type === 'usb') {
                 device = new USB(config.vendorId, config.productId);
+                printer = new escpos.Printer(device);
             } else if (config.type === 'network') {
                 device = new Network(config.ip, config.port || 9100);
+                printer = new escpos.Printer(device);
+            } else if (config.type === 'system') {
+                // Impressora do sistema (Windows/macOS/Linux)
+                // Usa nome da impressora ao invés de USB/Network
+                device = null; // Não usa device físico, usa nome do sistema
+                printer = null; // Será criado no momento da impressão
+                log.info(`Impressora do sistema configurada: ${config.printerName}`);
             } else {
                 throw new Error(`Tipo de impressora não suportado: ${config.type}`);
             }
 
             this.printers[location] = {
                 device: device,
-                printer: new escpos.Printer(device),
+                printer: printer,
                 config: config
             };
 
