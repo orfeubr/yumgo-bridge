@@ -136,9 +136,9 @@ function connectWebSocket(restaurantId, token) {
 
     // Configurar URLs baseado no ambiente
     const baseUrl = isDev ? 'http://localhost:8000' : 'https://yumgo.com.br';
-    const wsHost = isDev ? 'localhost' : 'ws.yumgo.com.br';  // Subdomínio dedicado para WebSocket
-    const wsPort = isDev ? 8081 : 8081;  // Porta direta do Reverb (sem Cloudflare)
-    const wsPath = '/app';  // Nginx proxy path
+    const wsHost = isDev ? 'localhost' : 'ws.yumgo.com.br';  // Subdomínio WebSocket via Nginx SSL
+    const wsPort = isDev ? 8081 : 443;  // HTTPS/443 em produção
+    const wsPath = '';  // Empty - Pusher adds /app/{key} automatically
 
     try {
         // Configurar Laravel Echo com Pusher/Reverb
@@ -149,10 +149,10 @@ function connectWebSocket(restaurantId, token) {
             wsPort: wsPort,
             wssPort: wsPort,
             wsPath: wsPath,
-            forceTLS: false,  // Sem TLS - conexão direta HTTP na porta 8081
-            encrypted: false,
+            forceTLS: !isDev,  // TLS em produção via Nginx HTTPS
+            encrypted: !isDev,
             disableStats: true,
-            enabledTransports: ['ws'],  // Apenas ws (não wss)
+            enabledTransports: isDev ? ['ws'] : ['wss'],  // WSS em produção
             authEndpoint: `${baseUrl}/api/broadcasting/auth`,
             auth: {
                 headers: {
