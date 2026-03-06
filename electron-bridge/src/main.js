@@ -686,22 +686,13 @@ ipcMain.handle('find-usb-printers', async () => {
 
 // NOVO: Detectar TODAS impressoras instaladas no sistema (v1.9.3+)
 // Inclui: USB, Rede, Virtuais (Print to PDF), etc
-ipcMain.handle('find-system-printers', async () => {
+ipcMain.handle('find-system-printers', async (event) => {
     try {
         log.info('🔍 Buscando impressoras instaladas no sistema...');
         console.log('DEBUG: find-system-printers called');
-        console.log('DEBUG: mainWindow exists?', !!mainWindow);
-        console.log('DEBUG: mainWindow.webContents exists?', !!(mainWindow && mainWindow.webContents));
 
-        if (!mainWindow || !mainWindow.webContents) {
-            log.warn('⚠️ MainWindow não disponível');
-            console.error('ERROR: MainWindow ou webContents não disponível!');
-            return [];
-        }
-
-        // Electron API nativa - lista TODAS impressoras do SO
-        console.log('DEBUG: Calling getPrinters()...');
-        const printers = mainWindow.webContents.getPrinters();
+        // CORRETO: Usar o webContents que enviou a requisição
+        const printers = event.sender.getPrinters();
         console.log('DEBUG: getPrinters() returned:', printers);
 
         log.info(`✅ Encontradas ${printers.length} impressora(s) no sistema`);
