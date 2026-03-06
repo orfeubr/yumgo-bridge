@@ -185,8 +185,14 @@ function connectWebSocket(restaurantId, token) {
         });
 
         echo.connector.pusher.connection.bind('error', (error) => {
-            log.error('Erro de conexão:', error);
+            log.error('Erro de conexão:', JSON.stringify(error, null, 2));
             mainWindow.webContents.send('status', 'error');
+
+            // Notificar usuário do erro
+            showNotification(
+                'Erro de Conexão',
+                `Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.`
+            );
         });
 
         echo.connector.pusher.connection.bind('state_change', (states) => {
