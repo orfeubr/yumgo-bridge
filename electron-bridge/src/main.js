@@ -137,18 +137,20 @@ function connectWebSocket(restaurantId, token) {
     // Configurar URLs baseado no ambiente
     const baseUrl = isDev ? 'http://localhost:8000' : 'https://yumgo.com.br';
     const wsHost = isDev ? 'localhost' : 'yumgo.com.br';
-    const wsPort = 8081;
+    const wsPort = isDev ? 8081 : 443;  // Produção usa HTTPS/443 com Nginx proxy
+    const wsPath = '/app';  // Nginx proxy path
 
     try {
-        // Configurar Laravel Echo com Pusher
+        // Configurar Laravel Echo com Pusher/Reverb
         echo = new Echo({
             broadcaster: 'reverb',
-            key: 'yumgo',
+            key: 't9pg2dslmpl5y1cp6rrf',  // REVERB_APP_KEY from .env
             wsHost: wsHost,
             wsPort: wsPort,
             wssPort: wsPort,
-            forceTLS: false,
-            encrypted: false,
+            wsPath: wsPath,
+            forceTLS: !isDev,  // TLS apenas em produção
+            encrypted: !isDev,
             disableStats: true,
             enabledTransports: ['ws', 'wss'],
             authEndpoint: `${baseUrl}/api/broadcasting/auth`,
