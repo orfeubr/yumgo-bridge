@@ -546,46 +546,97 @@ class SettingsResource extends Resource
 
                                         Forms\Components\Placeholder::make('token_instructions')
                                             ->label('Token de Acesso')
-                                            ->content(new \Illuminate\Support\HtmlString('
-                                                <div class="space-y-2">
-                                                    <p class="text-sm text-gray-600 dark:text-gray-400">
-                                                        Para gerar um token de acesso e conectar o app:
-                                                    </p>
-                                                    <ol class="text-sm text-gray-700 dark:text-gray-300 list-decimal list-inside space-y-1">
-                                                        <li>Acesse seu perfil (canto superior direito)</li>
-                                                        <li>Clique em "Gerar Token para Bridge"</li>
-                                                        <li>Copie o token gerado</li>
-                                                        <li>Cole no app YumGo Bridge</li>
-                                                    </ol>
-                                                    <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                                                        ⚠️ O token só é exibido uma vez. Guarde-o em local seguro.
-                                                    </p>
-                                                </div>
-                                            ')),
+                                            ->content(function () {
+                                                $user = auth()->user();
+                                                $hasToken = $user->tokens()->where('name', 'bridge-app')->exists();
+                                                $tokenCount = $user->tokens()->where('name', 'bridge-app')->count();
+
+                                                if ($hasToken) {
+                                                    $token = $user->tokens()->where('name', 'bridge-app')->first();
+                                                    $createdAt = $token->created_at->diffForHumans();
+
+                                                    return new \Illuminate\Support\HtmlString('
+                                                        <div class="space-y-3">
+                                                            <div class="rounded-lg bg-green-50 dark:bg-green-900/20 p-4 border border-green-200 dark:border-green-800">
+                                                                <div class="flex items-center justify-between">
+                                                                    <div>
+                                                                        <p class="text-sm font-semibold text-green-900 dark:text-green-100">
+                                                                            ✅ Token Ativo
+                                                                        </p>
+                                                                        <p class="text-xs text-green-700 dark:text-green-300 mt-1">
+                                                                            Criado ' . e($createdAt) . '
+                                                                        </p>
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        onclick="
+                                                                            if (confirm(\'Tem certeza? O app será desconectado e você precisará gerar um novo token.\')) {
+                                                                                window.location.href = window.location.pathname + \'?revokeToken=1\';
+                                                                            }
+                                                                        "
+                                                                        class="px-3 py-1.5 text-xs font-medium rounded-md bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300"
+                                                                    >
+                                                                        Revogar
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                            <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                                                ℹ️ O token já está configurado no app YumGo Bridge
+                                                            </p>
+                                                        </div>
+                                                    ');
+                                                }
+
+                                                return new \Illuminate\Support\HtmlString('
+                                                    <div class="space-y-3">
+                                                        <div class="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 p-4 border border-yellow-200 dark:border-yellow-800">
+                                                            <p class="text-sm font-semibold text-yellow-900 dark:text-yellow-100 mb-2">
+                                                                ⚠️ Nenhum token configurado
+                                                            </p>
+                                                            <p class="text-sm text-yellow-800 dark:text-yellow-200 mb-3">
+                                                                Você precisa gerar um token para conectar o app YumGo Bridge
+                                                            </p>
+                                                            <button
+                                                                type="button"
+                                                                onclick="window.location.href = window.location.pathname + \'?generateToken=1\'"
+                                                                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700"
+                                                            >
+                                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                                                                </svg>
+                                                                Gerar Token de Acesso
+                                                            </button>
+                                                        </div>
+                                                        <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                                            📋 Depois de gerar, copie o token e cole no app
+                                                        </p>
+                                                    </div>
+                                                ');
+                                            }),
 
                                         Forms\Components\Placeholder::make('bridge_steps')
                                             ->label('Próximos Passos')
                                             ->content(new \Illuminate\Support\HtmlString('
-                                                <div class="rounded-lg bg-gray-50 dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700">
-                                                    <ol class="text-sm space-y-2">
+                                                <div class="rounded-lg bg-blue-50 dark:bg-blue-900/30 p-4 border border-blue-200 dark:border-blue-700">
+                                                    <ol class="text-sm space-y-2 text-gray-900 dark:text-gray-100 font-medium">
                                                         <li class="flex items-start gap-2">
-                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-500 text-white text-xs flex items-center justify-center">1</span>
+                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-600 text-white text-xs font-bold flex items-center justify-center">1</span>
                                                             <span>Baixe e instale o app YumGo Bridge</span>
                                                         </li>
                                                         <li class="flex items-start gap-2">
-                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-500 text-white text-xs flex items-center justify-center">2</span>
+                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-600 text-white text-xs font-bold flex items-center justify-center">2</span>
                                                             <span>Copie o ID do restaurante acima</span>
                                                         </li>
                                                         <li class="flex items-start gap-2">
-                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-500 text-white text-xs flex items-center justify-center">3</span>
-                                                            <span>Gere um token de acesso no seu perfil</span>
+                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-600 text-white text-xs font-bold flex items-center justify-center">3</span>
+                                                            <span>Clique no botão "Gerar Token" acima</span>
                                                         </li>
                                                         <li class="flex items-start gap-2">
-                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-500 text-white text-xs flex items-center justify-center">4</span>
+                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-600 text-white text-xs font-bold flex items-center justify-center">4</span>
                                                             <span>Configure a impressora no app (USB ou Rede)</span>
                                                         </li>
                                                         <li class="flex items-start gap-2">
-                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-500 text-white text-xs flex items-center justify-center">5</span>
+                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-600 text-white text-xs font-bold flex items-center justify-center">5</span>
                                                             <span>Pronto! Os pedidos serão impressos automaticamente</span>
                                                         </li>
                                                     </ol>

@@ -44,18 +44,26 @@ function toggleTokenVisibility() {
 }
 
 function connect() {
+    console.log('🔵 Função connect() chamada');
+
     const restaurantId = restaurantIdInput.value.trim();
     const token = tokenInput.value.trim();
 
+    console.log('Restaurant ID:', restaurantId ? 'OK' : 'VAZIO');
+    console.log('Token:', token ? 'OK (length: ' + token.length + ')' : 'VAZIO');
+
     if (!restaurantId || !token) {
+        console.log('❌ Campos vazios - mostrando alerta');
         alert('Por favor, preencha todos os campos');
         return;
     }
 
+    console.log('✅ Enviando credenciais para main process...');
     ipcRenderer.send('connect', { restaurantId, token });
 
     connectBtn.disabled = true;
     connectBtn.textContent = 'Conectando...';
+    console.log('✅ Botão atualizado para "Conectando..."');
 }
 
 function disconnect() {
