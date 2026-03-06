@@ -7,9 +7,11 @@ on:
       - main
     paths:
       - 'electron-bridge/**'
+      - '.github/workflows/**'
   pull_request:
     paths:
       - 'electron-bridge/**'
+      - '.github/workflows/**'
   release:
     types: [created]
   workflow_dispatch: # Permite execução manual
