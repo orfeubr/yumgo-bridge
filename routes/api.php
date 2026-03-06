@@ -18,3 +18,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', function () {
     return response()->json(['status' => 'ok']);
 });
+
+// Broadcasting authentication
+Route::post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
+    return response()->json(['message' => 'Unauthorized'], 401);
+})->middleware('auth:sanctum');

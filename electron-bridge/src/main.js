@@ -2,7 +2,9 @@ const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage } = require('electr
 const path = require('path');
 const Store = require('electron-store');
 const log = require('electron-log');
-const io = require('socket.io-client');
+const Pusher = require('pusher-js');
+const Echo = require('laravel-echo');
+const axios = require('axios');
 const ThermalPrinter = require('./printer');
 
 // Configuração
@@ -12,9 +14,11 @@ const isDev = process.argv.includes('--dev');
 // Estado global
 let mainWindow;
 let tray;
-let socket;
+let echo;
 let printerManager;
 let isConnected = false;
+let currentToken = null;
+let currentRestaurantId = null;
 
 // ===== INICIALIZAÇÃO =====
 
@@ -115,98 +119,129 @@ function updateTrayStatus(connected) {
     }
 }
 
-// ===== WEBSOCKET =====
+// ===== WEBSOCKET COM LARAVEL ECHO =====
 
 function connectWebSocket(restaurantId, token) {
-    if (socket && socket.connected) {
-        socket.disconnect();
+    // Desconectar se já houver conexão
+    if (echo) {
+        echo.disconnect();
+        echo = null;
     }
+
+    // Salvar credenciais
+    currentToken = token;
+    currentRestaurantId = restaurantId;
 
     log.info(`Conectando ao servidor... Restaurant ID: ${restaurantId}`);
 
-    const serverUrl = isDev
-        ? 'http://localhost:8000'
-        : 'https://yumgo.com.br';
+    // Configurar URLs baseado no ambiente
+    const baseUrl = isDev ? 'http://localhost:8000' : 'https://yumgo.com.br';
+    const wsHost = isDev ? 'localhost' : 'yumgo.com.br';
+    const wsPort = 8081;
 
-    socket = io(serverUrl, {
-        transports: ['websocket', 'polling'],
-        auth: {
-            token: token,
-            restaurant_id: restaurantId,
-            type: 'bridge-app'
-        },
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        reconnectionAttempts: Infinity
-    });
-
-    // Eventos de conexão
-    socket.on('connect', () => {
-        log.info('✅ Conectado ao servidor YumGo');
-        isConnected = true;
-
-        // Inscrever no canal do restaurante
-        socket.emit('subscribe', `restaurant.${restaurantId}.orders`);
-
-        // Atualizar UI
-        mainWindow.webContents.send('status', 'connected');
-        updateTrayStatus(true);
-
-        // Notificação
-        showNotification('Conectado', 'YumGo Bridge conectado com sucesso!');
-    });
-
-    socket.on('disconnect', (reason) => {
-        log.warn(`❌ Desconectado do servidor. Motivo: ${reason}`);
-        isConnected = false;
-
-        mainWindow.webContents.send('status', 'disconnected');
-        updateTrayStatus(false);
-    });
-
-    socket.on('connect_error', (error) => {
-        log.error('Erro de conexão:', error.message);
-        mainWindow.webContents.send('status', 'error');
-    });
-
-    socket.on('reconnecting', (attemptNumber) => {
-        log.info(`Tentando reconectar... Tentativa ${attemptNumber}`);
-        mainWindow.webContents.send('status', 'reconnecting');
-    });
-
-    // Evento de novo pedido
-    socket.on('new-order', async (data) => {
-        log.info(`🔔 Novo pedido recebido: #${data.order_number}`);
-
-        try {
-            // Tocar som de notificação
-            mainWindow.webContents.send('play-sound');
-
-            // Mostrar notificação
-            showNotification(
-                `Novo Pedido #${data.order_number}`,
-                `Cliente: ${data.customer.name}\nTotal: R$ ${data.totals.total.toFixed(2)}`
-            );
-
-            // Imprimir em todas as impressoras configuradas
-            if (printerManager) {
-                for (const location of data.print_locations) {
-                    await printerManager.printOrder(data, location);
+    try {
+        // Configurar Laravel Echo com Pusher
+        echo = new Echo({
+            broadcaster: 'reverb',
+            key: 'yumgo',
+            wsHost: wsHost,
+            wsPort: wsPort,
+            wssPort: wsPort,
+            forceTLS: false,
+            encrypted: false,
+            disableStats: true,
+            enabledTransports: ['ws', 'wss'],
+            authEndpoint: `${baseUrl}/api/broadcasting/auth`,
+            auth: {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                    'X-Restaurant-ID': restaurantId
                 }
             }
+        });
 
-            // Atualizar lista de pedidos na UI
-            mainWindow.webContents.send('new-order', data);
+        // Eventos de conexão do Pusher
+        echo.connector.pusher.connection.bind('connected', () => {
+            log.info('✅ Conectado ao servidor YumGo via Reverb/Pusher');
+            isConnected = true;
 
-        } catch (error) {
-            log.error('Erro ao processar pedido:', error);
-            mainWindow.webContents.send('print-error', {
-                order_id: data.order_id,
-                error: error.message
+            // Atualizar UI
+            mainWindow.webContents.send('status', 'connected');
+            updateTrayStatus(true);
+
+            // Notificação
+            showNotification('Conectado', 'YumGo Bridge conectado com sucesso!');
+        });
+
+        echo.connector.pusher.connection.bind('disconnected', () => {
+            log.warn('❌ Desconectado do servidor');
+            isConnected = false;
+
+            mainWindow.webContents.send('status', 'disconnected');
+            updateTrayStatus(false);
+        });
+
+        echo.connector.pusher.connection.bind('error', (error) => {
+            log.error('Erro de conexão:', error);
+            mainWindow.webContents.send('status', 'error');
+        });
+
+        echo.connector.pusher.connection.bind('state_change', (states) => {
+            log.info(`Estado da conexão: ${states.previous} → ${states.current}`);
+
+            if (states.current === 'connecting' || states.current === 'unavailable') {
+                mainWindow.webContents.send('status', 'reconnecting');
+            }
+        });
+
+        // Inscrever no canal privado do restaurante
+        const channelName = `private-restaurant.${restaurantId}`;
+        log.info(`Inscrevendo no canal: ${channelName}`);
+
+        echo.private(channelName)
+            .listen('.order.created', async (data) => {
+                log.info(`🔔 Novo pedido recebido: #${data.order.order_number}`);
+
+                try {
+                    const order = data.order;
+
+                    // Tocar som de notificação
+                    mainWindow.webContents.send('play-sound');
+
+                    // Mostrar notificação
+                    showNotification(
+                        `Novo Pedido #${order.order_number}`,
+                        `Cliente: ${order.customer.name}\nTotal: R$ ${order.totals.total.toFixed(2)}`
+                    );
+
+                    // Imprimir em todas as impressoras configuradas
+                    if (printerManager && order.print_locations) {
+                        for (const location of order.print_locations) {
+                            await printerManager.printOrder(order, location);
+                        }
+                    }
+
+                    // Atualizar lista de pedidos na UI
+                    mainWindow.webContents.send('new-order', order);
+
+                } catch (error) {
+                    log.error('Erro ao processar pedido:', error);
+                    mainWindow.webContents.send('print-error', {
+                        order_id: data.order.id,
+                        error: error.message
+                    });
+                }
+            })
+            .error((error) => {
+                log.error('Erro ao inscrever no canal:', error);
+                mainWindow.webContents.send('status', 'error');
             });
-        }
-    });
+
+    } catch (error) {
+        log.error('Erro ao inicializar Laravel Echo:', error);
+        mainWindow.webContents.send('status', 'error');
+    }
 }
 
 function showNotification(title, body) {
@@ -235,10 +270,13 @@ ipcMain.on('connect', (event, { restaurantId, token }) => {
 
 // Desconectar
 ipcMain.on('disconnect', () => {
-    if (socket) {
-        socket.disconnect();
+    if (echo) {
+        echo.disconnect();
+        echo = null;
     }
     isConnected = false;
+    currentToken = null;
+    currentRestaurantId = null;
     mainWindow.webContents.send('status', 'disconnected');
     updateTrayStatus(false);
 });
@@ -393,8 +431,8 @@ app.on('activate', () => {
 
 app.on('before-quit', () => {
     app.isQuitting = true;
-    if (socket) {
-        socket.disconnect();
+    if (echo) {
+        echo.disconnect();
     }
 });
 
