@@ -1,0 +1,103 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'electron-bridge/**'
+      - '.github/workflows/build.yml'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        working-directory: ./electron-bridge
+        run: npm install
+
+      - name: Build Electron app
+        working-directory: ./electron-bridge
+        run: npm run build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get package version
+        id: version
+        working-directory: ./electron-bridge
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Upload artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-installer
+          path: electron-bridge/dist/*.exe
+
+      - name: Upload artifacts (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-installer
+          path: electron-bridge/dist/*.AppImage
+
+      - name: Upload artifacts (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-installer
+          path: electron-bridge/dist/*.dmg
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Get package version
+        id: version
+        working-directory: ./electron-bridge
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: YumGo Bridge v${{ steps.version.outputs.VERSION }}
+          body: |
+            ## YumGo Bridge v${{ steps.version.outputs.VERSION }}
+
+            Download the installer for your platform:
+            - **Windows:** YumGo-Bridge-Setup-${{ steps.version.outputs.VERSION }}.exe
+            - **Linux:** YumGo-Bridge-${{ steps.version.outputs.VERSION }}.AppImage
+            - **macOS:** YumGo-Bridge-${{ steps.version.outputs.VERSION }}.dmg
+
+            See [CHANGELOG.md](https://github.com/orfeubr/yumgo/blob/master/electron-bridge/CHANGELOG.md) for details.
+          files: |
+            windows-installer/*.exe
+            linux-installer/*.AppImage
+            macos-installer/*.dmg
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
