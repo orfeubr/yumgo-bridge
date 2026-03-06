@@ -5,6 +5,13 @@ Todas as mudanças notáveis neste projeto serão documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [1.1.1] - 2026-03-06
+
+### 🐛 Corrigido
+- Erro `ERR_FILE_NOT_FOUND` ao tentar carregar notification.mp3
+- Comentado tag `<audio>` que referenciava arquivo inexistente
+- Notificações agora usam apenas som nativo do sistema
+
 ## [1.1.0] - 2026-03-06
 
 ### ✅ Corrigido
