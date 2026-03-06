@@ -173,18 +173,35 @@ function connectWebSocket(restaurantId, token) {
         //
         // O valor 'mt1' é um cluster Pusher válido, mas qualquer string funciona.
         // O importante é que o campo exista para passar na validação.
-        const pusherClient = new global.Pusher('t9pg2dslmpl5y1cp6rrf', {
-            wsHost: wsHost,
-            wsPort: wsPort,
-            wssPort: wsPort,
-            forceTLS: !isDev,
-            encrypted: !isDev,
-            disableStats: true,
-            enabledTransports: isDev ? ['ws'] : ['wss'],
-            cluster: 'mt1',  // Obrigatório para Pusher-JS, ignorado com wsHost
-        });
 
-        log.info('📡 Cliente Pusher criado:', pusherClient.connection.state);
+        log.info('🔵 Criando cliente Pusher...');
+
+        let pusherClient;
+        try {
+            pusherClient = new global.Pusher('t9pg2dslmpl5y1cp6rrf', {
+                wsHost: wsHost,
+                wsPort: wsPort,
+                wssPort: wsPort,
+                forceTLS: !isDev,
+                encrypted: !isDev,
+                disableStats: true,
+                enabledTransports: isDev ? ['ws'] : ['wss'],
+                cluster: 'mt1',  // Obrigatório para Pusher-JS, ignorado com wsHost
+            });
+
+            log.info('✅ Cliente Pusher criado');
+            log.info('📡 Estado inicial:', pusherClient.connection.state);
+
+            // Log de informações do transporte
+            if (pusherClient.connection.options) {
+                log.info('📡 Transporte habilitado:', pusherClient.connection.options.enabledTransports);
+            }
+
+        } catch (pusherError) {
+            log.error('❌ ERRO ao criar cliente Pusher:', pusherError.message);
+            log.error('Stack:', pusherError.stack);
+            throw pusherError;
+        }
 
         const echoConfig = {
             broadcaster: 'pusher',
@@ -200,7 +217,13 @@ function connectWebSocket(restaurantId, token) {
             }
         };
 
-        log.info(`📡 Echo config:`, JSON.stringify(echoConfig, null, 2));
+        // Log config sem o cliente (evita circular reference)
+        log.info(`📡 Echo config:`, JSON.stringify({
+            broadcaster: echoConfig.broadcaster,
+            key: echoConfig.key,
+            authEndpoint: echoConfig.authEndpoint,
+            hasClient: !!echoConfig.client
+        }, null, 2));
 
         log.info('🔵 Criando instância do Echo...');
         echo = new Echo(echoConfig);
