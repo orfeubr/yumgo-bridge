@@ -92,6 +92,11 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libusb-1.0-0-dev libudev-dev
+
       - name: Install dependencies
         working-directory: electron-bridge
         run: npm install
@@ -112,7 +117,6 @@ jobs:
           name: linux-artifacts
           path: |
             electron-bridge/dist/*.AppImage
-            electron-bridge/dist/*.deb
             electron-bridge/dist/latest*.yml
           if-no-files-found: warn
 

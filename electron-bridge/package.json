@@ -91,15 +91,14 @@
         "dmg",
         "zip"
       ],
-      "icon": "build/icon.icns",
+      "icon": "build/icon.png",
       "category": "public.app-category.business",
       "hardenedRuntime": true,
       "gatekeeperAssess": false
     },
     "linux": {
       "target": [
-        "AppImage",
-        "deb"
+        "AppImage"
       ],
       "icon": "build/icon.png",
       "category": "Office",
