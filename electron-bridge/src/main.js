@@ -198,7 +198,10 @@ function connectWebSocket(restaurantId, token) {
         });
 
         echo.connector.pusher.connection.bind('error', (error) => {
-            log.error('Erro de conexão:', JSON.stringify(error, null, 2));
+            log.error('❌ Erro de conexão WebSocket:', JSON.stringify(error, null, 2));
+            log.error('Tipo de erro:', error.type || 'desconhecido');
+            log.error('Data:', error.data || 'sem dados');
+
             mainWindow.webContents.send('status', 'error');
 
             // Notificar usuário do erro
@@ -220,8 +223,16 @@ function connectWebSocket(restaurantId, token) {
         const channelName = `private-restaurant.${restaurantId}`;
         log.info(`Inscrevendo no canal: ${channelName}`);
 
-        echo.private(channelName)
-            .listen('.order.created', async (data) => {
+        const channel = echo.private(channelName);
+
+        log.info(`📡 Tentando autenticar no canal privado...`);
+
+        channel.error((error) => {
+            log.error('❌ Erro ao inscrever no canal:', JSON.stringify(error, null, 2));
+            mainWindow.webContents.send('status', 'error');
+        });
+
+        channel.listen('.order.created', async (data) => {
                 log.info(`🔔 Novo pedido recebido: #${data.order.order_number}`);
 
                 try {
@@ -253,10 +264,6 @@ function connectWebSocket(restaurantId, token) {
                         error: error.message
                     });
                 }
-            })
-            .error((error) => {
-                log.error('Erro ao inscrever no canal:', error);
-                mainWindow.webContents.send('status', 'error');
             });
 
     } catch (error) {
