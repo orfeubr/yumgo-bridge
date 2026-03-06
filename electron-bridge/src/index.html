@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YumGo Bridge - Impressão Local</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-bar {
+            background: white;
+            padding: 16px 24px;
+            text-align: center;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #10b981;
+        }
+
+        .status-dot.disconnected {
+            background: #ef4444;
+            animation: none;
+        }
+
+        .status-dot.reconnecting {
+            background: #f59e0b;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        h1 {
+            font-size: 24px;
+            color: white;
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        h2 {
+            font-size: 18px;
+            margin-bottom: 16px;
+            color: #1f2937;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            font-size: 14px;
+            color: #374151;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .orders-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .order-item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+
+        .order-item strong {
+            color: #667eea;
+            font-size: 16px;
+        }
+
+        .order-item small {
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .printer-config {
+            background: #f3f4f6;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+        }
+
+        .printer-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .printer-status.configured {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .printer-status.not-configured {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .divider {
+            height: 1px;
+            background: #e5e7eb;
+            margin: 20px 0;
+        }
+
+        /* Scrollbar customizado */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖨️ YumGo Bridge</h1>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-indicator" id="statusIndicator">
+                <span class="status-dot disconnected"></span>
+                <span>Desconectado</span>
+            </div>
+        </div>
+
+        <!-- Configuração -->
+        <div class="card" id="configCard">
+            <h2>⚙️ Configuração</h2>
+            <div class="form-group">
+                <label for="restaurantId">ID do Restaurante</label>
+                <input
+                    type="text"
+                    id="restaurantId"
+                    placeholder="Ex: 144c5973-f985-4309-8f9a-c404dd11feae"
+                >
+                <div class="help-text">Encontre no painel YumGo > Configurações</div>
+            </div>
+
+            <div class="form-group">
+                <label for="token">Token de Acesso</label>
+                <input
+                    type="password"
+                    id="token"
+                    placeholder="Token de autenticação"
+                >
+                <div class="help-text">Gere um token no painel YumGo</div>
+            </div>
+
+            <button class="btn btn-primary" id="connectBtn" onclick="connect()">
+                Conectar
+            </button>
+
+            <button class="btn btn-secondary hidden" id="disconnectBtn" onclick="disconnect()" style="margin-top: 10px;">
+                Desconectar
+            </button>
+        </div>
+
+        <!-- Configuração de Impressoras -->
+        <div class="card hidden" id="printersCard">
+            <h2>🖨️ Impressoras</h2>
+
+            <!-- Cozinha -->
+            <div class="printer-config">
+                <strong>Cozinha</strong>
+                <span class="printer-status not-configured" id="kitchenStatus">Não configurada</span>
+
+                <div class="form-group" style="margin-top: 12px;">
+                    <select id="kitchenType" onchange="updatePrinterFields('kitchen')">
+                        <option value="">Selecione o tipo</option>
+                        <option value="usb">USB</option>
+                        <option value="network">Rede (IP)</option>
+                    </select>
+                </div>
+
+                <div id="kitchenFields"></div>
+
+                <button class="btn btn-success" style="margin-top: 8px;" onclick="configurePrinter('kitchen')">
+                    Configurar
+                </button>
+
+                <button class="btn btn-secondary" style="margin-top: 4px;" onclick="testPrint('kitchen')">
+                    Imprimir Teste
+                </button>
+            </div>
+
+            <!-- Bar -->
+            <div class="printer-config" style="margin-top: 16px;">
+                <strong>Bar</strong>
+                <span class="printer-status not-configured" id="barStatus">Não configurada</span>
+
+                <div class="form-group" style="margin-top: 12px;">
+                    <select id="barType" onchange="updatePrinterFields('bar')">
+                        <option value="">Selecione o tipo</option>
+                        <option value="usb">USB</option>
+                        <option value="network">Rede (IP)</option>
+                    </select>
+                </div>
+
+                <div id="barFields"></div>
+
+                <button class="btn btn-success" style="margin-top: 8px;" onclick="configurePrinter('bar')">
+                    Configurar
+                </button>
+
+                <button class="btn btn-secondary" style="margin-top: 4px;" onclick="testPrint('bar')">
+                    Imprimir Teste
+                </button>
+            </div>
+
+            <!-- Balcão -->
+            <div class="printer-config" style="margin-top: 16px;">
+                <strong>Balcão</strong>
+                <span class="printer-status not-configured" id="counterStatus">Não configurada</span>
+
+                <div class="form-group" style="margin-top: 12px;">
+                    <select id="counterType" onchange="updatePrinterFields('counter')">
+                        <option value="">Selecione o tipo</option>
+                        <option value="usb">USB</option>
+                        <option value="network">Rede (IP)</option>
+                    </select>
+                </div>
+
+                <div id="counterFields"></div>
+
+                <button class="btn btn-success" style="margin-top: 8px;" onclick="configurePrinter('counter')">
+                    Configurar
+                </button>
+
+                <button class="btn btn-secondary" style="margin-top: 4px;" onclick="testPrint('counter')">
+                    Imprimir Teste
+                </button>
+            </div>
+        </div>
+
+        <!-- Lista de Pedidos Recentes -->
+        <div class="card hidden" id="ordersCard">
+            <h2>📋 Pedidos Recentes</h2>
+            <div class="orders-list" id="ordersList">
+                <p style="text-align: center; color: #6b7280;">Nenhum pedido recebido ainda...</p>
+            </div>
+        </div>
+    </div>
+
+    <audio id="notificationSound" src="../assets/notification.mp3" preload="auto"></audio>
+
+    <script src="renderer.js"></script>
+</body>
+</html>

@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc><NFe xmlns="http://www.portalfiscal.inf.br/nfe"><infNFe versao="4.00"><ide><cUF>35</cUF><natOp>VENDA DE MERCADORIA</natOp><mod>65</mod><serie>1</serie><nNF>1</nNF><dhEmi>2026-03-06T01:22:02-03:00</dhEmi><tpNF>1</tpNF><tpAmb>2</tpAmb><tpEmis>1</tpEmis><tpImp>4</tpImp><indFinal>1</indFinal><indPres>1</indPres></ide><emit><CNPJ>00000000000000</CNPJ><xNome>BOTECO DO MEU REI</xNome><xFant>Boteco do Meu Rei</xFant></emit></infNFe></NFe></nfeProc>

@@ -676,6 +676,44 @@ class PagarMeService
         // Cliente
         $customer = $this->getOrCreateCustomer($order->customer);
 
+        // 🔐 CONVERSÃO TOKEN → CARD_ID
+        // O frontend tokeniza o cartão e envia um token
+        // Backend converte esse token em um card_id permanente
+        $token = $cardData['card_id'];
+
+        \Log::info('🔐 Convertendo token em card_id', [
+            'token' => substr($token, 0, 12) . '...',
+            'customer_id' => $customer['id'],
+        ]);
+
+        // Criar cartão usando o token (POST /customers/{id}/cards)
+        $cardResponse = Http::timeout(15)
+            ->withBasicAuth($this->apiKey, '')
+            ->withHeaders(['Content-Type' => 'application/json'])
+            ->post("{$this->baseUrl}/customers/{$customer['id']}/cards", [
+                'token' => $token,
+            ]);
+
+        if (!$cardResponse->successful()) {
+            \Log::error('❌ Erro ao criar cartão do token', [
+                'status' => $cardResponse->status(),
+                'body' => $cardResponse->body(),
+            ]);
+            throw new \Exception('Erro ao processar cartão. Verifique os dados.');
+        }
+
+        $card = $cardResponse->json();
+        $realCardId = $card['id'];
+
+        \Log::info('✅ Cartão criado do token', [
+            'card_id' => $realCardId,
+            'brand' => $card['brand'] ?? null,
+            'last_digits' => $card['last_four_digits'] ?? null,
+        ]);
+
+        // Usar o card_id real no pagamento
+        $cardData['card_id'] = $realCardId;
+
         // Payload base
         $payload = [
             'customer' => [

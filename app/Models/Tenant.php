@@ -167,4 +167,15 @@ class Tenant extends BaseTenant implements TenantWithDatabase
         // Fallback: Logo YumGo cinza (SVG)
         return asset('images/logo-yumgo-gray.svg');
     }
+
+    /**
+     * Relationship: Usuários do tenant
+     * Nota: Esta é uma pseudo-relationship porque os usuários estão em outro schema
+     */
+    public function users()
+    {
+        // Não podemos usar hasMany tradicional porque está em outro schema
+        // O RelationManager vai inicializar o tenancy e buscar os usuários
+        return $this->newQuery()->whereRaw('false'); // Retorna query vazia
+    }
 }

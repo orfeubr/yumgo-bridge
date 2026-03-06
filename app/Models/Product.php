@@ -30,12 +30,15 @@ class Product extends Model
         'is_active',
         'is_featured',
         'is_pizza',
+        'is_alcoholic',
+        'suggest_in_cart',
         'allows_half_and_half',
         'available_sizes',
         'available_borders',
         'size_prices',
         'border_prices',
         'order',
+        'print_location',
     ];
 
     protected $casts = [
@@ -47,6 +50,8 @@ class Product extends Model
         'is_active' => 'boolean',
         'is_featured' => 'boolean',
         'is_pizza' => 'boolean',
+        'is_alcoholic' => 'boolean',
+        'suggest_in_cart' => 'boolean',
         'allows_half_and_half' => 'boolean',
         'available_sizes' => 'array',
         'available_borders' => 'array',
@@ -76,6 +81,19 @@ class Product extends Model
     public function addons(): HasMany
     {
         return $this->hasMany(ProductAddon::class);
+    }
+
+    /**
+     * Produtos sugeridos para "Compre Junto"
+     */
+    public function suggestedProducts()
+    {
+        return $this->belongsToMany(
+            Product::class,
+            'product_suggestions',
+            'product_id',
+            'suggested_product_id'
+        )->withTimestamps()->orderBy('product_suggestions.order');
     }
 
     /**

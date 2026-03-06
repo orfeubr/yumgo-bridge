@@ -38,11 +38,28 @@ class ProductResource extends Resource
                             ->preload()
                             ->createOptionForm([
                                 Forms\Components\TextInput::make('name')
-                                    ->label('Nome')
-                                    ->required(),
+                                    ->label('Nome da Categoria')
+                                    ->required()
+                                    ->live(onBlur: true)
+                                    ->afterStateUpdated(fn ($state, callable $set) => $set('slug', \Str::slug($state))),
+
                                 Forms\Components\TextInput::make('slug')
                                     ->label('Slug')
-                                    ->required(),
+                                    ->required()
+                                    ->disabled()
+                                    ->dehydrated(),
+
+                                Forms\Components\TextInput::make('order')
+                                    ->label('Ordem de Exibição')
+                                    ->helperText('Número que define a posição da categoria (menor número = aparece primeiro)')
+                                    ->required()
+                                    ->numeric()
+                                    ->default(99)
+                                    ->minValue(0),
+
+                                Forms\Components\Toggle::make('is_active')
+                                    ->label('Categoria Ativa?')
+                                    ->default(true),
                             ]),
 
                         Forms\Components\TextInput::make('name')
@@ -238,6 +255,16 @@ class ProductResource extends Resource
                             ->label('🍕 É Pizza?')
                             ->helperText('Se marcado, abrirá o modal de personalização')
                             ->live()
+                            ->default(false),
+
+                        Forms\Components\Toggle::make('is_alcoholic')
+                            ->label('🍺 Bebida Alcoólica?')
+                            ->helperText('Identifica bebidas alcoólicas')
+                            ->default(false),
+
+                        Forms\Components\Toggle::make('suggest_in_cart')
+                            ->label('💡 Sugerir no Carrinho?')
+                            ->helperText('Será sugerido para clientes no carrinho')
                             ->default(false),
                     ])->columns(4),
 
@@ -640,6 +667,12 @@ class ProductResource extends Resource
                     ->label('Destaque')
                     ->boolean()
                     ->sortable(),
+
+                Tables\Columns\IconColumn::make('is_alcoholic')
+                    ->label('🍺 Alcoólica')
+                    ->boolean()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('order')
             ->filters([

@@ -30,6 +30,12 @@ class RestaurantHomeController extends Controller
             // Se há cardápio ativo, SEMPRE filtra (mesmo que vazio)
             // Array vazio = nenhum produto hoje = loja vazia
             $hasMenuFilter = true;
+        } else {
+            // ⚠️ IMPORTANTE: Se NÃO há cardápio cadastrado, forçar loja vazia
+            // Enquanto o restaurante não configurar o cardápio semanal,
+            // não mostrar produtos na home
+            $hasMenuFilter = true;
+            $todayProductIds = []; // Forçar array vazio = sem produtos
         }
 
         // Query base para produtos ativos com estoque
@@ -146,6 +152,8 @@ class RestaurantHomeController extends Controller
         if (!$previewMode && $allProducts->isEmpty()) {
             if (!$isOpen) {
                 $emptyReason = 'closed'; // Fora do horário
+            } elseif (!$activeMenu) {
+                $emptyReason = 'no_weekly_menu'; // Cardápio semanal não cadastrado
             } elseif ($hasMenuFilter && empty($todayProductIds)) {
                 $emptyReason = 'no_menu'; // Cardápio não cadastrado para hoje
             } else {

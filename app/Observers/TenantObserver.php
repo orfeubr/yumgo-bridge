@@ -15,14 +15,57 @@ class TenantObserver
      */
     public function created(Tenant $tenant): void
     {
-        // 1. Criar domínio automaticamente
+        // 1. Criar estrutura de storage
+        $this->createStorageStructure($tenant);
+
+        // 2. Criar domínio automaticamente
         $this->createDomain($tenant);
 
-        // 2. ⚠️ Asaas REMOVIDO - usar Pagar.me (configurar manualmente no painel)
+        // 3. ⚠️ Asaas REMOVIDO - usar Pagar.me (configurar manualmente no painel)
         // $this->createAsaasAccount($tenant);
 
-        // 3. Criar usuário admin automaticamente
+        // 4. Criar usuário admin automaticamente
         $this->createAdminUser($tenant);
+    }
+
+    /**
+     * Cria estrutura de diretórios de storage para o tenant
+     */
+    protected function createStorageStructure(Tenant $tenant): void
+    {
+        try {
+            $tenantId = $tenant->id;
+            $baseDir = storage_path('tenant' . $tenantId);
+
+            $directories = [
+                $baseDir,
+                $baseDir . '/app',
+                $baseDir . '/app/public',
+                $baseDir . '/framework',
+                $baseDir . '/framework/cache',
+                $baseDir . '/framework/cache/data',
+                $baseDir . '/framework/sessions',
+                $baseDir . '/framework/testing',
+                $baseDir . '/framework/views',
+                $baseDir . '/logs',
+            ];
+
+            foreach ($directories as $dir) {
+                if (!is_dir($dir)) {
+                    mkdir($dir, 0755, true);
+                }
+            }
+
+            // Corrigir permissões para www-data
+            if (function_exists('exec')) {
+                exec("sudo chown -R www-data:www-data {$baseDir}");
+            }
+
+            Log::info("✅ Estrutura de storage criada para tenant {$tenant->name}");
+
+        } catch (\Exception $e) {
+            Log::error("❌ Erro ao criar estrutura de storage para tenant {$tenant->id}: " . $e->getMessage());
+        }
     }
 
     /**

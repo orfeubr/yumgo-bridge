@@ -3,43 +3,67 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tenant;
+use App\Models\Plan;
 use Illuminate\Http\Request;
 
 class MarketplaceController extends Controller
 {
     /**
-     * Exibe o marketplace de restaurantes
+     * Exibe o marketplace de restaurantes (página principal)
      */
     public function index(Request $request)
     {
-        // Buscar restaurantes ativos
-        $query = Tenant::where('status', 'active');
+        $query = Tenant::where('status', 'active')
+            ->with('domains');
 
         // Busca por nome
         if ($request->filled('search')) {
             $query->where('name', 'ilike', '%' . $request->search . '%');
         }
 
-        // Ordenar por nome
-        $restaurants = $query->orderBy('name', 'asc')->get();
+        // Paginação
+        $restaurants = $query->orderBy('name', 'asc')->paginate(12);
 
-        // Adicionar URL e verificar status de cada restaurante
+        // Adicionar informações extras
         $restaurants->each(function ($restaurant) {
-            // Assumindo que o domínio é: {slug}.yumgo.com.br
-            $restaurant->url = 'https://' . $restaurant->slug . '.yumgo.com.br';
+            // URL do restaurante
+            $domain = $restaurant->domains->first();
+            $restaurant->url = $domain ? 'https://' . $domain->domain : null;
 
-            // Verificar se está aberto (usa método do model)
+            // Status de abertura
             $restaurant->is_open = $restaurant->isOpen();
+
+            // URL da logo
+            $restaurant->logo_url = $restaurant->logo
+                ? asset('storage/' . $restaurant->logo)
+                : asset('images/default-restaurant.png');
         });
 
-        return view('marketplace', compact('restaurants'));
+        return view('marketplace.index', [
+            'restaurants' => $restaurants,
+            'search' => $request->search ?? '',
+        ]);
     }
 
     /**
-     * Exibe página de planos
+     * Landing page para restaurantes (marketing/vendas)
+     */
+    public function paraRestaurantes()
+    {
+        $plans = Plan::where('is_active', true)
+            ->orderBy('price_monthly', 'asc')
+            ->get();
+
+        return view('marketplace.para-restaurantes', [
+            'plans' => $plans,
+        ]);
+    }
+
+    /**
+     * Página de planos (legado - redireciona para /para-restaurantes)
      */
     public function pricing()
     {
-        return view('pricing');
+        return redirect()->route('para-restaurantes');
     }
 }

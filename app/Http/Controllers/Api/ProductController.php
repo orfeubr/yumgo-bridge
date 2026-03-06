@@ -183,6 +183,102 @@ class ProductController extends Controller
     }
 
     /**
+     * Buscar produtos sugeridos ("Compre Junto")
+     * Sistema inteligente baseado no que as pessoas mais compram juntas
+     */
+    public function suggestions(Request $request)
+    {
+        $productIds = $request->has('product_ids')
+            ? explode(',', $request->product_ids)
+            : [];
+
+        if (empty($productIds)) {
+            return response()->json([]);
+        }
+
+        // Cache por 1 hora para performance
+        $cacheKey = 'suggestions_' . md5(implode(',', $productIds));
+
+        $suggestions = \Cache::remember($cacheKey, 3600, function() use ($productIds) {
+            // ANÁLISE INTELIGENTE: Buscar produtos que foram comprados juntos
+            // Query: "Quem comprou X também comprou Y"
+            $frequentlyBoughtTogether = \DB::table('order_items as oi1')
+                ->join('order_items as oi2', 'oi1.order_id', '=', 'oi2.order_id')
+                ->join('products', 'oi2.product_id', '=', 'products.id')
+                ->join('orders', 'oi1.order_id', '=', 'orders.id')
+                ->whereIn('oi1.product_id', $productIds)
+                ->whereNotIn('oi2.product_id', $productIds) // Não sugerir produtos já no carrinho
+                ->where('products.is_active', true) // Apenas produtos ativos
+                ->where('orders.payment_status', 'paid') // Apenas pedidos pagos (dados reais)
+                ->where(function($query) {
+                    // Apenas produtos com estoque
+                    $query->where('products.has_stock_control', false)
+                          ->orWhere(function($q) {
+                              $q->where('products.has_stock_control', true)
+                                ->where('products.stock_quantity', '>', 0);
+                          });
+                })
+                ->select(
+                    'products.id',
+                    'products.name',
+                    'products.price',
+                    'products.image',
+                    \DB::raw('COUNT(DISTINCT oi1.order_id) as frequency')
+                )
+                ->groupBy('products.id', 'products.name', 'products.price', 'products.image')
+                ->orderByDesc('frequency')
+                ->limit(8)
+                ->get();
+
+            // Se não houver dados históricos suficientes, usar sugestões manuais como fallback
+            if ($frequentlyBoughtTogether->isEmpty()) {
+                return Product::whereIn('id', $productIds)
+                    ->with('suggestedProducts')
+                    ->get()
+                    ->pluck('suggestedProducts')
+                    ->flatten()
+                    ->unique('id')
+                    ->filter(function($product) {
+                        return $product->is_active &&
+                            (!$product->has_stock_control || $product->stock_quantity > 0);
+                    })
+                    ->take(6)
+                    ->map(function($product) {
+                        return [
+                            'id' => $product->id,
+                            'name' => $product->name,
+                            'price' => (float) $product->price,
+                            'image' => $product->image
+                                ? (str_starts_with($product->image, 'http')
+                                    ? $product->image
+                                    : '/storage/' . $product->image)
+                                : null,
+                            'source' => 'manual',
+                        ];
+                    })
+                    ->values();
+            }
+
+            return $frequentlyBoughtTogether->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'price' => (float) $item->price,
+                    'image' => $item->image
+                        ? (str_starts_with($item->image, 'http')
+                            ? $item->image
+                            : '/storage/' . $item->image)
+                        : null,
+                    'frequency' => $item->frequency,
+                    'source' => 'ai', // Marcado como IA para você saber que é automático
+                ];
+            });
+        });
+
+        return response()->json($suggestions);
+    }
+
+    /**
      * Encurtar texto para preview
      */
     private function shortenText(?string $text, int $maxLength = 60): string

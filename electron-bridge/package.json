@@ -1,0 +1,88 @@
+{
+  "name": "yumgo-bridge",
+  "productName": "YumGo Bridge",
+  "version": "1.0.0",
+  "description": "App local para impressão automática de pedidos YumGo",
+  "main": "src/main.js",
+  "author": "YumGo",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win --x64",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "build:all": "electron-builder -mwl",
+    "pack": "electron-builder --dir",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.7.0",
+    "escpos": "^3.0.0-alpha.6",
+    "escpos-usb": "^3.0.0-alpha.4",
+    "escpos-network": "^3.0.0-alpha.1",
+    "electron-store": "^8.2.0",
+    "electron-log": "^5.1.0"
+  },
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^24.13.0",
+    "electron-devtools-installer": "^3.2.0"
+  },
+  "build": {
+    "appId": "com.yumgo.bridge",
+    "productName": "YumGo Bridge",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "copyright": "Copyright © 2026 YumGo",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "publisherName": "YumGo",
+      "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "YumGo Bridge"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.business",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "build/icon.png",
+      "category": "Office",
+      "maintainer": "suporte@yumgo.com.br"
+    }
+  }
+}

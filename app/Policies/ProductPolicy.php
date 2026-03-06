@@ -15,7 +15,8 @@ class ProductPolicy
      */
     public function before(User $user, string $ability): bool|null
     {
-        if ($user->hasRole('super_admin')) {
+        // Admin tem acesso total
+        if ($user->role === 'admin') {
             return true;
         }
 

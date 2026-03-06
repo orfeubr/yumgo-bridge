@@ -16,4 +16,10 @@ class EditCategory extends EditRecord
             Actions\DeleteAction::make(),
         ];
     }
+
+    // Redirecionar para a lista após salvar
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }

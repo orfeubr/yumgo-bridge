@@ -1,0 +1,255 @@
+const { ipcRenderer } = require('electron');
+
+// ===== ELEMENTOS DO DOM =====
+const statusIndicator = document.getElementById('statusIndicator');
+const configCard = document.getElementById('configCard');
+const printersCard = document.getElementById('printersCard');
+const ordersCard = document.getElementById('ordersCard');
+const ordersList = document.getElementById('ordersList');
+const connectBtn = document.getElementById('connectBtn');
+const disconnectBtn = document.getElementById('disconnectBtn');
+const restaurantIdInput = document.getElementById('restaurantId');
+const tokenInput = document.getElementById('token');
+const notificationSound = document.getElementById('notificationSound');
+
+// ===== CONEXÃO =====
+
+function connect() {
+    const restaurantId = restaurantIdInput.value.trim();
+    const token = tokenInput.value.trim();
+
+    if (!restaurantId || !token) {
+        alert('Por favor, preencha todos os campos');
+        return;
+    }
+
+    ipcRenderer.send('connect', { restaurantId, token });
+
+    connectBtn.disabled = true;
+    connectBtn.textContent = 'Conectando...';
+}
+
+function disconnect() {
+    if (confirm('Deseja realmente desconectar?')) {
+        ipcRenderer.send('disconnect');
+    }
+}
+
+// Restaurar configuração salva
+ipcRenderer.on('restore-config', (event, config) => {
+    restaurantIdInput.value = config.restaurantId || '';
+    tokenInput.value = config.token || '';
+});
+
+// Status de conexão
+ipcRenderer.on('status', (event, status) => {
+    const dot = statusIndicator.querySelector('.status-dot');
+    const text = statusIndicator.querySelector('span:last-child');
+
+    dot.className = 'status-dot';
+    connectBtn.disabled = false;
+
+    switch(status) {
+        case 'connected':
+            dot.classList.add('connected');
+            text.textContent = 'Conectado ✅';
+            connectBtn.classList.add('hidden');
+            disconnectBtn.classList.remove('hidden');
+            printersCard.classList.remove('hidden');
+            ordersCard.classList.remove('hidden');
+            break;
+
+        case 'disconnected':
+            dot.classList.add('disconnected');
+            text.textContent = 'Desconectado';
+            connectBtn.classList.remove('hidden');
+            connectBtn.textContent = 'Conectar';
+            disconnectBtn.classList.add('hidden');
+            break;
+
+        case 'reconnecting':
+            dot.classList.add('reconnecting');
+            text.textContent = 'Reconectando...';
+            break;
+
+        case 'error':
+            dot.classList.add('disconnected');
+            text.textContent = 'Erro de conexão';
+            connectBtn.textContent = 'Tentar novamente';
+            alert('Erro ao conectar. Verifique suas credenciais.');
+            break;
+    }
+});
+
+// ===== IMPRESSORAS =====
+
+function updatePrinterFields(location) {
+    const type = document.getElementById(`${location}Type`).value;
+    const fieldsDiv = document.getElementById(`${location}Fields`);
+
+    if (!type) {
+        fieldsDiv.innerHTML = '';
+        return;
+    }
+
+    if (type === 'usb') {
+        fieldsDiv.innerHTML = `
+            <div class="form-group">
+                <label>Vendor ID</label>
+                <input type="text" id="${location}VendorId" placeholder="Ex: 0x04b8">
+            </div>
+            <div class="form-group">
+                <label>Product ID</label>
+                <input type="text" id="${location}ProductId" placeholder="Ex: 0x0e15">
+            </div>
+            <button class="btn btn-secondary" onclick="findUSBPrinters('${location}')">
+                Buscar Impressoras USB
+            </button>
+        `;
+    } else if (type === 'network') {
+        fieldsDiv.innerHTML = `
+            <div class="form-group">
+                <label>Endereço IP</label>
+                <input type="text" id="${location}Ip" placeholder="Ex: 192.168.1.100">
+            </div>
+            <div class="form-group">
+                <label>Porta</label>
+                <input type="number" id="${location}Port" value="9100" placeholder="9100">
+            </div>
+        `;
+    }
+}
+
+async function findUSBPrinters(location) {
+    try {
+        const printers = await ipcRenderer.invoke('find-usb-printers');
+
+        if (printers.length === 0) {
+            alert('Nenhuma impressora USB encontrada');
+            return;
+        }
+
+        let message = 'Impressoras encontradas:\n\n';
+        printers.forEach((p, i) => {
+            message += `${i + 1}. Vendor ID: ${p.vendorId}, Product ID: ${p.productId}\n`;
+        });
+
+        alert(message);
+
+        // Preencher com a primeira impressora encontrada
+        if (printers[0]) {
+            document.getElementById(`${location}VendorId`).value = `0x${printers[0].vendorId.toString(16).padStart(4, '0')}`;
+            document.getElementById(`${location}ProductId`).value = `0x${printers[0].productId.toString(16).padStart(4, '0')}`;
+        }
+
+    } catch (error) {
+        alert('Erro ao buscar impressoras: ' + error.message);
+    }
+}
+
+function configurePrinter(location) {
+    const type = document.getElementById(`${location}Type`).value;
+
+    if (!type) {
+        alert('Selecione o tipo de impressora');
+        return;
+    }
+
+    let config = {
+        location: location,
+        type: type
+    };
+
+    if (type === 'usb') {
+        const vendorId = document.getElementById(`${location}VendorId`).value;
+        const productId = document.getElementById(`${location}ProductId`).value;
+
+        if (!vendorId || !productId) {
+            alert('Preencha Vendor ID e Product ID');
+            return;
+        }
+
+        config.vendorId = parseInt(vendorId);
+        config.productId = parseInt(productId);
+
+    } else if (type === 'network') {
+        const ip = document.getElementById(`${location}Ip`).value;
+        const port = document.getElementById(`${location}Port`).value;
+
+        if (!ip) {
+            alert('Preencha o endereço IP');
+            return;
+        }
+
+        config.ip = ip;
+        config.port = parseInt(port) || 9100;
+    }
+
+    ipcRenderer.send('configure-printer', config);
+}
+
+ipcRenderer.on('printer-configured', (event, result) => {
+    if (result.success) {
+        const statusEl = document.getElementById(`${result.location}Status`);
+        statusEl.textContent = 'Configurada ✓';
+        statusEl.className = 'printer-status configured';
+        alert(`Impressora ${result.location} configurada com sucesso!`);
+    } else {
+        alert(`Erro ao configurar impressora: ${result.error}`);
+    }
+});
+
+function testPrint(location) {
+    ipcRenderer.send('test-print', { location });
+}
+
+ipcRenderer.on('test-print-result', (event, result) => {
+    if (result.success) {
+        alert(result.message);
+    } else {
+        alert(`Erro no teste: ${result.error}`);
+    }
+});
+
+// ===== PEDIDOS =====
+
+ipcRenderer.on('new-order', (event, order) => {
+    // Adicionar pedido na lista
+    const orderEl = document.createElement('div');
+    orderEl.className = 'order-item';
+    orderEl.innerHTML = `
+        <strong>Pedido #${order.order_number}</strong><br>
+        Cliente: ${order.customer.name}<br>
+        Total: R$ ${order.totals.total.toFixed(2)}<br>
+        <small>${new Date(order.created_at).toLocaleString('pt-BR')}</small>
+    `;
+
+    // Remover mensagem "Nenhum pedido"
+    if (ordersList.children.length === 1 && ordersList.children[0].tagName === 'P') {
+        ordersList.innerHTML = '';
+    }
+
+    ordersList.insertBefore(orderEl, ordersList.firstChild);
+
+    // Limitar a 10 pedidos
+    if (ordersList.children.length > 10) {
+        ordersList.removeChild(ordersList.lastChild);
+    }
+});
+
+ipcRenderer.on('print-error', (event, data) => {
+    alert(`Erro ao imprimir pedido #${data.order_id}: ${data.error}`);
+});
+
+// Tocar som de notificação
+ipcRenderer.on('play-sound', () => {
+    notificationSound.play().catch(err => {
+        console.error('Erro ao tocar som:', err);
+    });
+});
+
+// ===== INICIALIZAÇÃO =====
+
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('YumGo Bridge iniciado');
+});

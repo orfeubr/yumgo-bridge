@@ -589,7 +589,7 @@
                                 <span x-show="selectedCity && !loadingNeighborhoods">Selecione o bairro</span>
                             </option>
                             <template x-for="neighborhood in availableNeighborhoods" :key="neighborhood.id">
-                                <option :value="neighborhood.name" x-text="`${neighborhood.name} - R$ ${parseFloat(neighborhood.delivery_fee).toFixed(2).replace('.', ',')}`"></option>
+                                <option :value="neighborhood.name" x-text="neighborhood.name"></option>
                             </template>
                         </select>
                     </div>

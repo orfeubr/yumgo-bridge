@@ -40,17 +40,17 @@ class SettingsResource extends Resource
                                             ->label('Logo')
                                             ->image()
                                             ->directory('logos')
-                                            ->imageEditor()
-                                            ->imageEditorAspectRatios(['1:1'])
-                                            ->helperText('Tamanho recomendado: 512x512px'),
+                                            ->helperText('Tamanho recomendado: 512x512px (formato: JPG, PNG)')
+                                            ->maxSize(2048)
+                                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/jpg']),
 
                                         Forms\Components\FileUpload::make('banner')
                                             ->label('Banner')
                                             ->image()
                                             ->directory('banners')
-                                            ->imageEditor()
-                                            ->imageEditorAspectRatios(['16:9'])
-                                            ->helperText('Tamanho recomendado: 1920x1080px'),
+                                            ->helperText('Tamanho recomendado: 1920x1080px (formato: JPG, PNG)')
+                                            ->maxSize(2048)
+                                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/jpg']),
                                     ])->columns(2),
 
                                 Forms\Components\Section::make('Cores do Tema')

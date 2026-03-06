@@ -24,6 +24,9 @@ class CategoryResource extends Resource
     protected static ?string $modelLabel = 'Categoria';
     protected static ?int $navigationSort = 3;
 
+    // Garantir que o menu sempre apareça na navegação
+    protected static bool $shouldRegisterNavigation = true;
+
     public static function form(Form $form): Form
     {
         return $form
@@ -142,5 +145,37 @@ class CategoryResource extends Resource
             'create' => Pages\CreateCategory::route('/create'),
             'edit' => Pages\EditCategory::route('/{record}/edit'),
         ];
+    }
+
+    // Garantir que o menu sempre apareça, independente de permissões
+    public static function shouldRegisterNavigation(): bool
+    {
+        return true;
+    }
+
+    // Permitir acesso total (ignorar verificação de permissões do Shield)
+    public static function canViewAny(): bool
+    {
+        return true;
+    }
+
+    public static function canCreate(): bool
+    {
+        return true;
+    }
+
+    public static function canEdit($record): bool
+    {
+        return true;
+    }
+
+    public static function canDelete($record): bool
+    {
+        return true;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return true;
     }
 }

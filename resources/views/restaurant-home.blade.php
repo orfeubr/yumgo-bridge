@@ -243,6 +243,41 @@
     </script>
 </head>
 <body class="bg-gray-50 min-h-screen" x-data="restaurantApp()">
+
+    <!-- 🔄 Loading Screen Animado -->
+    <div x-show="pageLoading" x-cloak x-transition.opacity class="fixed inset-0 bg-white z-[99999] flex items-center justify-center">
+        <div class="text-center">
+            <!-- Animação de Moto de Delivery -->
+            <div class="relative w-32 h-32 mx-auto mb-6">
+                <!-- Moto animada -->
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <svg class="w-24 h-24 text-red-500 animate-bounce" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2L14 8H18L14.5 11L16 16L12 13L8 16L9.5 11L6 8H10L12 2Z"/>
+                        <circle cx="8" cy="18" r="2" class="animate-spin" style="transform-origin: center;"/>
+                        <circle cx="16" cy="18" r="2" class="animate-spin" style="transform-origin: center;"/>
+                    </svg>
+                </div>
+
+                <!-- Prato com comida girando -->
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <div class="w-20 h-20 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                        <span class="text-4xl animate-spin" style="animation-duration: 2s;">🍽️</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Texto com pontos animados -->
+            <div class="space-y-2">
+                <h3 class="text-2xl font-bold text-gray-800">Preparando seu cardápio</h3>
+                <div class="flex items-center justify-center gap-1">
+                    <div class="w-2 h-2 bg-red-500 rounded-full animate-bounce" style="animation-delay: 0s;"></div>
+                    <div class="w-2 h-2 bg-red-500 rounded-full animate-bounce" style="animation-delay: 0.2s;"></div>
+                    <div class="w-2 h-2 bg-red-500 rounded-full animate-bounce" style="animation-delay: 0.4s;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Header -->
     <header class="bg-white sticky top-0 z-50 shadow-md">
         <div class="max-w-7xl mx-auto px-3 py-3">
@@ -776,6 +811,20 @@
         </div>
     </div>
 
+    <!-- Aviso de Fechado (Discreto) -->
+    @if(!$isOpen)
+    <div class="bg-gray-100 border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-3 py-2 text-center">
+            <p class="text-sm text-gray-600">
+                🕐 Estamos fechados no momento
+                @if($openTime && $closeTime)
+                    • Abrimos às {{ $openTime }}
+                @endif
+            </p>
+        </div>
+    </div>
+    @endif
+
     <!-- Info Banner + Categorias (estilo iFood - INLINE e STICKY) -->
     <div class="sticky-info-banner bg-white border-b border-gray-200 shadow-sm">
         <div class="max-w-7xl mx-auto px-3 py-3">
@@ -854,25 +903,27 @@
                         class="bg-white rounded-lg border border-gray-200 overflow-hidden {{ !$isAvailable ? 'opacity-60' : '' }}">
 
                         <!-- Container Horizontal -->
-                        <div class="flex gap-3 p-3"
+                        <div class="flex gap-3 p-3 {{ !$isOpen ? 'pointer-events-none' : 'cursor-pointer' }}"
+                            @if($isOpen)
                             @click="openProductModal({
                                 id: {{ $product->id }},
                                 name: '{{ addslashes($product->name) }}',
                                 description: '{{ addslashes($product->description ?? '') }}',
                                 price: {{ $product->price }},
-                                image: {{ $product->image ? json_encode($product->image) : 'null' }},
+                                image: {{ $product->image ? json_encode(str_starts_with($product->image, 'http') ? $product->image : '/storage/' . $product->image) : 'null' }},
                                 isPizza: {{ $product->is_pizza ? 'true' : 'false' }},
                                 hasVariations: {{ $product->variations && $product->variations->count() > 0 ? 'true' : 'false' }},
                                 variations: {{ $product->variations && $product->variations->count() > 0 ? json_encode($product->variations->map(fn($v) => ['id' => $v->id, 'name' => $v->name, 'price' => $v->price])->toArray()) : '[]' }}
-                            })">
+                            })"
+                            @endif>
 
                             <!-- Imagem (Esquerda - Tamanho Fixo) -->
                             <div class="relative w-24 h-24 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
                                 @if($product->image)
                                     <img
-                                        src="{{ str_starts_with($product->image, 'http') ? $product->image : route('stancl.tenancy.asset', ['path' => $product->image]) }}"
+                                        src="{{ str_starts_with($product->image, 'http') ? $product->image : '/storage/' . $product->image }}"
                                         alt="{{ $product->name }}"
-                                        class="w-full h-full object-cover"
+                                        class="w-full h-full object-cover {{ !$isOpen ? 'grayscale opacity-60' : '' }}"
                                         loading="lazy">
                                 @else
                                 @php
@@ -909,22 +960,22 @@
                                     <img
                                         src="{{ $defaultImage }}"
                                         alt="{{ $product->name }}"
-                                        class="w-full h-full object-cover"
+                                        class="w-full h-full object-cover {{ !$isOpen ? 'grayscale opacity-60' : '' }}"
                                         loading="lazy">
                                 @endif
 
-                                @if($product->is_featured)
+                                @if($product->is_featured && $isOpen)
                                     <span class="absolute top-1 right-1 px-1.5 py-0.5 bg-yellow-400 text-yellow-900 text-xs font-bold rounded">⭐</span>
                                 @endif
                             </div>
 
                             <!-- Conteúdo (Direita) -->
-                            <div class="flex-1 flex flex-col justify-between min-w-0">
+                            <div class="flex-1 flex flex-col justify-between min-w-0 {{ !$isOpen ? 'opacity-60' : '' }}">
                                 <div class="mb-2">
-                                    <h4 class="font-semibold text-base mb-1 text-gray-900 line-clamp-1">{{ $product->name }}</h4>
+                                    <h4 class="font-semibold text-base mb-1 {{ !$isOpen ? 'text-gray-500' : 'text-gray-900' }} line-clamp-1">{{ $product->name }}</h4>
 
                                     @if($product->description)
-                                        <p class="text-sm text-gray-600 line-clamp-2">{{ $product->description }}</p>
+                                        <p class="text-sm {{ !$isOpen ? 'text-gray-400' : 'text-gray-600' }} line-clamp-2">{{ $product->description }}</p>
                                     @endif
                                 </div>
 
@@ -944,8 +995,8 @@
                                                 {{ json_encode($product->variations->map(fn($v) => ['id' => $v->id, 'name' => $v->name, 'price' => $v->price])->toArray()) }},
                                                 {{ json_encode($product->image) }}
                                             )"
-                                            {{ !$isAvailable ? 'disabled' : '' }}
-                                            class="w-9 h-9 bg-red-500 text-white font-bold text-xl rounded-full flex items-center justify-center {{ !$isAvailable ? 'opacity-50' : '' }}">
+                                            {{ (!$isAvailable || !$isOpen) ? 'disabled' : '' }}
+                                            class="w-9 h-9 bg-red-500 text-white font-bold text-xl rounded-full flex items-center justify-center {{ (!$isAvailable || !$isOpen) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-600' }}">
                                             +
                                         </button>
                                     </div>
@@ -957,15 +1008,15 @@
                                         @if($product->is_pizza)
                                             <button
                                                 @click.stop="openPizzaModal({{ $product->id }}, '{{ addslashes($product->name) }}', {{ $product->price }})"
-                                                {{ !$isAvailable ? 'disabled' : '' }}
-                                                class="w-9 h-9 bg-red-500 text-white font-bold text-xl rounded-full flex items-center justify-center {{ !$isAvailable ? 'opacity-50' : '' }}">
+                                                {{ (!$isAvailable || !$isOpen) ? 'disabled' : '' }}
+                                                class="w-9 h-9 bg-red-500 text-white font-bold text-xl rounded-full flex items-center justify-center {{ (!$isAvailable || !$isOpen) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-600' }}">
                                                 +
                                             </button>
                                         @else
                                             <button
                                                 @click.stop="addToCart({id:{{ $product->id }},name:'{{ addslashes($product->name) }}',price:{{ $product->price }}})"
-                                                {{ !$isAvailable ? 'disabled' : '' }}
-                                                class="w-9 h-9 bg-red-500 text-white font-bold text-xl rounded-full flex items-center justify-center {{ !$isAvailable ? 'opacity-50' : '' }}">
+                                                {{ (!$isAvailable || !$isOpen) ? 'disabled' : '' }}
+                                                class="w-9 h-9 bg-red-500 text-white font-bold text-xl rounded-full flex items-center justify-center {{ (!$isAvailable || !$isOpen) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-600' }}">
                                                 +
                                             </button>
                                         @endif
@@ -995,6 +1046,14 @@
                             <p class="text-lg font-black bg-gradient-to-r from-red-600 to-red-600 bg-clip-text text-transparent">{{ $openTime }} - {{ $closeTime }}</p>
                         </div>
                     @endif
+                @elseif($emptyReason === 'no_weekly_menu')
+                    {{-- Cardápio semanal não configurado --}}
+                    <div class="w-20 h-20 bg-gradient-to-br from-yellow-100 to-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-10 h-10 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                    </div>
+                    <h3 class="text-xl font-black text-gray-800 mb-2">⚙️ Cardápio em Configuração</h3>
+                    <p class="text-gray-600 text-sm mb-4">Estamos preparando nosso cardápio especial para você!</p>
+                    <p class="text-gray-500 text-xs">Em breve você poderá fazer pedidos. Volte em alguns instantes! 🎉</p>
                 @elseif($emptyReason === 'no_menu')
                     {{-- Cardápio não cadastrado para hoje --}}
                     <div class="w-20 h-20 bg-gradient-to-br from-red-100 to-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1366,6 +1425,41 @@
                     </div>
                 </template>
             </div>
+
+            <!-- Sugestão "Compre Junto" -->
+            <template x-if="cart.length > 0 && suggestedProductsForCart.length > 0">
+                <div class="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-2xl">🛒</span>
+                        <div>
+                            <h4 class="font-semibold text-gray-900 text-sm">Compre Junto</h4>
+                            <p class="text-xs text-gray-600">Complete seu pedido</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <template x-for="product in suggestedProductsForCart.slice(0, 6)" :key="product.id">
+                            <button
+                                @click="addToCart({id:product.id,name:product.name,price:product.price}); showToastNotification(product.name + ' adicionado!')"
+                                class="flex items-center gap-2 p-2 bg-white border border-gray-200 rounded-lg hover:border-amber-400 hover:bg-amber-50 transition text-left">
+                                <img
+                                    x-show="product.image"
+                                    :src="product.image"
+                                    :alt="product.name"
+                                    class="w-10 h-10 object-cover rounded">
+                                <div
+                                    x-show="!product.image"
+                                    class="w-10 h-10 bg-amber-100 rounded flex items-center justify-center text-lg">
+                                    🍴
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs font-medium text-gray-900 truncate" x-text="product.name"></p>
+                                    <p class="text-xs text-gray-600" x-text="'R$ ' + product.price.toFixed(2).replace('.', ',')"></p>
+                                </div>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </template>
         </div>
         <!-- Rodapé do Carrinho - Clean -->
         <div class="p-4 bg-white border-t border-gray-200">
@@ -1423,6 +1517,7 @@
             pageLoading:true,
             cart:[],
             showCart:false,
+            suggestedProductsForCart: [],
             searchQuery:'',
             selectedCategory:null,
             pizzaData: window.pizzaData || {},
@@ -1532,10 +1627,36 @@
                 this.$watch('cart', value => {
                     localStorage.setItem('yumgo_cart', JSON.stringify(value));
                     console.log('Carrinho salvo:', value);
+                    this.loadSuggestedProducts();
                 });
+
+                // Carregar sugestões iniciais
+                this.loadSuggestedProducts();
 
                 // Finalizar loading
                 setTimeout(() => { this.pageLoading = false; }, 300);
+            },
+
+            async loadSuggestedProducts() {
+                if (this.cart.length === 0) {
+                    this.suggestedProductsForCart = [];
+                    return;
+                }
+
+                // Pegar IDs dos produtos no carrinho
+                const productIds = this.cart.map(item => item.id);
+                const cartProductIds = productIds;
+
+                try {
+                    const response = await fetch(`/api/v1/products/suggestions?product_ids=${productIds.join(',')}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        // Filtrar produtos que já estão no carrinho
+                        this.suggestedProductsForCart = data.filter(p => !cartProductIds.includes(p.id));
+                    }
+                } catch (error) {
+                    console.error('Erro ao carregar produtos sugeridos:', error);
+                }
             },
             checkAuth(){
                 const token = localStorage.getItem('auth_token');

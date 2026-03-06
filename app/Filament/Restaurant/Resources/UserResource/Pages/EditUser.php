@@ -13,7 +13,19 @@ class EditUser extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            Actions\DeleteAction::make()
+                ->requiresConfirmation()
+                ->modalDescription('Tem certeza que deseja deletar este usuário? Esta ação não pode ser desfeita.'),
         ];
+    }
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
+
+    protected function getSavedNotificationTitle(): ?string
+    {
+        return 'Usuário atualizado com sucesso!';
     }
 }

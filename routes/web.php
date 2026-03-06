@@ -52,13 +52,25 @@ Route::get('/', function (Illuminate\Http\Request $request) {
     return app(\App\Http\Controllers\RestaurantHomeController::class)->index();
 });
 
-// Página de planos e preços
+// Landing page para restaurantes (marketing/vendas)
+Route::get('/para-restaurantes', [\App\Http\Controllers\MarketplaceController::class, 'paraRestaurantes'])
+    ->name('para-restaurantes');
+
+// Fluxo de cadastro de restaurantes
+Route::get('/cadastro', [\App\Http\Controllers\SignupController::class, 'index'])
+    ->name('signup.index');
+Route::post('/cadastro', [\App\Http\Controllers\SignupController::class, 'store'])
+    ->name('signup.store');
+Route::get('/cadastro/sucesso/{slug}', [\App\Http\Controllers\SignupController::class, 'success'])
+    ->name('signup.success');
+
+// Página de planos e preços (legado - redireciona)
 Route::get('/planos', [\App\Http\Controllers\MarketplaceController::class, 'pricing'])
     ->name('pricing');
 
-// Página seja parceiro (redireciona para planos por enquanto)
+// Página seja parceiro (redireciona para landing page)
 Route::get('/parceiro', function () {
-    return redirect('/planos');
+    return redirect('/para-restaurantes');
 })->name('partner');
 
 // Rota para lista de restaurantes (legacy - redireciona para home)

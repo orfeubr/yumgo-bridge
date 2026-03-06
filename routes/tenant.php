@@ -174,6 +174,7 @@ Route::prefix('api/v1')->middleware([
     Route::get('/products/category/{categoryId}', [ProductController::class, 'byCategory'])->middleware('throttle:60,1'); // 60 req/min
     Route::get('/products/featured', [ProductController::class, 'featured'])->middleware('throttle:60,1'); // 60 req/min
     Route::get('/products/pizza/flavors', [ProductController::class, 'pizzaFlavors'])->middleware('throttle:60,1'); // 60 req/min
+    Route::get('/products/suggestions', [ProductController::class, 'suggestions'])->middleware('throttle:60,1'); // 60 req/min - Compre Junto
 
     // Configurações (público) (🔒 RATE LIMITED)
     Route::get('/settings', [SettingsController::class, 'index'])->middleware('throttle:60,1'); // 60 req/min

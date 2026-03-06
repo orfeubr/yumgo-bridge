@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Resources;
 
 use App\Filament\Admin\Resources\TenantResource\Pages;
+use App\Filament\Admin\Resources\TenantResource\RelationManagers;
 use App\Models\Tenant;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -162,28 +163,19 @@ class TenantResource extends Resource
                 Forms\Components\Section::make('Gateway de Pagamento')
                     ->schema([
                         Forms\Components\Select::make('payment_gateway')
-                            ->label('Gateway Ativo')
+                            ->label('Gateway de Pagamento')
                             ->options([
-                                'pagarme' => 'Pagar.me (Recomendado)',
-                                'asaas' => 'Asaas (Legado)',
+                                'pagarme' => 'Pagar.me',
                             ])
                             ->default('pagarme')
                             ->required()
-                            ->helperText('Escolha qual gateway será usado para processar pagamentos'),
+                            ->helperText('Gateway usado para processar pagamentos'),
 
                         Forms\Components\TextInput::make('pagarme_recipient_id')
                             ->label('ID do Recebedor Pagar.me')
                             ->helperText('Será preenchido automaticamente após criar recebedor')
                             ->disabled()
-                            ->dehydrated(true)
-                            ->visible(fn (Forms\Get $get) => $get('payment_gateway') === 'pagarme'),
-
-                        Forms\Components\TextInput::make('asaas_account_id')
-                            ->label('ID da Conta Asaas (Legado)')
-                            ->helperText('Mantido por compatibilidade')
-                            ->disabled()
-                            ->dehydrated(true)
-                            ->visible(fn (Forms\Get $get) => $get('payment_gateway') === 'asaas'),
+                            ->dehydrated(true),
 
                         Forms\Components\Grid::make(3)
                             ->schema([
@@ -334,7 +326,7 @@ class TenantResource extends Resource
                     ->dateTime('d/m/Y')
                     ->sortable()
                     ->toggleable()
-                    ->visible(fn ($record) => $record->status === 'trial'),
+                    ->visible(fn ($record) => $record && $record->status === 'trial'),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Criado em')
@@ -377,7 +369,9 @@ class TenantResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            // Temporariamente desabilitado devido a conflito com multi-tenancy cross-schema
+            // Usuários devem ser gerenciados pelo painel do restaurante: {slug}.yumgo.com.br/painel/users
+            // RelationManagers\UsersRelationManager::class,
         ];
     }
 
