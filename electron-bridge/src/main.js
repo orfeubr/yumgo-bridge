@@ -17,6 +17,7 @@ const isDev = process.argv.includes('--dev');
 // Estado global
 let mainWindow;
 let tray;
+let trayMenu;  // FIX: Armazenar referência ao menu
 let echo;
 let printerManager;
 let isConnected = false;
@@ -79,7 +80,8 @@ function createTray() {
     const icon = nativeImage.createFromPath(path.join(__dirname, '../assets/icon.png'));
     tray = new Tray(icon.resize({ width: 16, height: 16 }));
 
-    const contextMenu = Menu.buildFromTemplate([
+    // FIX: Armazenar menu para poder atualizá-lo depois
+    trayMenu = Menu.buildFromTemplate([
         {
             label: 'Abrir YumGo Bridge',
             click: () => {
@@ -101,7 +103,7 @@ function createTray() {
         }
     ]);
 
-    tray.setContextMenu(contextMenu);
+    tray.setContextMenu(trayMenu);
     tray.setToolTip('YumGo Bridge - Impressão Local');
 
     tray.on('click', () => {
@@ -110,10 +112,10 @@ function createTray() {
 }
 
 function updateTrayStatus(connected) {
-    if (!tray) return;
+    if (!tray || !trayMenu) return;
 
-    const contextMenu = tray.getContextMenu();
-    const statusItem = contextMenu.getMenuItemById('status');
+    // FIX: Usar trayMenu armazenado ao invés de getContextMenu()
+    const statusItem = trayMenu.getMenuItemById('status');
 
     if (statusItem) {
         statusItem.label = connected
