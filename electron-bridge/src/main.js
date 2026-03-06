@@ -689,14 +689,20 @@ ipcMain.handle('find-usb-printers', async () => {
 ipcMain.handle('find-system-printers', async () => {
     try {
         log.info('🔍 Buscando impressoras instaladas no sistema...');
+        console.log('DEBUG: find-system-printers called');
+        console.log('DEBUG: mainWindow exists?', !!mainWindow);
+        console.log('DEBUG: mainWindow.webContents exists?', !!(mainWindow && mainWindow.webContents));
 
         if (!mainWindow || !mainWindow.webContents) {
             log.warn('⚠️ MainWindow não disponível');
+            console.error('ERROR: MainWindow ou webContents não disponível!');
             return [];
         }
 
         // Electron API nativa - lista TODAS impressoras do SO
+        console.log('DEBUG: Calling getPrinters()...');
         const printers = mainWindow.webContents.getPrinters();
+        console.log('DEBUG: getPrinters() returned:', printers);
 
         log.info(`✅ Encontradas ${printers.length} impressora(s) no sistema`);
 
