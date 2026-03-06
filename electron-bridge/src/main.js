@@ -2,7 +2,10 @@ const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage } = require('electr
 const path = require('path');
 const Store = require('electron-store');
 const log = require('electron-log');
-const Pusher = require('pusher-js');
+
+// FIX: Pusher precisa estar disponível globalmente para Laravel Echo
+global.Pusher = require('pusher-js');
+
 const Echo = require('laravel-echo').default;  // FIX: ES6 default export
 const axios = require('axios');
 const ThermalPrinter = require('./printer');

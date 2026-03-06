@@ -1,7 +1,7 @@
 {
   "name": "yumgo-bridge",
   "productName": "YumGo Bridge",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "App local para impressão automática de pedidos YumGo",
   "main": "src/main.js",
   "author": "YumGo",
