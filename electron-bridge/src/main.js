@@ -178,6 +178,8 @@ function connectWebSocket(restaurantId, token) {
 
         let pusherClient;
         try {
+            // FIX: Em Node.js/Electron, não especificar enabledTransports
+            // Deixar o Pusher escolher automaticamente o melhor transporte
             pusherClient = new global.Pusher('t9pg2dslmpl5y1cp6rrf', {
                 wsHost: wsHost,
                 wsPort: wsPort,
@@ -185,7 +187,7 @@ function connectWebSocket(restaurantId, token) {
                 forceTLS: !isDev,
                 encrypted: !isDev,
                 disableStats: true,
-                enabledTransports: isDev ? ['ws'] : ['wss'],
+                // REMOVIDO enabledTransports - Pusher-JS Node escolhe automaticamente
                 cluster: 'mt1',  // Obrigatório para Pusher-JS, ignorado com wsHost
             });
 
