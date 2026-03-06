@@ -132,13 +132,21 @@ function connectWebSocket(restaurantId, token) {
     currentToken = token;
     currentRestaurantId = restaurantId;
 
-    log.info(`Conectando ao servidor... Restaurant ID: ${restaurantId}`);
+    log.info(`🔵 Conectando ao servidor... Restaurant ID: ${restaurantId}`);
+    log.info(`Token: ${token.substring(0, 20)}...`);
 
     // Configurar URLs baseado no ambiente
     const baseUrl = isDev ? 'http://localhost:8000' : 'https://yumgo.com.br';
     const wsHost = isDev ? 'localhost' : 'ws.yumgo.com.br';  // Subdomínio WebSocket via Nginx SSL
     const wsPort = isDev ? 8081 : 443;  // HTTPS/443 em produção
     const wsPath = '';  // Empty - Pusher adds /app/{key} automatically
+
+    log.info(`📡 Configuração WebSocket:`);
+    log.info(`   - baseUrl: ${baseUrl}`);
+    log.info(`   - wsHost: ${wsHost}`);
+    log.info(`   - wsPort: ${wsPort}`);
+    log.info(`   - wsPath: "${wsPath}"`);
+    log.info(`   - isDev: ${isDev}`);
 
     try {
         // Configurar Laravel Echo com Pusher/Reverb
