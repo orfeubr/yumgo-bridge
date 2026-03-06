@@ -74,9 +74,9 @@ ipcRenderer.on('status', (event, status) => {
 
         case 'error':
             dot.classList.add('disconnected');
-            text.textContent = 'Erro de conexão';
+            text.textContent = 'Erro de conexão - Verifique as credenciais';
             connectBtn.textContent = 'Tentar novamente';
-            alert('Erro ao conectar. Verifique suas credenciais.');
+            // Removido alert infinito - mensagem está no status
             break;
     }
 });
