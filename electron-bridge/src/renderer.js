@@ -14,6 +14,35 @@ const notificationSound = document.getElementById('notificationSound');
 
 // ===== CONEXÃO =====
 
+async function pasteRestaurantId() {
+    try {
+        const text = await navigator.clipboard.readText();
+        restaurantIdInput.value = text.trim();
+        alert('ID do restaurante colado com sucesso!');
+    } catch (err) {
+        alert('Erro ao colar: ' + err.message + '\n\nTente usar Ctrl+V manualmente.');
+    }
+}
+
+async function pasteToken() {
+    try {
+        const text = await navigator.clipboard.readText();
+        tokenInput.value = text.trim();
+        alert('Token colado com sucesso!');
+    } catch (err) {
+        alert('Erro ao colar: ' + err.message + '\n\nTente usar Ctrl+V manualmente.');
+    }
+}
+
+function toggleTokenVisibility() {
+    const type = tokenInput.getAttribute('type');
+    if (type === 'password') {
+        tokenInput.setAttribute('type', 'text');
+    } else {
+        tokenInput.setAttribute('type', 'password');
+    }
+}
+
 function connect() {
     const restaurantId = restaurantIdInput.value.trim();
     const token = tokenInput.value.trim();
