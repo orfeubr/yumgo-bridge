@@ -156,16 +156,16 @@ function connectWebSocket(restaurantId, token) {
     try {
         // Configurar Laravel Echo com Pusher/Reverb
         echo = new Echo({
-            broadcaster: 'reverb',
+            broadcaster: 'pusher',  // FIX: Use 'pusher' mesmo com Reverb
             key: 't9pg2dslmpl5y1cp6rrf',  // REVERB_APP_KEY from .env
             wsHost: wsHost,
             wsPort: wsPort,
             wssPort: wsPort,
-            wsPath: wsPath,
             forceTLS: !isDev,  // TLS em produção via Nginx HTTPS
             encrypted: !isDev,
             disableStats: true,
             enabledTransports: isDev ? ['ws'] : ['wss'],  // WSS em produção
+            cluster: '',  // FIX: String vazia para Reverb/servidor próprio
             authEndpoint: `${baseUrl}/api/broadcasting/auth`,
             auth: {
                 headers: {
