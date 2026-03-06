@@ -148,7 +148,82 @@ function updatePrinterFields(location) {
             <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 12px; color: #666;">
                 💡 <strong>Dica:</strong> Conecte sua impressora USB e clique em "Buscar" para detectar automaticamente.
             </div>
+
+            <!-- ==================== CONFIGURAÇÕES AVANÇADAS v1.7.0 ==================== -->
+            <div style="margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 6px;">
+                <h4 style="margin-top: 0; margin-bottom: 15px; color: #333; font-size: 14px;">⚙️ Configurações Avançadas</h4>
+
+                <!-- Número de cópias -->
+                <div class="form-group">
+                    <label>📋 Número de cópias</label>
+                    <select id="${location}Copies" style="width: 100%; padding: 8px;">
+                        <option value="1">1 via</option>
+                        <option value="2" selected>2 vias</option>
+                        <option value="3">3 vias</option>
+                        <option value="4">4 vias</option>
+                    </select>
+                    <small style="color: #666;">Ex: 1 para cozinha, 1 para entregador</small>
+                </div>
+
+                <!-- Largura do papel -->
+                <div class="form-group">
+                    <label>📏 Largura do papel</label>
+                    <select id="${location}PaperWidth" style="width: 100%; padding: 8px;">
+                        <option value="58">58mm (compacto)</option>
+                        <option value="80" selected>80mm (padrão)</option>
+                    </select>
+                    <small style="color: #666;">Verifique a largura da bobina de papel</small>
+                </div>
+
+                <!-- Tamanho da fonte -->
+                <div class="form-group">
+                    <label>🔤 Tamanho da fonte</label>
+                    <select id="${location}FontSize" style="width: 100%; padding: 8px;">
+                        <option value="small">Pequeno (mais conteúdo)</option>
+                        <option value="normal" selected>Normal (recomendado)</option>
+                        <option value="large">Grande (melhor legibilidade)</option>
+                    </select>
+                </div>
+
+                <!-- Imprimir logo -->
+                <div class="form-group">
+                    <label>🖼️ Imprimir logo do restaurante</label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="${location}PrintLogo" style="width: auto; margin: 0;">
+                        <label for="${location}PrintLogo" style="margin: 0; font-weight: normal;">Sim, imprimir logo no topo do cupom</label>
+                    </div>
+                    <div id="${location}LogoPathDiv" style="margin-top: 10px; display: none;">
+                        <input type="text" id="${location}LogoPath" placeholder="Caminho da imagem (PNG/JPG)" style="width: 100%; padding: 8px;" readonly>
+                        <button class="btn btn-secondary" onclick="selectLogo('${location}')" style="margin-top: 5px; font-size: 12px;">
+                            📁 Selecionar Logo
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Remover acentos -->
+                <div class="form-group">
+                    <label>✂️ Remover acentos</label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="${location}RemoveAccents" style="width: auto; margin: 0;">
+                        <label for="${location}RemoveAccents" style="margin: 0; font-weight: normal;">Sim (para impressoras antigas sem suporte UTF-8)</label>
+                    </div>
+                    <small style="color: #666;">Ex: "São Paulo" vira "Sao Paulo"</small>
+                </div>
+            </div>
         `;
+
+        // Event listener para mostrar/ocultar seleção de logo
+        setTimeout(() => {
+            const printLogoCheckbox = document.getElementById(`${location}PrintLogo`);
+            const logoPathDiv = document.getElementById(`${location}LogoPathDiv`);
+
+            if (printLogoCheckbox && logoPathDiv) {
+                printLogoCheckbox.addEventListener('change', function() {
+                    logoPathDiv.style.display = this.checked ? 'block' : 'none';
+                });
+            }
+        }, 100);
+
     } else if (type === 'network') {
         fieldsDiv.innerHTML = `
             <div class="form-group">
@@ -159,7 +234,81 @@ function updatePrinterFields(location) {
                 <label>Porta</label>
                 <input type="number" id="${location}Port" value="9100" placeholder="9100">
             </div>
+
+            <!-- ==================== CONFIGURAÇÕES AVANÇADAS v1.7.0 ==================== -->
+            <div style="margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 6px;">
+                <h4 style="margin-top: 0; margin-bottom: 15px; color: #333; font-size: 14px;">⚙️ Configurações Avançadas</h4>
+
+                <!-- Número de cópias -->
+                <div class="form-group">
+                    <label>📋 Número de cópias</label>
+                    <select id="${location}Copies" style="width: 100%; padding: 8px;">
+                        <option value="1">1 via</option>
+                        <option value="2" selected>2 vias</option>
+                        <option value="3">3 vias</option>
+                        <option value="4">4 vias</option>
+                    </select>
+                    <small style="color: #666;">Ex: 1 para cozinha, 1 para entregador</small>
+                </div>
+
+                <!-- Largura do papel -->
+                <div class="form-group">
+                    <label>📏 Largura do papel</label>
+                    <select id="${location}PaperWidth" style="width: 100%; padding: 8px;">
+                        <option value="58">58mm (compacto)</option>
+                        <option value="80" selected>80mm (padrão)</option>
+                    </select>
+                    <small style="color: #666;">Verifique a largura da bobina de papel</small>
+                </div>
+
+                <!-- Tamanho da fonte -->
+                <div class="form-group">
+                    <label>🔤 Tamanho da fonte</label>
+                    <select id="${location}FontSize" style="width: 100%; padding: 8px;">
+                        <option value="small">Pequeno (mais conteúdo)</option>
+                        <option value="normal" selected>Normal (recomendado)</option>
+                        <option value="large">Grande (melhor legibilidade)</option>
+                    </select>
+                </div>
+
+                <!-- Imprimir logo -->
+                <div class="form-group">
+                    <label>🖼️ Imprimir logo do restaurante</label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="${location}PrintLogo" style="width: auto; margin: 0;">
+                        <label for="${location}PrintLogo" style="margin: 0; font-weight: normal;">Sim, imprimir logo no topo do cupom</label>
+                    </div>
+                    <div id="${location}LogoPathDiv" style="margin-top: 10px; display: none;">
+                        <input type="text" id="${location}LogoPath" placeholder="Caminho da imagem (PNG/JPG)" style="width: 100%; padding: 8px;" readonly>
+                        <button class="btn btn-secondary" onclick="selectLogo('${location}')" style="margin-top: 5px; font-size: 12px;">
+                            📁 Selecionar Logo
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Remover acentos -->
+                <div class="form-group">
+                    <label>✂️ Remover acentos</label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="${location}RemoveAccents" style="width: auto; margin: 0;">
+                        <label for="${location}RemoveAccents" style="margin: 0; font-weight: normal;">Sim (para impressoras antigas sem suporte UTF-8)</label>
+                    </div>
+                    <small style="color: #666;">Ex: "São Paulo" vira "Sao Paulo"</small>
+                </div>
+            </div>
         `;
+
+        // Event listener para mostrar/ocultar seleção de logo
+        setTimeout(() => {
+            const printLogoCheckbox = document.getElementById(`${location}PrintLogo`);
+            const logoPathDiv = document.getElementById(`${location}LogoPathDiv`);
+
+            if (printLogoCheckbox && logoPathDiv) {
+                printLogoCheckbox.addEventListener('change', function() {
+                    logoPathDiv.style.display = this.checked ? 'block' : 'none';
+                });
+            }
+        }, 100);
     }
 }
 
@@ -226,6 +375,21 @@ function selectPrinter(location) {
     console.log(`Product ID: 0x${printer.productId.toString(16).padStart(4, '0')}`);
 }
 
+// Função para selecionar logo (v1.7.0)
+async function selectLogo(location) {
+    try {
+        const result = await ipcRenderer.invoke('select-logo-file');
+
+        if (result.filePath) {
+            document.getElementById(`${location}LogoPath`).value = result.filePath;
+            console.log(`Logo selecionado: ${result.filePath}`);
+        }
+
+    } catch (error) {
+        alert('Erro ao selecionar logo: ' + error.message);
+    }
+}
+
 function configurePrinter(location) {
     const type = document.getElementById(`${location}Type`).value;
 
@@ -244,12 +408,52 @@ function configurePrinter(location) {
         const productId = document.getElementById(`${location}ProductId`).value;
 
         if (!vendorId || !productId) {
-            alert('Preencha Vendor ID e Product ID');
+            alert('Busque e selecione uma impressora USB primeiro');
             return;
         }
 
         config.vendorId = parseInt(vendorId);
         config.productId = parseInt(productId);
+
+        // ==================== NOVAS CONFIGURAÇÕES v1.7.0 ====================
+        // Número de cópias
+        const copiesEl = document.getElementById(`${location}Copies`);
+        config.copies = copiesEl ? parseInt(copiesEl.value) : 1;
+
+        // Largura do papel
+        const paperWidthEl = document.getElementById(`${location}PaperWidth`);
+        config.paperWidth = paperWidthEl ? parseInt(paperWidthEl.value) : 80;
+
+        // Tamanho da fonte
+        const fontSizeEl = document.getElementById(`${location}FontSize`);
+        config.fontSize = fontSizeEl ? fontSizeEl.value : 'normal';
+
+        // Imprimir logo
+        const printLogoEl = document.getElementById(`${location}PrintLogo`);
+        config.printLogo = printLogoEl ? printLogoEl.checked : false;
+
+        if (config.printLogo) {
+            const logoPathEl = document.getElementById(`${location}LogoPath`);
+            config.logoPath = logoPathEl ? logoPathEl.value : '';
+
+            if (!config.logoPath) {
+                alert('Selecione um arquivo de logo para imprimir');
+                return;
+            }
+        }
+
+        // Remover acentos
+        const removeAccentsEl = document.getElementById(`${location}RemoveAccents`);
+        config.removeAccents = removeAccentsEl ? removeAccentsEl.checked : false;
+
+        console.log(`Configurações avançadas:`, {
+            copies: config.copies,
+            paperWidth: config.paperWidth,
+            fontSize: config.fontSize,
+            printLogo: config.printLogo,
+            logoPath: config.logoPath,
+            removeAccents: config.removeAccents
+        });
 
     } else if (type === 'network') {
         const ip = document.getElementById(`${location}Ip`).value;
@@ -262,6 +466,27 @@ function configurePrinter(location) {
 
         config.ip = ip;
         config.port = parseInt(port) || 9100;
+
+        // Configurações avançadas também para rede (v1.7.0)
+        const copiesEl = document.getElementById(`${location}Copies`);
+        config.copies = copiesEl ? parseInt(copiesEl.value) : 1;
+
+        const paperWidthEl = document.getElementById(`${location}PaperWidth`);
+        config.paperWidth = paperWidthEl ? parseInt(paperWidthEl.value) : 80;
+
+        const fontSizeEl = document.getElementById(`${location}FontSize`);
+        config.fontSize = fontSizeEl ? fontSizeEl.value : 'normal';
+
+        const printLogoEl = document.getElementById(`${location}PrintLogo`);
+        config.printLogo = printLogoEl ? printLogoEl.checked : false;
+
+        if (config.printLogo) {
+            const logoPathEl = document.getElementById(`${location}LogoPath`);
+            config.logoPath = logoPathEl ? logoPathEl.value : '';
+        }
+
+        const removeAccentsEl = document.getElementById(`${location}RemoveAccents`);
+        config.removeAccents = removeAccentsEl ? removeAccentsEl.checked : false;
     }
 
     ipcRenderer.send('configure-printer', config);

@@ -2,6 +2,7 @@ const escpos = require('escpos');
 const USB = require('escpos-usb');
 const Network = require('escpos-network');
 const log = require('electron-log');
+const fs = require('fs');
 
 class ThermalPrinter {
     constructor() {
@@ -38,7 +39,7 @@ class ThermalPrinter {
     }
 
     /**
-     * Imprimir pedido
+     * Imprimir pedido (v1.7.0 - suporte a múltiplas cópias)
      */
     async printOrder(orderData, location) {
         const printerObj = this.printers[location];
@@ -46,6 +47,11 @@ class ThermalPrinter {
         if (!printerObj) {
             throw new Error(`Impressora ${location} não configurada`);
         }
+
+        const { config } = printerObj;
+        const copies = config.copies || 1;
+
+        log.info(`Imprimindo ${copies} cópia(s) do pedido #${orderData.order_number} em ${location}`);
 
         return new Promise((resolve, reject) => {
             const { device, printer } = printerObj;
@@ -58,10 +64,13 @@ class ThermalPrinter {
                 }
 
                 try {
-                    this.printReceipt(printer, orderData, location);
+                    // Imprimir múltiplas cópias (v1.7.0)
+                    for (let i = 0; i < copies; i++) {
+                        this.printReceipt(printer, orderData, location, i + 1, copies);
+                    }
 
                     device.close(() => {
-                        log.info(`Pedido #${orderData.order_number} impresso em ${location}`);
+                        log.info(`${copies} cópia(s) do pedido #${orderData.order_number} impressa(s) em ${location}`);
                         resolve();
                     });
 
@@ -75,56 +84,111 @@ class ThermalPrinter {
     }
 
     /**
-     * Gerar recibo formatado
+     * Gerar recibo formatado (v1.7.0 - configurações avançadas)
      */
-    printReceipt(printer, order, location) {
+    printReceipt(printer, order, location, copyNumber = 1, totalCopies = 1) {
+        const config = this.printers[location].config;
+
+        // Configurações v1.7.0
+        const paperWidth = config.paperWidth || 80;
+        const fontSize = config.fontSize || 'normal';
+        const removeAccents = config.removeAccents || false;
+        const printLogo = config.printLogo || false;
+        const logoPath = config.logoPath || '';
+
+        // Calcular largura de caracteres baseado no papel
+        const charsPerLine = paperWidth === 58 ? 32 : 48;
+
+        // Helper para remover acentos se configurado
+        const formatText = (text) => {
+            if (!removeAccents) return text;
+            return text
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '') // Remove diacríticos
+                .replace(/[^\x00-\x7F]/g, ''); // Remove não-ASCII
+        };
+
+        // Helper para tamanho de fonte
+        const applyFontSize = (printer) => {
+            if (fontSize === 'small') {
+                return printer.size(1, 1);
+            } else if (fontSize === 'large') {
+                return printer.size(1, 2);
+            }
+            return printer.size(1, 1); // normal
+        };
+
+        // === LOGO (v1.7.0) ===
+        if (printLogo && logoPath && fs.existsSync(logoPath)) {
+            try {
+                const Image = escpos.Image;
+                Image.load(logoPath, (image) => {
+                    printer
+                        .align('ct')
+                        .image(image, 's24')
+                        .text('');
+                });
+            } catch (logoError) {
+                log.warn(`Erro ao carregar logo: ${logoError.message}`);
+            }
+        }
+
         // Cabeçalho
         printer
             .align('ct')
             .style('b')
             .size(2, 2)
-            .text('NOVO PEDIDO')
+            .text(formatText('NOVO PEDIDO'))
             .size(1, 1)
             .style('normal')
             .text('');
+
+        // Indicador de cópia (v1.7.0)
+        if (totalCopies > 1) {
+            printer
+                .align('ct')
+                .text(formatText(`--- COPIA ${copyNumber}/${totalCopies} ---`))
+                .text('');
+        }
 
         // Tipo de impressão
         const title = this.getLocationTitle(location);
         printer
             .style('b')
-            .text(title)
+            .text(formatText(title))
             .style('normal')
-            .text(this.line())
+            .text(this.line(charsPerLine, '-'))
             .text('');
 
         // Número do pedido
+        applyFontSize(printer);
         printer
             .align('lt')
             .style('b')
             .size(2, 2)
-            .text(`PEDIDO #${order.order_number}`)
+            .text(formatText(`PEDIDO #${order.order_number}`))
             .size(1, 1)
             .style('normal')
             .text('');
 
         // Data/Hora
         const date = new Date(order.created_at);
-        printer.text(`Data: ${date.toLocaleDateString('pt-BR')} ${date.toLocaleTimeString('pt-BR')}`);
+        printer.text(formatText(`Data: ${date.toLocaleDateString('pt-BR')} ${date.toLocaleTimeString('pt-BR')}`));
 
         // Tipo de entrega
         const deliveryType = order.delivery.method === 'delivery' ? 'DELIVERY' : 'RETIRADA';
-        printer.text(`Tipo: ${deliveryType}`);
-        printer.text(this.line());
+        printer.text(formatText(`Tipo: ${deliveryType}`));
+        printer.text(this.line(charsPerLine, '-'));
 
         // Cliente
         printer
             .style('b')
-            .text('CLIENTE:')
+            .text(formatText('CLIENTE:'))
             .style('normal')
-            .text(order.customer.name);
+            .text(formatText(order.customer.name));
 
         if (order.customer.phone) {
-            printer.text(`Tel: ${order.customer.phone}`);
+            printer.text(formatText(`Tel: ${order.customer.phone}`));
         }
 
         // Endereço (se delivery)
@@ -132,26 +196,26 @@ class ThermalPrinter {
             printer
                 .text('')
                 .style('b')
-                .text('ENDERECO:')
+                .text(formatText('ENDERECO:'))
                 .style('normal')
-                .text(this.wrapText(order.delivery.address, 48));
+                .text(formatText(this.wrapText(order.delivery.address, charsPerLine)));
 
             if (order.delivery.neighborhood) {
-                printer.text(`Bairro: ${order.delivery.neighborhood}`);
+                printer.text(formatText(`Bairro: ${order.delivery.neighborhood}`));
             }
 
             if (order.delivery.reference) {
-                printer.text(`Ref: ${this.wrapText(order.delivery.reference, 43)}`);
+                printer.text(formatText(`Ref: ${this.wrapText(order.delivery.reference, charsPerLine - 5)}`));
             }
         }
 
-        printer.text(this.line());
+        printer.text(this.line(charsPerLine, '-'));
 
         // Itens do pedido
         printer
             .style('b')
             .size(1, 2)
-            .text('ITENS:')
+            .text(formatText('ITENS:'))
             .size(1, 1)
             .style('normal')
             .text('');
@@ -169,14 +233,14 @@ class ThermalPrinter {
             printer
                 .style('b')
                 .size(1, 2)
-                .text(`${item.quantity}x ${item.name.toUpperCase()}`)
+                .text(formatText(`${item.quantity}x ${item.name.toUpperCase()}`))
                 .size(1, 1)
                 .style('normal');
 
             // Variações
             if (item.variations && Object.keys(item.variations).length > 0) {
                 Object.entries(item.variations).forEach(([key, value]) => {
-                    printer.text(`  - ${key}: ${value}`);
+                    printer.text(formatText(`  - ${key}: ${value}`));
                 });
             }
 
@@ -184,60 +248,60 @@ class ThermalPrinter {
             if (item.addons && item.addons.length > 0) {
                 item.addons.forEach(addon => {
                     const addonName = typeof addon === 'object' ? addon.name : addon;
-                    printer.text(`  + ${addonName}`);
+                    printer.text(formatText(`  + ${addonName}`));
                 });
             }
 
             // Observações
             if (item.notes) {
-                printer.text(`  OBS: ${this.wrapText(item.notes, 42)}`);
+                printer.text(formatText(`  OBS: ${this.wrapText(item.notes, charsPerLine - 6)}`));
             }
 
             printer.text('');
         });
 
-        printer.text(this.line());
+        printer.text(this.line(charsPerLine, '-'));
 
         // Observações gerais
         if (order.notes) {
             printer
                 .style('b')
-                .text('OBSERVACOES GERAIS:')
+                .text(formatText('OBSERVACOES GERAIS:'))
                 .style('normal')
-                .text(this.wrapText(order.notes, 48))
-                .text(this.line());
+                .text(formatText(this.wrapText(order.notes, charsPerLine)))
+                .text(this.line(charsPerLine, '-'));
         }
 
         // Totais (apenas balcão)
         if (location === 'counter') {
             printer
-                .text(this.formatLine('Subtotal:', `R$ ${order.totals.subtotal.toFixed(2)}`));
+                .text(formatText(this.formatLine('Subtotal:', `R$ ${order.totals.subtotal.toFixed(2)}`, charsPerLine)));
 
             if (order.totals.delivery_fee > 0) {
-                printer.text(this.formatLine('Taxa Entrega:', `R$ ${order.totals.delivery_fee.toFixed(2)}`));
+                printer.text(formatText(this.formatLine('Taxa Entrega:', `R$ ${order.totals.delivery_fee.toFixed(2)}`, charsPerLine)));
             }
 
             if (order.totals.discount > 0) {
-                printer.text(this.formatLine('Desconto:', `- R$ ${order.totals.discount.toFixed(2)}`));
+                printer.text(formatText(this.formatLine('Desconto:', `- R$ ${order.totals.discount.toFixed(2)}`, charsPerLine)));
             }
 
             printer
-                .text(this.line())
+                .text(this.line(charsPerLine, '-'))
                 .style('b')
                 .size(2, 2)
-                .text(this.formatLine('TOTAL:', `R$ ${order.totals.total.toFixed(2)}`))
+                .text(formatText(this.formatLine('TOTAL:', `R$ ${order.totals.total.toFixed(2)}`, charsPerLine)))
                 .size(1, 1)
                 .style('normal')
                 .text('');
 
             // Forma de pagamento
             const paymentMethod = this.getPaymentMethodName(order.payment.method);
-            printer.text(this.formatLine('Pagamento:', paymentMethod));
+            printer.text(formatText(this.formatLine('Pagamento:', paymentMethod, charsPerLine)));
 
             if (order.payment.status === 'paid') {
                 printer
                     .style('b')
-                    .text('Status: PAGO')
+                    .text(formatText('Status: PAGO'))
                     .style('normal');
             }
         }
@@ -246,10 +310,10 @@ class ThermalPrinter {
         printer
             .text('')
             .align('ct')
-            .text(this.line('='))
-            .text(new Date().toLocaleString('pt-BR'))
-            .text('Impresso via YumGo Bridge')
-            .text(this.line('='))
+            .text(this.line(charsPerLine, '='))
+            .text(formatText(new Date().toLocaleString('pt-BR')))
+            .text(formatText('Impresso via YumGo Bridge'))
+            .text(this.line(charsPerLine, '='))
             .text('')
             .text('')
             .text('');
@@ -282,12 +346,12 @@ class ThermalPrinter {
         return names[method] || method.toUpperCase();
     }
 
-    line(char = '-') {
-        return char.repeat(48);
+    line(width = 48, char = '-') {
+        return char.repeat(width);
     }
 
-    formatLine(label, value) {
-        const spaces = 48 - label.length - value.length;
+    formatLine(label, value, width = 48) {
+        const spaces = width - label.length - value.length;
         return label + ' '.repeat(Math.max(spaces, 1)) + value;
     }
 

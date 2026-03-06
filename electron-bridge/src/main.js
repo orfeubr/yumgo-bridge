@@ -543,6 +543,28 @@ ipcMain.handle('find-usb-printers', async () => {
     }
 });
 
+// Selecionar arquivo de logo (v1.7.0)
+ipcMain.handle('select-logo-file', async () => {
+    const { dialog } = require('electron');
+
+    const result = await dialog.showOpenDialog({
+        title: 'Selecionar Logo do Restaurante',
+        filters: [
+            { name: 'Imagens', extensions: ['png', 'jpg', 'jpeg', 'bmp'] }
+        ],
+        properties: ['openFile']
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+        return { canceled: true };
+    }
+
+    return {
+        canceled: false,
+        filePath: result.filePaths[0]
+    };
+});
+
 // Limpar configuração
 ipcMain.on('clear-config', () => {
     store.clear();
