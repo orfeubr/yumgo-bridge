@@ -164,8 +164,15 @@ function connectWebSocket(restaurantId, token) {
     log.info(`   - isDev: ${isDev}`);
 
     try {
-        // Configurar Laravel Echo com Pusher/Reverb
-        // FIX CRÍTICO: Pusher-JS SEMPRE exige cluster, mesmo para servidor próprio
+        // Configurar Laravel Echo com Pusher/Reverb (servidor próprio)
+        //
+        // NOTA: cluster é obrigatório mesmo para servidor próprio
+        // O Pusher-JS valida a presença do cluster, mas IGNORA o valor quando
+        // wsHost é especificado. Isso é comportamento documentado:
+        // https://pusher.com/docs/channels/using_channels/connection/#self-hosted
+        //
+        // O valor 'mt1' é um cluster Pusher válido, mas qualquer string funciona.
+        // O importante é que o campo exista para passar na validação.
         const pusherClient = new global.Pusher('t9pg2dslmpl5y1cp6rrf', {
             wsHost: wsHost,
             wsPort: wsPort,
@@ -174,7 +181,7 @@ function connectWebSocket(restaurantId, token) {
             encrypted: !isDev,
             disableStats: true,
             enabledTransports: isDev ? ['ws'] : ['wss'],
-            cluster: 'mt1',  // FIX: Passar cluster válido (qualquer string) para servidor próprio
+            cluster: 'mt1',  // Obrigatório para Pusher-JS, ignorado com wsHost
         });
 
         log.info('📡 Cliente Pusher criado:', pusherClient.connection.state);
