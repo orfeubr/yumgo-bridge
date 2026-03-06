@@ -290,4 +290,11 @@ ipcRenderer.on('play-sound', () => {
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('YumGo Bridge iniciado');
+    console.log('Verificando funções globais:');
+    console.log('- connect:', typeof connect);
+    console.log('- disconnect:', typeof disconnect);
+    console.log('Elementos DOM:');
+    console.log('- connectBtn:', connectBtn ? 'OK' : 'NULL');
+    console.log('- restaurantIdInput:', restaurantIdInput ? 'OK' : 'NULL');
+    console.log('- tokenInput:', tokenInput ? 'OK' : 'NULL');
 });
