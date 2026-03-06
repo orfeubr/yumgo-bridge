@@ -479,6 +479,102 @@ class SettingsResource extends Resource
                                             ->minValue(1)
                                             ->maxValue(5),
                                     ])->columns(2),
+
+                                Forms\Components\Section::make('Impressão Automática com YumGo Bridge')
+                                    ->description('Use o app YumGo Bridge para imprimir pedidos automaticamente no seu computador')
+                                    ->schema([
+                                        Forms\Components\Placeholder::make('bridge_instructions')
+                                            ->label('Como Configurar')
+                                            ->content(new \Illuminate\Support\HtmlString('
+                                                <div class="space-y-4">
+                                                    <div class="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-4 border border-blue-200 dark:border-blue-800">
+                                                        <p class="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
+                                                            📱 Baixe o App YumGo Bridge
+                                                        </p>
+                                                        <p class="text-xs text-blue-700 dark:text-blue-400 mb-3">
+                                                            Instale no computador conectado à impressora térmica
+                                                        </p>
+                                                        <div class="flex gap-2">
+                                                            <a href="https://github.com/orfeubr/yumgo/releases" target="_blank" class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-blue-900 bg-blue-100 hover:bg-blue-200 dark:bg-blue-800 dark:text-blue-100 dark:hover:bg-blue-700">
+                                                                🪟 Windows
+                                                            </a>
+                                                            <a href="https://github.com/orfeubr/yumgo/releases" target="_blank" class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-blue-900 bg-blue-100 hover:bg-blue-200 dark:bg-blue-800 dark:text-blue-100 dark:hover:bg-blue-700">
+                                                                🍎 macOS
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ')),
+
+                                        Forms\Components\TextInput::make('restaurant_id')
+                                            ->label('ID do Restaurante')
+                                            ->default(fn () => tenancy()->tenant?->id)
+                                            ->disabled()
+                                            ->dehydrated(false)
+                                            ->helperText('Cole este ID no app YumGo Bridge')
+                                            ->suffixAction(
+                                                Forms\Components\Actions\Action::make('copy_id')
+                                                    ->icon('heroicon-o-clipboard-document')
+                                                    ->action(fn () => null)
+                                                    ->extraAttributes([
+                                                        'x-on:click' => "
+                                                            navigator.clipboard.writeText(\$el.closest('.fi-fo-text-input').querySelector('input').value);
+                                                            new FilamentNotification()
+                                                                .title('Copiado!')
+                                                                .success()
+                                                                .send();
+                                                        "
+                                                    ])
+                                            ),
+
+                                        Forms\Components\Placeholder::make('token_instructions')
+                                            ->label('Token de Acesso')
+                                            ->content(new \Illuminate\Support\HtmlString('
+                                                <div class="space-y-2">
+                                                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                                                        Para gerar um token de acesso e conectar o app:
+                                                    </p>
+                                                    <ol class="text-sm text-gray-700 dark:text-gray-300 list-decimal list-inside space-y-1">
+                                                        <li>Acesse seu perfil (canto superior direito)</li>
+                                                        <li>Clique em "Gerar Token para Bridge"</li>
+                                                        <li>Copie o token gerado</li>
+                                                        <li>Cole no app YumGo Bridge</li>
+                                                    </ol>
+                                                    <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                                                        ⚠️ O token só é exibido uma vez. Guarde-o em local seguro.
+                                                    </p>
+                                                </div>
+                                            ')),
+
+                                        Forms\Components\Placeholder::make('bridge_steps')
+                                            ->label('Próximos Passos')
+                                            ->content(new \Illuminate\Support\HtmlString('
+                                                <div class="rounded-lg bg-gray-50 dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700">
+                                                    <ol class="text-sm space-y-2">
+                                                        <li class="flex items-start gap-2">
+                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-500 text-white text-xs flex items-center justify-center">1</span>
+                                                            <span>Baixe e instale o app YumGo Bridge</span>
+                                                        </li>
+                                                        <li class="flex items-start gap-2">
+                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-500 text-white text-xs flex items-center justify-center">2</span>
+                                                            <span>Copie o ID do restaurante acima</span>
+                                                        </li>
+                                                        <li class="flex items-start gap-2">
+                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-500 text-white text-xs flex items-center justify-center">3</span>
+                                                            <span>Gere um token de acesso no seu perfil</span>
+                                                        </li>
+                                                        <li class="flex items-start gap-2">
+                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-500 text-white text-xs flex items-center justify-center">4</span>
+                                                            <span>Configure a impressora no app (USB ou Rede)</span>
+                                                        </li>
+                                                        <li class="flex items-start gap-2">
+                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-500 text-white text-xs flex items-center justify-center">5</span>
+                                                            <span>Pronto! Os pedidos serão impressos automaticamente</span>
+                                                        </li>
+                                                    </ol>
+                                                </div>
+                                            ')),
+                                    ]),
                             ]),
 
                         // TAB 7: Pedidos
