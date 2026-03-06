@@ -736,6 +736,11 @@ ipcMain.handle('find-system-printers', async () => {
     }
 });
 
+// Obter versão do app (v1.9.3+)
+ipcMain.handle('get-app-version', () => {
+    return app.getVersion();
+});
+
 // Selecionar arquivo de logo (v1.7.0)
 ipcMain.handle('select-logo-file', async () => {
     const { dialog } = require('electron');

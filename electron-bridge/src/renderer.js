@@ -638,8 +638,21 @@ ipcRenderer.on('play-sound', () => {
 
 // ===== INICIALIZAÇÃO =====
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     console.log('YumGo Bridge iniciado');
+
+    // Busca e exibe a versão do app (v1.9.3+)
+    try {
+        const version = await ipcRenderer.invoke('get-app-version');
+        const versionElement = document.getElementById('appVersion');
+        if (versionElement) {
+            versionElement.textContent = version;
+            console.log(`📦 Versão: ${version}`);
+        }
+    } catch (error) {
+        console.error('Erro ao obter versão:', error);
+    }
+
     console.log('Verificando funções globais:');
     console.log('- connect:', typeof connect);
     console.log('- disconnect:', typeof disconnect);
