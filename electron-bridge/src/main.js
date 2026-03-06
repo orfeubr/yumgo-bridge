@@ -188,9 +188,52 @@ function connectWebSocket(restaurantId, token) {
 
         log.info(`📡 Echo config:`, JSON.stringify(echoConfig, null, 2));
 
+        log.info('🔵 Criando instância do Echo...');
         echo = new Echo(echoConfig);
+        log.info('✅ Echo criado com sucesso');
+
+        log.info('🔵 Acessando Pusher connector...');
+        const pusher = echo.connector.pusher;
+        log.info('✅ Pusher connector acessado');
+
+        log.info('📡 Pusher connection state:', pusher.connection.state);
+        log.info('📡 Pusher socket_id:', pusher.connection.socket_id || 'null');
 
         // Eventos de conexão do Pusher
+        log.info('🔵 Registrando event listeners do Pusher...');
+
+        // Log de TODOS os eventos de state para debug
+        echo.connector.pusher.connection.bind('state_change', (states) => {
+            log.info(`📊 [STATE CHANGE] ${states.previous} → ${states.current}`);
+
+            // Capturar informações adicionais de cada estado
+            if (states.current === 'connecting') {
+                log.info('   → Tentando conectar...');
+            } else if (states.current === 'connected') {
+                log.info('   → Conectado!');
+            } else if (states.current === 'unavailable') {
+                log.error('   → Servidor indisponível');
+            } else if (states.current === 'failed') {
+                log.error('   → Falha na conexão');
+            } else if (states.current === 'disconnected') {
+                log.warn('   → Desconectado');
+            }
+        });
+
+        // Capturar erro no nível de transporte
+        echo.connector.pusher.connection.bind('error', (error) => {
+            log.error('❌ [CONNECTION ERROR]', JSON.stringify(error, null, 2));
+            if (error.error) {
+                log.error('   → Error object:', JSON.stringify(error.error, null, 2));
+            }
+            if (error.type) {
+                log.error('   → Error type:', error.type);
+            }
+            if (error.data) {
+                log.error('   → Error data:', JSON.stringify(error.data, null, 2));
+            }
+        });
+
         echo.connector.pusher.connection.bind('connected', () => {
             log.info('✅ Conectado ao servidor YumGo via Reverb/Pusher');
             isConnected = true;
@@ -211,27 +254,9 @@ function connectWebSocket(restaurantId, token) {
             updateTrayStatus(false);
         });
 
-        echo.connector.pusher.connection.bind('error', (error) => {
-            log.error('❌ Erro de conexão WebSocket:', JSON.stringify(error, null, 2));
-            log.error('Tipo de erro:', error.type || 'desconhecido');
-            log.error('Data:', error.data || 'sem dados');
+        // Já temos error binding acima, não duplicar
 
-            mainWindow.webContents.send('status', 'error');
-
-            // Notificar usuário do erro
-            showNotification(
-                'Erro de Conexão',
-                `Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.`
-            );
-        });
-
-        echo.connector.pusher.connection.bind('state_change', (states) => {
-            log.info(`Estado da conexão: ${states.previous} → ${states.current}`);
-
-            if (states.current === 'connecting' || states.current === 'unavailable') {
-                mainWindow.webContents.send('status', 'reconnecting');
-            }
-        });
+        // Já temos state_change acima, remover duplicado
 
         // Inscrever no canal privado do restaurante
         const channelName = `private-restaurant.${restaurantId}`;
