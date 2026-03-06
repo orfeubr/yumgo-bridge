@@ -136,8 +136,8 @@ function connectWebSocket(restaurantId, token) {
 
     // Configurar URLs baseado no ambiente
     const baseUrl = isDev ? 'http://localhost:8000' : 'https://yumgo.com.br';
-    const wsHost = isDev ? 'localhost' : 'yumgo.com.br';
-    const wsPort = isDev ? 8081 : 443;  // Produção usa HTTPS/443 com Nginx proxy
+    const wsHost = isDev ? 'localhost' : 'ws.yumgo.com.br';  // Subdomínio dedicado para WebSocket
+    const wsPort = isDev ? 8081 : 8081;  // Porta direta do Reverb (sem Cloudflare)
     const wsPath = '/app';  // Nginx proxy path
 
     try {
@@ -149,10 +149,10 @@ function connectWebSocket(restaurantId, token) {
             wsPort: wsPort,
             wssPort: wsPort,
             wsPath: wsPath,
-            forceTLS: !isDev,  // TLS apenas em produção
-            encrypted: !isDev,
+            forceTLS: false,  // Sem TLS - conexão direta HTTP na porta 8081
+            encrypted: false,
             disableStats: true,
-            enabledTransports: ['ws', 'wss'],
+            enabledTransports: ['ws'],  // Apenas ws (não wss)
             authEndpoint: `${baseUrl}/api/broadcasting/auth`,
             auth: {
                 headers: {
