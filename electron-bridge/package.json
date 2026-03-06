@@ -1,7 +1,7 @@
 {
   "name": "yumgo-bridge",
   "productName": "YumGo Bridge",
-  "version": "1.9.7",
+  "version": "1.9.8",
   "description": "App local para impressão automática de pedidos YumGo",
   "main": "src/main.js",
   "author": "YumGo",
@@ -48,6 +48,7 @@
     "productName": "YumGo Bridge",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "copyright": "Copyright © 2026 YumGo",
+    "generateUpdatesFilesForAllChannels": false,
     "publish": [
       {
         "provider": "github",
@@ -77,7 +78,8 @@
       ],
       "icon": "build/icon.ico",
       "publisherName": "YumGo",
-      "verifyUpdateCodeSignature": false
+      "verifyUpdateCodeSignature": false,
+      "artifactName": "${productName}-${version}-win-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -85,12 +87,15 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "YumGo Bridge"
+      "shortcutName": "YumGo Bridge",
+      "differentialPackage": false
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}"
     },
     "mac": {
       "target": [
-        "dmg",
-        "zip"
+        "dmg"
       ],
       "icon": "build/icon.png",
       "category": "public.app-category.business",
