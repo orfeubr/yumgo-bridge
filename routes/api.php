@@ -19,7 +19,7 @@ Route::get('/health', function () {
     return response()->json(['status' => 'ok']);
 });
 
-// Broadcasting authentication (Reverb/Pusher) - Temporário simplificado
+// Broadcasting authentication (Reverb/Pusher)
 Route::post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
     try {
         // Validar token Sanctum manualmente
@@ -28,14 +28,26 @@ Route::post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
             return response()->json(['error' => 'Unauthorized - No token'], 401);
         }
 
-        // Por enquanto, apenas retornar sucesso
-        // TODO: Implementar autenticação real do canal
         $channelName = $request->input('channel_name');
         $socketId = $request->input('socket_id');
 
+        // Validar que o usuário pode acessar o canal
+        // Por enquanto, apenas validar que o token é válido
+        // TODO: Adicionar validação de permissões do canal
+
+        // Gerar assinatura Pusher
+        $appKey = config('broadcasting.connections.reverb.key');
+        $appSecret = config('broadcasting.connections.reverb.secret');
+
+        // Pusher auth format: socket_id:channel_name
+        $stringToSign = $socketId . ':' . $channelName;
+        $signature = hash_hmac('sha256', $stringToSign, $appSecret);
+
+        // Auth string format: app_key:signature
+        $authString = $appKey . ':' . $signature;
+
         return response()->json([
-            'auth' => 'authorized',  // Placeholder
-            'channel_data' => null
+            'auth' => $authString
         ]);
 
     } catch (\Exception $e) {

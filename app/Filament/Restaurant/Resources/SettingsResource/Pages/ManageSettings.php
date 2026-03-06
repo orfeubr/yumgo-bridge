@@ -5,6 +5,7 @@ namespace App\Filament\Restaurant\Resources\SettingsResource\Pages;
 use App\Filament\Restaurant\Resources\SettingsResource;
 use App\Models\Settings;
 use Filament\Actions;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 
 class ManageSettings extends EditRecord
@@ -170,5 +171,52 @@ class ManageSettings extends EditRecord
 
         // Passa o ID do registro para o método mount do pai
         parent::mount($settings->id);
+
+        // Processar ações de token DEPOIS do mount
+        $this->processTokenActions();
+    }
+
+    protected function processTokenActions(): void
+    {
+        $user = auth()->user();
+
+        // Verificar se é uma solicitação de geração de token
+        if (request()->has('generateToken')) {
+            // Revogar tokens existentes do bridge primeiro
+            $user->tokens()->where('name', 'bridge-app')->delete();
+
+            // Criar novo token com validade de 1 ano
+            $token = $user->createToken('bridge-app', ['*'], now()->addYear())->plainTextToken;
+
+            // Mostrar notificação com o token (só será exibido uma vez)
+            Notification::make()
+                ->title('🔑 Token Gerado com Sucesso!')
+                ->success()
+                ->body("**IMPORTANTE:** Copie este token AGORA (ele só será exibido uma vez):\n\n`{$token}`")
+                ->persistent()
+                ->duration(null) // Não fecha automaticamente
+                ->send();
+
+            // Redirecionar para remover o parâmetro da URL (usando JS)
+            $this->js("window.history.replaceState({}, '', window.location.pathname)");
+            return;
+        }
+
+        // Verificar se é uma solicitação de revogação de token
+        if (request()->has('revokeToken')) {
+            $deletedCount = $user->tokens()->where('name', 'bridge-app')->delete();
+
+            Notification::make()
+                ->title('🗑️ Token Revogado')
+                ->success()
+                ->body($deletedCount > 0
+                    ? 'O token do YumGo Bridge foi revogado com sucesso. O aplicativo não poderá mais se conectar.'
+                    : 'Nenhum token ativo foi encontrado.')
+                ->send();
+
+            // Redirecionar para remover o parâmetro da URL (usando JS)
+            $this->js("window.history.replaceState({}, '', window.location.pathname)");
+            return;
+        }
     }
 }
