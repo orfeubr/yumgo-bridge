@@ -6,6 +6,7 @@
   "main": "src/main.js",
   "author": "YumGo",
   "license": "MIT",
+  "homepage": "https://yumgo.com.br",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
@@ -28,7 +29,8 @@
   "devDependencies": {
     "electron": "^29.0.0",
     "electron-builder": "^24.13.0",
-    "electron-devtools-installer": "^3.2.0"
+    "electron-devtools-installer": "^3.2.0",
+    "dmg-license": "^1.0.11"
   },
   "build": {
     "appId": "com.yumgo.bridge",

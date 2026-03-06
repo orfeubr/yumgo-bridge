@@ -22,3 +22,8 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Electron build output
+electron-bridge/dist/
+electron-bridge/node_modules/
+electron-bridge/package-lock.json
