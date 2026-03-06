@@ -58,6 +58,17 @@ class ThermalPrinter {
         }
 
         const { config } = printerObj;
+
+        // VALIDAÇÃO: Impressoras do sistema ainda não suportadas para impressão
+        if (config.type === 'system') {
+            throw new Error(
+                `❌ Impressão em "${config.printerName}" ainda não suportada.\n\n` +
+                `Impressoras do sistema (Canon, PDF, etc) requerem impressão nativa.\n` +
+                `Use uma impressora térmica USB ou de Rede para pedidos.\n\n` +
+                `🔧 Em breve: suporte para impressoras do sistema!`
+            );
+        }
+
         const copies = config.copies || 1;
 
         log.info(`Imprimindo ${copies} cópia(s) do pedido #${orderData.order_number} em ${location}`);
