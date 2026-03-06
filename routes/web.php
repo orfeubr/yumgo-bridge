@@ -376,19 +376,21 @@ Route::get('/test-flare', function () {
 });
 
 
-// 📥 Download YumGo Bridge (app de impressão)
+// 📥 Download YumGo Bridge (hospedado no servidor)
 Route::get('/download/bridge', function () {
-    // Detecta sistema operacional do usuário
     $userAgent = request()->header('User-Agent');
-    
+
     if (str_contains(strtolower($userAgent), 'windows')) {
-        // Windows: redireciona para .exe da última release
-        return redirect('https://github.com/orfeubr/yumgo/releases/latest/download/YumGo-Bridge-win-x64.exe');
+        // Windows: serve arquivo do servidor
+        $file = public_path('downloads/yumgo-bridge-windows.exe');
+        if (file_exists($file)) {
+            return response()->download($file, 'YumGo-Bridge-Setup.exe');
+        }
     } elseif (str_contains(strtolower($userAgent), 'mac')) {
-        // macOS: redireciona para .dmg
-        return redirect('https://github.com/orfeubr/yumgo/releases/latest/download/YumGo-Bridge-mac-arm64.dmg');
-    } else {
-        // Outros: página de releases
+        // macOS: redireciona para GitHub (ainda não hospedado)
         return redirect('https://github.com/orfeubr/yumgo/releases/latest');
     }
+
+    // Fallback: página de releases
+    return redirect('https://github.com/orfeubr/yumgo/releases/latest');
 })->name('download.bridge');
