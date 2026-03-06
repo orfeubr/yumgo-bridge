@@ -657,6 +657,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Erro ao obter versão:', error);
     }
 
+    // MODO TESTE: Mostra seção de impressoras mesmo sem conexão (v1.9.9+)
+    console.log('🧪 Modo de teste: Habilitando seção de impressoras...');
+    if (printersCard) {
+        printersCard.classList.remove('hidden');
+        console.log('✅ Seção de impressoras habilitada (modo offline)');
+    }
+
     console.log('Verificando funções globais:');
     console.log('- connect:', typeof connect);
     console.log('- disconnect:', typeof disconnect);
