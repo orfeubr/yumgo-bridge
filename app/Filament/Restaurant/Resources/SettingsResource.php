@@ -513,174 +513,54 @@ class SettingsResource extends Resource
                                     ->collapsible()
                                     ->collapsed(false),
 
-                                Forms\Components\Section::make('Impressão Automática com YumGo Bridge')
-                                    ->description('Use o app YumGo Bridge para imprimir pedidos automaticamente no seu computador')
+                                Forms\Components\Section::make('Impressão Automática')
+                                    ->description('App para imprimir pedidos automaticamente')
                                     ->schema([
-                                        Forms\Components\Placeholder::make('bridge_instructions')
-                                            ->label('Como Configurar')
+                                        Forms\Components\Placeholder::make('bridge_download')
+                                            ->label('1. Baixar App')
                                             ->content(new \Illuminate\Support\HtmlString('
-                                                <div class="space-y-4">
-                                                    <div class="rounded-lg bg-blue-50 dark:bg-blue-900/20 p-4 border border-blue-200 dark:border-blue-800">
-                                                        <p class="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
-                                                            📱 Baixe o App YumGo Bridge
-                                                        </p>
-                                                        <p class="text-xs text-blue-700 dark:text-blue-400 mb-3">
-                                                            Instale no computador conectado à impressora térmica
-                                                        </p>
-                                                        <div class="flex gap-2 flex-wrap">
-                                                            <a href="https://github.com/orfeubr/yumgo/releases/latest" target="_blank" class="inline-flex items-center px-3 py-2 text-xs font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800">
-                                                                🪟 Windows • Última versão
-                                                            </a>
-                                                            <a href="https://github.com/orfeubr/yumgo/releases/latest" target="_blank" class="inline-flex items-center px-3 py-2 text-xs font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800">
-                                                                🍎 macOS • Última versão
-                                                            </a>
-                                                            <a href="https://github.com/orfeubr/yumgo/releases/latest" target="_blank" class="inline-flex items-center px-3 py-2 text-xs font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800">
-                                                                🐧 Linux • Última versão
-                                                            </a>
-                                                        </div>
-                                                        <p class="text-xs text-blue-700 dark:text-blue-300 mt-2 font-medium">
-                                                            ✨ Links sempre atualizados automaticamente!
-                                                        </p>
-                                                    </div>
-                                                </div>
+                                                <a href="' . route('download.bridge') . '" class="inline-flex items-center px-4 py-3 text-sm font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white">
+                                                    ⬇️ Baixar YumGo Bridge
+                                                </a>
                                             ')),
 
                                         Forms\Components\Placeholder::make('restaurant_id_display')
-                                            ->label('ID do Restaurante')
+                                            ->label('2. Copiar ID')
                                             ->content(function () {
                                                 $tenantId = tenancy()->tenant?->id ?? 'N/A';
                                                 return new \Illuminate\Support\HtmlString('
-                                                    <div class="space-y-2">
-                                                        <div class="flex gap-2 items-center">
-                                                            <input
-                                                                type="text"
-                                                                value="' . e($tenantId) . '"
-                                                                readonly
-                                                                id="tenant-id-input"
-                                                                class="flex-1 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 font-mono text-sm"
-                                                            >
-                                                            <button
-                                                                type="button"
-                                                                onclick="
-                                                                    navigator.clipboard.writeText(\'' . e($tenantId) . '\');
-                                                                    new FilamentNotification()
-                                                                        .title(\'Copiado!\')
-                                                                        .success()
-                                                                        .send();
-                                                                "
-                                                                class="inline-flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
-                                                            >
-                                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                                                </svg>
-                                                                Copiar
-                                                            </button>
-                                                        </div>
-                                                        <p class="text-xs text-gray-500 dark:text-gray-400">
-                                                            Cole este ID no app YumGo Bridge
-                                                        </p>
+                                                    <div class="flex gap-2">
+                                                        <input type="text" value="' . e($tenantId) . '" readonly class="flex-1 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 font-mono text-sm">
+                                                        <button type="button" onclick="navigator.clipboard.writeText(\'' . e($tenantId) . '\'); new FilamentNotification().title(\'Copiado!\').success().send();" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg font-bold">
+                                                            📋 Copiar
+                                                        </button>
                                                     </div>
                                                 ');
                                             }),
 
                                         Forms\Components\Placeholder::make('token_instructions')
-                                            ->label('Token de Acesso')
+                                            ->label('3. Gerar Token')
                                             ->content(function () {
                                                 $user = auth()->user();
                                                 $hasToken = $user->tokens()->where('name', 'bridge-app')->exists();
-                                                $tokenCount = $user->tokens()->where('name', 'bridge-app')->count();
 
                                                 if ($hasToken) {
-                                                    $token = $user->tokens()->where('name', 'bridge-app')->first();
-                                                    $createdAt = $token->created_at->diffForHumans();
-
                                                     return new \Illuminate\Support\HtmlString('
-                                                        <div class="space-y-3">
-                                                            <div class="rounded-lg bg-green-50 dark:bg-green-900/20 p-4 border border-green-200 dark:border-green-800">
-                                                                <div class="flex items-center justify-between">
-                                                                    <div>
-                                                                        <p class="text-sm font-semibold text-green-900 dark:text-green-100">
-                                                                            ✅ Token Ativo
-                                                                        </p>
-                                                                        <p class="text-xs text-green-700 dark:text-green-300 mt-1">
-                                                                            Criado ' . e($createdAt) . '
-                                                                        </p>
-                                                                    </div>
-                                                                    <button
-                                                                        type="button"
-                                                                        onclick="
-                                                                            if (confirm(\'Tem certeza? O app será desconectado e você precisará gerar um novo token.\')) {
-                                                                                window.location.href = window.location.pathname + \'?revokeToken=1\';
-                                                                            }
-                                                                        "
-                                                                        class="px-3 py-1.5 text-xs font-medium rounded-md bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300"
-                                                                    >
-                                                                        Revogar
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                            <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                                                                ℹ️ O token já está configurado no app YumGo Bridge
-                                                            </p>
+                                                        <div class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                                            <span class="font-bold text-green-900 dark:text-green-100">✅ Token Ativo</span>
+                                                            <button type="button" onclick="if(confirm(\'Revogar token?\')) window.location.href=window.location.pathname+\'?revokeToken=1\';" class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded font-bold text-sm">
+                                                                Revogar
+                                                            </button>
                                                         </div>
                                                     ');
                                                 }
 
                                                 return new \Illuminate\Support\HtmlString('
-                                                    <div class="space-y-3">
-                                                        <div class="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 p-4 border border-yellow-200 dark:border-yellow-800">
-                                                            <p class="text-sm font-semibold text-yellow-900 dark:text-yellow-100 mb-2">
-                                                                ⚠️ Nenhum token configurado
-                                                            </p>
-                                                            <p class="text-sm text-yellow-800 dark:text-yellow-200 mb-3">
-                                                                Você precisa gerar um token para conectar o app YumGo Bridge
-                                                            </p>
-                                                            <button
-                                                                type="button"
-                                                                onclick="window.location.href = window.location.pathname + \'?generateToken=1\'"
-                                                                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700"
-                                                            >
-                                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
-                                                                </svg>
-                                                                Gerar Token de Acesso
-                                                            </button>
-                                                        </div>
-                                                        <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                                                            📋 Depois de gerar, copie o token e cole no app
-                                                        </p>
-                                                    </div>
+                                                    <button type="button" onclick="window.location.href=window.location.pathname+\'?generateToken=1\';" class="px-4 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-bold">
+                                                        🔑 Gerar Token
+                                                    </button>
                                                 ');
                                             }),
-
-                                        Forms\Components\Placeholder::make('bridge_steps')
-                                            ->label('Próximos Passos')
-                                            ->content(new \Illuminate\Support\HtmlString('
-                                                <div class="rounded-lg bg-blue-50 dark:bg-blue-900/30 p-4 border border-blue-200 dark:border-blue-700">
-                                                    <ol class="text-sm space-y-2 text-gray-900 dark:text-gray-100 font-medium">
-                                                        <li class="flex items-start gap-2">
-                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-600 text-white text-xs font-bold flex items-center justify-center">1</span>
-                                                            <span>Baixe e instale o app YumGo Bridge</span>
-                                                        </li>
-                                                        <li class="flex items-start gap-2">
-                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-600 text-white text-xs font-bold flex items-center justify-center">2</span>
-                                                            <span>Copie o ID do restaurante acima</span>
-                                                        </li>
-                                                        <li class="flex items-start gap-2">
-                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-600 text-white text-xs font-bold flex items-center justify-center">3</span>
-                                                            <span>Clique no botão "Gerar Token" acima</span>
-                                                        </li>
-                                                        <li class="flex items-start gap-2">
-                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-600 text-white text-xs font-bold flex items-center justify-center">4</span>
-                                                            <span>Configure a impressora no app (USB ou Rede)</span>
-                                                        </li>
-                                                        <li class="flex items-start gap-2">
-                                                            <span class="flex-shrink-0 w-5 h-5 rounded-full bg-primary-600 text-white text-xs font-bold flex items-center justify-center">5</span>
-                                                            <span>Pronto! Os pedidos serão impressos automaticamente</span>
-                                                        </li>
-                                                    </ol>
-                                                </div>
-                                            ')),
                                     ]),
                             ]),
 
