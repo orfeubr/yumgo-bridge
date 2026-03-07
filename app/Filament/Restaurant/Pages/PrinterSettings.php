@@ -25,6 +25,19 @@ class PrinterSettings extends Page
         //
     }
 
+    public function getPrinterTokenProperty(): string
+    {
+        $token = Auth::user()->tokens()->where('name', 'bridge-app')->first();
+
+        if (!$token) {
+            return '(Nenhum token gerado)';
+        }
+
+        // Mostra apenas os últimos 8 caracteres (segurança)
+        $tokenValue = $token->token;
+        return '••••••••' . substr($tokenValue, -8);
+    }
+
     public function generateToken(): void
     {
         $user = Auth::user();

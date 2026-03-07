@@ -57,17 +57,39 @@
                 {{-- Token --}}
                 <div>
                     <label class="block text-xs font-medium mb-1">Token de Acesso</label>
-                    <div class="flex gap-2">
-                        <input type="text"
-                               value="{{ $this->printerToken }}"
-                               readonly
-                               class="flex-1 px-3 py-2 text-sm font-mono bg-gray-50 dark:bg-gray-900 border rounded">
+                    @if(session('new_token'))
+                        <div class="flex gap-2">
+                            <input type="text"
+                                   value="{{ session('new_token') }}"
+                                   readonly
+                                   class="flex-1 px-3 py-2 text-sm font-mono bg-gray-50 dark:bg-gray-900 border rounded">
+                            <button type="button"
+                                    onclick="navigator.clipboard.writeText('{{ session('new_token') }}'); new FilamentNotification().title('Copiado!').success().send();"
+                                    class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded font-bold">
+                                📋
+                            </button>
+                        </div>
+                        <p class="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                            ⚠️ Copie agora! O token só é exibido uma vez.
+                        </p>
+                    @elseif($this->hasActiveToken())
+                        <div class="bg-green-50 dark:bg-green-900/20 p-3 rounded border border-green-200 dark:border-green-800">
+                            <p class="text-sm text-green-800 dark:text-green-200">
+                                ✅ Token ativo (criado {{ $this->getTokenCreatedAt() }})
+                            </p>
+                            <button type="button"
+                                    wire:click="revokeToken"
+                                    class="mt-2 text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 underline">
+                                🗑️ Revogar token
+                            </button>
+                        </div>
+                    @else
                         <button type="button"
-                                onclick="navigator.clipboard.writeText('{{ $this->printerToken }}'); new FilamentNotification().title('Copiado!').success().send();"
-                                class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded font-bold">
-                            📋
+                                wire:click="generateToken"
+                                class="w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold">
+                            🔑 Gerar Token
                         </button>
-                    </div>
+                    @endif
                 </div>
             </div>
 
