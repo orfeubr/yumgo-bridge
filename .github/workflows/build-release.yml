@@ -1,6 +1,15 @@
 name: Build and Release
 
 on:
+  # Disparo manual pela interface do GitHub
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versão da release (ex: 1.9.9)'
+        required: true
+        type: string
+
+  # Ou automático quando faz push de tag
   push:
     tags:
       - 'v*'
