@@ -27,3 +27,5 @@ Thumbs.db
 electron-bridge/dist/
 electron-bridge/node_modules/
 electron-bridge/package-lock.json
+public/downloads/*.exe
+public/downloads/*.dmg
