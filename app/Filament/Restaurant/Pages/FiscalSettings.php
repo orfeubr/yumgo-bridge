@@ -36,6 +36,7 @@ class FiscalSettings extends Page implements HasForms
             'inscricao_estadual' => $tenant->inscricao_estadual,
             'inscricao_municipal' => $tenant->inscricao_municipal,
             'regime_tributario' => $tenant->regime_tributario ?? 'simples_nacional',
+            'certificate_a1' => $tenant->certificate_a1,
             'certificate_password' => $tenant->certificate_password,
             'nfce_serie' => $tenant->nfce_serie ?? 1,
             'nfce_numero' => $tenant->nfce_numero ?? 1,
@@ -50,6 +51,15 @@ class FiscalSettings extends Page implements HasForms
             'fiscal_state' => $tenant->fiscal_state,
             'fiscal_zipcode' => $tenant->fiscal_zipcode,
         ]);
+
+        // Notificar se já tem certificado
+        if ($tenant->certificate_a1) {
+            Notification::make()
+                ->info()
+                ->title('Certificado A1 já configurado')
+                ->body('Para alterar, faça upload de um novo arquivo .pfx')
+                ->send();
+        }
     }
 
     public function form(Form $form): Form
@@ -132,23 +142,57 @@ class FiscalSettings extends Page implements HasForms
                             ->disk('local')
                             ->directory('certificates')
                             ->visibility('private')
+                            ->live()
                             ->afterStateUpdated(function ($state, $set) {
                                 if ($state) {
                                     try {
                                         // Ler conteúdo do arquivo
-                                        $path = storage_path('app/certificates/' . $state);
+                                        $path = storage_path('app/' . $state);
                                         if (file_exists($path)) {
                                             $content = file_get_contents($path);
                                             $base64 = base64_encode($content);
                                             $set('certificate_a1', $base64);
 
+                                            Notification::make()
+                                                ->success()
+                                                ->title('Certificado carregado!')
+                                                ->body('Lembre-se de salvar as configurações.')
+                                                ->send();
+
                                             // Deletar arquivo temporário
                                             @unlink($path);
                                         }
                                     } catch (\Exception $e) {
-                                        // Silencioso - será tratado no save
+                                        Notification::make()
+                                            ->danger()
+                                            ->title('Erro ao processar certificado')
+                                            ->body($e->getMessage())
+                                            ->send();
                                     }
                                 }
+                            })
+                            ->columnSpanFull(),
+
+                        // Campo hidden para armazenar o certificado em base64
+                        Forms\Components\Hidden::make('certificate_a1'),
+
+                        // Status do certificado
+                        Forms\Components\Placeholder::make('certificate_status')
+                            ->label('Status do Certificado')
+                            ->content(function () {
+                                $tenant = tenant();
+                                if ($tenant->certificate_a1) {
+                                    return new \Illuminate\Support\HtmlString(
+                                        '<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                            ✅ Certificado instalado
+                                        </span>'
+                                    );
+                                }
+                                return new \Illuminate\Support\HtmlString(
+                                    '<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                        ⚠️ Nenhum certificado instalado
+                                    </span>'
+                                );
                             })
                             ->columnSpanFull(),
 
