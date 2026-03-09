@@ -163,8 +163,13 @@ class RestaurantHomeController extends Controller
             });
 
         // Verificar horário de funcionamento
-        $settings = Settings::current();
-        $isOpen = $settings->isOpenNow();
+        try {
+            $settings = Settings::current();
+            $isOpen = $settings->isOpenNow();
+        } catch (\Exception $e) {
+            // Fallback se tabela settings não existir
+            $isOpen = true;
+        }
 
         // Determinar motivo se loja está vazia (não aplicável em preview mode)
         $emptyReason = null;
