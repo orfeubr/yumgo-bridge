@@ -31,6 +31,24 @@ class ImportProducts extends Page implements HasForms
 
     public ?array $data = [];
 
+    /**
+     * Verifica se deve exibir no menu (só Pro/Enterprise)
+     */
+    public static function shouldRegisterNavigation(): bool
+    {
+        $tenant = tenancy()->tenant;
+
+        if (!$tenant) {
+            return false;
+        }
+
+        $subscription = $tenant->activeSubscription();
+        $planName = $subscription?->plan->name ?? '';
+
+        // Importação CSV disponível apenas para Pro e Enterprise
+        return in_array($planName, ['Pro', 'Enterprise']);
+    }
+
     public function mount(): void
     {
         $this->form->fill();

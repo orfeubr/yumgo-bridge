@@ -14,6 +14,7 @@ class Plan extends Model
         'commission_percentage',
         'pagarme_plan_id',
         'features',
+        'available_features', // ✅ Features técnicas disponíveis
         'max_products',
         'max_orders_per_month',
         'is_active',
@@ -23,6 +24,7 @@ class Plan extends Model
         'price_monthly' => 'decimal:2',
         'commission_percentage' => 'decimal:2',
         'features' => 'array',
+        'available_features' => 'array', // ✅ Cast para array
         'is_active' => 'boolean',
     ];
 

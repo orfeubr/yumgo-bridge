@@ -7,6 +7,9 @@
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v={{ time() }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Pagar.me JS SDK -->
+    <script src="https://assets.pagar.me/pagarme-js/5.0/pagarme.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -262,6 +265,83 @@
                     </div>
                 </div>
 
+                <hr class="my-8 border-gray-200">
+
+                <!-- Dados de Pagamento -->
+                <div class="mb-8" id="paymentSection">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-1 flex items-center">
+                        <i class="fas fa-credit-card text-primary mr-3"></i>
+                        Dados de Pagamento
+                    </h2>
+                    <p class="text-sm text-gray-600 mb-6">
+                        🎁 <strong>7 dias grátis!</strong> Você só será cobrado após o período de teste.
+                    </p>
+
+                    <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-6">
+                        <div class="flex items-start">
+                            <i class="fas fa-info-circle text-blue-600 text-xl mr-3 mt-0.5"></i>
+                            <div>
+                                <p class="text-sm text-blue-900 font-semibold mb-1">Período de Avaliação Gratuito</p>
+                                <p class="text-xs text-blue-700">
+                                    Use o sistema gratuitamente por 7 dias. Você pode cancelar a qualquer momento antes do término do período de avaliação e não será cobrado.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Número do Cartão <span class="text-red-600">*</span>
+                            </label>
+                            <input type="text" id="card_number"
+                                   required maxlength="19"
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition"
+                                   placeholder="0000 0000 0000 0000">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Validade <span class="text-red-600">*</span>
+                            </label>
+                            <input type="text" id="card_expiry"
+                                   required maxlength="5"
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition"
+                                   placeholder="MM/AA">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                CVV <span class="text-red-600">*</span>
+                            </label>
+                            <input type="text" id="card_cvv"
+                                   required maxlength="4"
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition"
+                                   placeholder="000">
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Nome no Cartão <span class="text-red-600">*</span>
+                            </label>
+                            <input type="text" id="card_holder_name"
+                                   required
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition"
+                                   placeholder="Nome como está no cartão">
+                        </div>
+
+                        <!-- Hidden field para o token -->
+                        <input type="hidden" name="card_token" id="card_token">
+                    </div>
+
+                    <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div class="flex items-center text-sm text-gray-600">
+                            <i class="fas fa-lock text-green-600 mr-2"></i>
+                            <span>Seus dados de pagamento são criptografados e seguros. Usamos a Pagar.me para processar pagamentos.</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Submit Button -->
                 <div class="mt-10">
                     <button type="submit" id="submitBtn"
@@ -278,21 +358,113 @@
     </div>
 
     <script>
-        // Prevenir múltiplos submits
+        // Configurar Pagar.me
+        const pagarme = window.pagarme || {};
+        const ENCRYPTION_KEY = '{{ config("services.pagarme.encryption_key") }}';
+
+        // Elementos do formulário
         const form = document.getElementById('signupForm');
         const btn = document.getElementById('submitBtn');
+        const cardNumberInput = document.getElementById('card_number');
+        const cardExpiryInput = document.getElementById('card_expiry');
+        const cardCvvInput = document.getElementById('card_cvv');
+        const cardHolderInput = document.getElementById('card_holder_name');
+        const cardTokenInput = document.getElementById('card_token');
 
-        form.addEventListener('submit', function(e) {
-            console.log('✅ Formulário submetido!');
+        // Formatar campos do cartão
+        cardNumberInput?.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\s/g, '');
+            let formattedValue = value.match(/.{1,4}/g)?.join(' ') || value;
+            e.target.value = formattedValue;
+        });
+
+        cardExpiryInput?.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 2) {
+                value = value.slice(0, 2) + '/' + value.slice(2, 4);
+            }
+            e.target.value = value;
+        });
+
+        cardCvvInput?.addEventListener('input', function(e) {
+            e.target.value = e.target.value.replace(/\D/g, '');
+        });
+
+        // Interceptar submit para tokenizar cartão
+        let isSubmitting = false;
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            if (isSubmitting) return;
+            isSubmitting = true;
+
+            console.log('✅ Iniciando tokenização do cartão...');
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Criando sua conta...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processando pagamento...';
 
-            // Log dos dados (sem senhas)
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData);
-            delete data.owner_password;
-            delete data.owner_password_confirmation;
-            console.log('📋 Dados do formulário:', data);
+            try {
+                // Extrair dados do cartão
+                const cardNumber = cardNumberInput.value.replace(/\s/g, '');
+                const expiry = cardExpiryInput.value.split('/');
+                const cvv = cardCvvInput.value;
+                const holderName = cardHolderInput.value;
+
+                if (!cardNumber || !expiry[0] || !expiry[1] || !cvv || !holderName) {
+                    throw new Error('Preencha todos os dados do cartão');
+                }
+
+                // Criar objeto de cartão
+                const cardData = {
+                    number: cardNumber,
+                    holder_name: holderName,
+                    exp_month: expiry[0],
+                    exp_year: '20' + expiry[1],
+                    cvv: cvv
+                };
+
+                console.log('📋 Tokenizando cartão...');
+
+                // Tokenizar usando Pagar.me
+                const response = await fetch('https://api.pagar.me/core/v5/tokens?appId=' + ENCRYPTION_KEY, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        type: 'card',
+                        card: cardData
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Erro ao processar cartão');
+                }
+
+                const tokenData = await response.json();
+                console.log('✅ Token gerado:', tokenData.id);
+
+                // Adicionar token ao formulário
+                cardTokenInput.value = tokenData.id;
+
+                // Limpar campos sensíveis (segurança)
+                cardNumberInput.value = '';
+                cardCvvInput.value = '';
+                cardExpiryInput.value = '';
+
+                // Enviar formulário
+                console.log('📤 Enviando formulário...');
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Criando sua conta...';
+                form.submit();
+
+            } catch (error) {
+                console.error('❌ Erro:', error);
+                alert('Erro ao processar cartão: ' + error.message + '\n\nVerifique os dados e tente novamente.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-rocket mr-2"></i> Criar Minha Conta Grátis';
+                isSubmitting = false;
+            }
         });
 
         // Auto-gerar slug do nome do restaurante

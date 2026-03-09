@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('order_id')->constrained('orders')->onDelete('cascade');
             
-            $table->enum('gateway', ['asaas', 'cash', 'card_machine'])->default('asaas');
+            $table->enum('gateway', ['asaas', 'pagarme', 'cash', 'card_machine'])->default('asaas');
             $table->enum('method', ['pix', 'credit_card', 'debit_card', 'cash'])->default('pix');
             
             $table->decimal('amount', 10, 2);

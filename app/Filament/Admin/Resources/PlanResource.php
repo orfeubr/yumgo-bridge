@@ -90,6 +90,38 @@ class PlanResource extends Resource
                     ])
                     ->columns(2)
                     ->collapsible(),
+
+                Forms\Components\Section::make('Features Técnicas Disponíveis')
+                    ->description('Selecione quais funcionalidades técnicas este plano terá acesso')
+                    ->schema([
+                        Forms\Components\CheckboxList::make('available_features')
+                            ->label('Features Disponíveis')
+                            ->options([
+                                'nfce_auto' => '📄 NFC-e Automática',
+                                'import_csv' => '📊 Importação de Produtos (CSV)',
+                                'user_permissions' => '👥 Sistema de Permissões por Usuário',
+                                'advanced_reports' => '📈 Relatórios Avançados',
+                                'auto_print' => '🖨️ Impressão Automática de Pedidos',
+                                'api_access' => '🔌 Acesso à API',
+                                'webhooks' => '🔗 Webhooks Personalizados',
+                                'multi_store' => '🏪 Multi-Loja (Múltiplos Restaurantes)',
+                            ])
+                            ->descriptions([
+                                'nfce_auto' => 'Emissão automática de Nota Fiscal Eletrônica',
+                                'import_csv' => 'Importar produtos em lote via planilha',
+                                'user_permissions' => 'Criar usuários com permissões granulares',
+                                'advanced_reports' => 'Relatórios completos e exportação de dados',
+                                'auto_print' => 'Imprimir pedidos automaticamente em impressora térmica',
+                                'api_access' => 'Integração via API REST',
+                                'webhooks' => 'Receber notificações em tempo real',
+                                'multi_store' => 'Gerenciar múltiplos restaurantes na mesma conta',
+                            ])
+                            ->columns(2)
+                            ->columnSpanFull()
+                            ->helperText('Features desmarcadas ficarão ocultas no painel do restaurante'),
+                    ])
+                    ->collapsible()
+                    ->collapsed(false),
             ]);
     }
 

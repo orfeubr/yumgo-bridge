@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\PlatformUser;
+use App\Models\Subscription;
+use App\Services\PagarMeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -51,6 +53,9 @@ class SignupController extends Controller
             // Plano
             'plan_id' => 'required|exists:plans,id',
 
+            // Pagamento
+            'card_token' => 'required|string', // Token do cartão (Pagar.me)
+
             // Dados bancários (opcional no cadastro inicial)
             'bank_code' => 'nullable|string|max:3',
             'bank_agency' => 'nullable|string|max:10',
@@ -81,29 +86,55 @@ class SignupController extends Controller
         }
 
         try {
-            // Criar tenant
-            $tenant = Tenant::create([
-                'id' => $request->restaurant_slug,
-                'name' => $request->restaurant_name,
-                'slug' => $request->restaurant_slug,
-                'email' => $request->restaurant_email,
-                'phone' => $request->restaurant_phone,
-                'plan_id' => $request->plan_id,
-                'status' => 'trial', // Aguardando configuração de pagamento
-                'approval_status' => 'pending_approval', // Aguardando aprovação manual
-                'payment_gateway' => 'pagarme',
-                // Dados bancários (se fornecidos)
-                'bank_code' => $request->bank_code,
-                'bank_agency' => $request->bank_agency,
-                'bank_account' => $request->bank_account,
-                'bank_account_digit' => $request->bank_account_digit,
-                'bank_account_type' => $request->bank_account_type ?? 'checking',
+            // ⭐ Criar tenant SEM disparar observers (evita criação de user com senha hardcoded)
+            $tenant = Tenant::withoutEvents(function () use ($request) {
+                return Tenant::create([
+                    'id' => $request->restaurant_slug,
+                    'name' => $request->restaurant_name,
+                    'slug' => $request->restaurant_slug,
+                    'email' => $request->restaurant_email,
+                    'phone' => $request->restaurant_phone,
+                    'plan_id' => $request->plan_id,
+                    'status' => 'trial',
+                    'approval_status' => 'pending_approval',
+                    'payment_gateway' => 'pagarme',
+                    'bank_code' => $request->bank_code,
+                    'bank_agency' => $request->bank_agency,
+                    'bank_account' => $request->bank_account,
+                    'bank_account_digit' => $request->bank_account_digit,
+                    'bank_account_type' => $request->bank_account_type ?? 'checking',
+                ]);
+            });
+
+            // Criar estrutura manualmente (já que Observer não rodou)
+            $observer = new \App\Observers\TenantObserver();
+
+            // 1. Criar storage
+            $reflection = new \ReflectionClass($observer);
+            $method = $reflection->getMethod('createStorageStructure');
+            $method->setAccessible(true);
+            $method->invoke($observer, $tenant);
+
+            // 2. Criar domínio
+            $method = $reflection->getMethod('createDomain');
+            $method->setAccessible(true);
+            $method->invoke($observer, $tenant);
+
+            // 3. ✅ CRIAR USUÁRIO ADMIN COM A SENHA DO FORMULÁRIO
+            tenancy()->initialize($tenant);
+
+            \App\Models\User::create([
+                'name' => $request->owner_name,
+                'email' => $request->owner_email,
+                'password' => Hash::make($request->owner_password), // ⭐ USA SENHA DO FORMULÁRIO
+                'role' => 'admin',
+                'active' => true,
+                'email_verified_at' => now(),
             ]);
 
-            // O TenantObserver já vai criar:
-            // - Domínio ({slug}.yumgo.com.br)
-            // - Schema do banco
-            // - Usuário admin no schema do tenant
+            \Log::info("✅ Usuário admin criado para tenant {$tenant->name} com senha do formulário");
+
+            tenancy()->end();
 
             // Criar usuário da plataforma (para acesso ao painel central se necessário)
             PlatformUser::create([
@@ -113,6 +144,52 @@ class SignupController extends Controller
                 'role' => 'support', // Não é admin da plataforma, apenas suporte
                 'active' => true,
             ]);
+
+            // ⭐ CRIAR SUBSCRIPTION COM TRIAL DE 7 DIAS
+            $plan = Plan::find($request->plan_id);
+
+            // Criar subscription no banco primeiro
+            $subscription = Subscription::create([
+                'tenant_id' => $tenant->id,
+                'plan_id' => $plan->id,
+                'status' => 'trialing', // Status inicial: em trial
+                'trial_ends_at' => now()->addDays(7),
+                'current_period_start' => now(),
+                'current_period_end' => now()->addDays(7),
+            ]);
+
+            // Se o plano tem pagarme_plan_id, criar subscription no Pagar.me
+            if ($plan->pagarme_plan_id) {
+                try {
+                    $pagarMeService = new PagarMeService();
+
+                    $pagarMeResponse = $pagarMeService->createSubscription($subscription, [
+                        'card_id' => $request->card_token,
+                        'payment_method' => 'credit_card',
+                    ]);
+
+                    if ($pagarMeResponse && isset($pagarMeResponse['id'])) {
+                        // Atualizar subscription com dados do Pagar.me
+                        $subscription->update([
+                            'pagarme_subscription_id' => $pagarMeResponse['id'],
+                            'status' => $pagarMeResponse['status'] ?? 'trialing',
+                        ]);
+
+                        \Log::info('✅ Subscription criada no Pagar.me', [
+                            'subscription_id' => $pagarMeResponse['id'],
+                            'tenant_id' => $tenant->id,
+                        ]);
+                    } else {
+                        \Log::warning('⚠️ Falha ao criar subscription no Pagar.me (continuando com trial local)', [
+                            'tenant_id' => $tenant->id,
+                        ]);
+                    }
+
+                } catch (\Exception $e) {
+                    \Log::error('❌ Erro ao criar subscription no Pagar.me: ' . $e->getMessage());
+                    // Continua mesmo se falhar - trial local funciona
+                }
+            }
 
             // Redirecionar para página de sucesso
             if ($request->ajax() || $request->wantsJson()) {

@@ -64,6 +64,7 @@ class RestaurantPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                \App\Http\Middleware\CheckSubscription::class, // ✅ Verifica status e limites do plano
             ])
             ->databaseNotifications()
             ->sidebarCollapsibleOnDesktop()

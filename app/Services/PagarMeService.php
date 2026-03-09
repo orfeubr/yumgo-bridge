@@ -445,6 +445,84 @@ class PagarMeService
         }
 
         try {
+            // ⭐ Determinar tipo de webhook: order/charge OU subscription
+            $isSubscriptionEvent = strpos($event, 'subscription.') === 0;
+
+            if ($isSubscriptionEvent) {
+                // ==================== SUBSCRIPTION EVENTS ====================
+                \Log::info('📦 Webhook de Subscription recebido', ['event' => $event]);
+
+                $subscriptionId = $orderData['id'] ?? null;
+                if (!$subscriptionId) {
+                    \Log::warning('Webhook subscription sem ID', ['data' => $orderData]);
+                    return false;
+                }
+
+                // Buscar subscription no banco
+                $subscription = \App\Models\Subscription::where('pagarme_subscription_id', $subscriptionId)->first();
+                if (!$subscription) {
+                    \Log::warning('Subscription não encontrada', ['pagarme_subscription_id' => $subscriptionId]);
+                    return false;
+                }
+
+                \Log::info('✅ Subscription encontrada', [
+                    'subscription_id' => $subscription->id,
+                    'tenant_id' => $subscription->tenant_id,
+                ]);
+
+                // Processar eventos de subscription
+                switch ($event) {
+                    case 'subscription.created':
+                        $subscription->update([
+                            'status' => $orderData['status'] ?? 'trialing',
+                        ]);
+                        \Log::info('✅ Subscription criada', ['subscription_id' => $subscription->id]);
+                        break;
+
+                    case 'subscription.charge.success':
+                        // Cobrança bem-sucedida (após trial ou renovação mensal)
+                        $subscription->update([
+                            'status' => 'active',
+                            'trial_ends_at' => null, // Trial acabou
+                            'current_period_start' => now(),
+                            'current_period_end' => now()->addMonth(),
+                        ]);
+                        \Log::info('✅ Subscription ativada - pagamento recebido', [
+                            'subscription_id' => $subscription->id,
+                            'tenant_id' => $subscription->tenant_id,
+                        ]);
+                        break;
+
+                    case 'subscription.charge.failed':
+                        // Pagamento falhou - colocar em past_due
+                        $subscription->update([
+                            'status' => 'past_due',
+                        ]);
+                        \Log::warning('⚠️ Falha no pagamento da subscription', [
+                            'subscription_id' => $subscription->id,
+                            'tenant_id' => $subscription->tenant_id,
+                        ]);
+
+                        // TODO: Enviar email notificando falha no pagamento
+                        break;
+
+                    case 'subscription.canceled':
+                        // Subscription cancelada
+                        $subscription->update([
+                            'status' => 'canceled',
+                            'ends_at' => now(),
+                        ]);
+                        \Log::info('❌ Subscription cancelada', [
+                            'subscription_id' => $subscription->id,
+                            'tenant_id' => $subscription->tenant_id,
+                        ]);
+                        break;
+                }
+
+                return true;
+            }
+
+            // ==================== ORDER/CHARGE EVENTS ====================
             // Busca order pelo metadata
             $metadata = $orderData['metadata'] ?? [];
             $orderId = $metadata['order_id'] ?? null;
@@ -1200,4 +1278,5 @@ class PagarMeService
 
         return true;
     }
+
 }

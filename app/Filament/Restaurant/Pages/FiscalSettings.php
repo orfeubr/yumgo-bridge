@@ -24,6 +24,25 @@ class FiscalSettings extends Page implements HasForms
 
     public ?array $data = [];
 
+    /**
+     * Verifica se deve exibir no menu (só Pro/Enterprise)
+     */
+    public static function shouldRegisterNavigation(): bool
+    {
+        $tenant = tenancy()->tenant;
+
+        if (!$tenant) {
+            return false;
+        }
+
+        // Verificar se plano tem acesso a NFC-e
+        $subscription = $tenant->activeSubscription();
+        $planName = $subscription?->plan->name ?? '';
+
+        // NFC-e disponível apenas para Pro e Enterprise
+        return in_array($planName, ['Pro', 'Enterprise']);
+    }
+
     public function mount(): void
     {
         $tenant = tenant();

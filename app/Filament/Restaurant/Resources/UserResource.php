@@ -222,6 +222,50 @@ class UserResource extends Resource
             ->defaultSort('created_at', 'desc');
     }
 
+    /**
+     * Verifica se pode criar usuário (limite de plano)
+     */
+    public static function canCreate(): bool
+    {
+        $tenant = tenancy()->tenant;
+
+        if (!$tenant) {
+            return false;
+        }
+
+        // Buscar plano atual
+        $subscription = $tenant->activeSubscription();
+        $maxUsers = $subscription?->plan->max_users ?? null;
+
+        // Se não tem limite configurado, pode criar
+        if ($maxUsers === null) {
+            return true;
+        }
+
+        // Contar usuários atuais
+        $currentCount = \App\Models\User::count();
+
+        // Se atingiu o limite, bloquear e notificar
+        if ($currentCount >= $maxUsers) {
+            \Filament\Notifications\Notification::make()
+                ->warning()
+                ->title('⚠️ Limite de Usuários Atingido')
+                ->body("Você atingiu o limite de {$maxUsers} usuários do seu plano. Faça upgrade para adicionar mais usuários.")
+                ->persistent()
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('upgrade')
+                        ->label('🚀 Fazer Upgrade')
+                        ->url(route('filament.restaurant.pages.manage-subscription'))
+                        ->markAsRead(),
+                ])
+                ->send();
+
+            return false;
+        }
+
+        return true;
+    }
+
     public static function getPages(): array
     {
         return [
