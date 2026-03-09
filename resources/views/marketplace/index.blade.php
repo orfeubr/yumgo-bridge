@@ -33,10 +33,11 @@
             box-shadow: 0 8px 25px rgba(0,0,0,0.08);
         }
 
-        /* Hero background */
+        /* Hero background - High quality food photography */
         .hero-bg {
-            background: linear-gradient(135deg, rgba(255,77,45,0.95) 0%, rgba(255,77,45,0.85) 100%),
-                        url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1920&h=800&fit=crop') center/cover;
+            background: linear-gradient(135deg, rgba(255,77,45,0.92) 0%, rgba(255,77,45,0.82) 100%),
+                        url('https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=1920&h=800&fit=crop&q=90') center/cover;
+            background-attachment: fixed;
         }
     </style>
 </head>
@@ -165,7 +166,7 @@
 
                 <!-- Marmitex -->
                 <a href="/?category=marmitex" class="flex flex-col items-center gap-2 px-5 py-3 rounded-2xl bg-gray-50 hover:bg-gray-100 text-gray-700 min-w-[90px] transition">
-                    <div class="text-2xl">🍱</div>
+                    <div class="text-2xl">🍛</div>
                     <span class="text-xs font-semibold whitespace-nowrap">Marmitex</span>
                 </a>
 
@@ -266,6 +267,82 @@
                     </div>
                 </section>
 
+                <!-- ========== ⭐ RESTAURANTES POPULARES ========== -->
+                @if($restaurants->count() > 0)
+                <section class="mb-10">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="text-3xl">⭐</div>
+                            <h2 class="text-2xl font-bold text-gray-900">Restaurantes populares</h2>
+                        </div>
+                        <a href="/?sort=rating" class="text-primary font-semibold hover:underline">Ver todos</a>
+                    </div>
+
+                    <!-- Horizontal Scroll Cards -->
+                    <div class="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                        @foreach($restaurants->take(6) as $restaurant)
+                            @if($restaurant->delivers)
+                            <a href="{{ $restaurant->url }}" class="restaurant-card bg-white rounded-2xl overflow-hidden shadow-sm flex-shrink-0 w-[280px]">
+                                <!-- Image -->
+                                <div class="relative h-40 overflow-hidden bg-gray-100">
+                                    @if($restaurant->logo)
+                                        <img src="{{ $restaurant->logo_url }}" alt="{{ $restaurant->name }}"
+                                             class="w-full h-full object-cover"
+                                             onerror="this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&h=400&fit=crop';">
+                                    @else
+                                        <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&h=400&fit=crop"
+                                             alt="Food" class="w-full h-full object-cover">
+                                    @endif
+
+                                    <!-- Popular Badge -->
+                                    <span class="absolute top-3 left-3 px-3 py-1 bg-yellow-500 text-white text-xs font-bold rounded-full shadow-lg">
+                                        ⭐ POPULAR
+                                    </span>
+
+                                    <!-- Status -->
+                                    @if($restaurant->is_open)
+                                        <span class="absolute top-3 right-3 px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full shadow-lg">
+                                            ABERTO
+                                        </span>
+                                    @else
+                                        <span class="absolute top-3 right-3 px-3 py-1 bg-gray-800 text-white text-xs font-bold rounded-full shadow-lg">
+                                            FECHADO
+                                        </span>
+                                    @endif
+                                </div>
+
+                                <!-- Content -->
+                                <div class="p-4">
+                                    <h3 class="font-bold text-gray-900 mb-2 line-clamp-1">{{ $restaurant->name }}</h3>
+
+                                    <!-- Rating -->
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <div class="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg">
+                                            <i class="fas fa-star text-yellow-500 text-xs"></i>
+                                            <span class="text-xs font-bold text-yellow-700">4.9</span>
+                                        </div>
+                                        @if($restaurant->cuisine_types && count($restaurant->cuisine_types) > 0)
+                                            <span class="text-xs text-gray-500">{{ ucfirst(str_replace('-', ' ', $restaurant->cuisine_types[0])) }}</span>
+                                        @endif
+                                    </div>
+
+                                    <!-- Delivery Info -->
+                                    <div class="flex items-center justify-between text-xs text-gray-600 border-t border-gray-100 pt-3">
+                                        <span><i class="fas fa-clock text-gray-400"></i> 25-35 min</span>
+                                        @if($restaurant->is_free_delivery)
+                                            <span class="font-bold text-green-600">Grátis</span>
+                                        @else
+                                            <span class="font-bold text-gray-900">{{ $restaurant->delivery_fee_formatted }}</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </a>
+                            @endif
+                        @endforeach
+                    </div>
+                </section>
+                @endif
+
                 <!-- ========== 💰 RESTAURANTES COM CASHBACK ========== -->
                 @if($withCashback->count() > 0)
                 <section class="mb-10">
@@ -349,7 +426,7 @@
                 <section class="mb-10">
                     <div class="flex items-center justify-between mb-6">
                         <div class="flex items-center gap-3">
-                            <div class="text-3xl">💰</div>
+                            <div class="text-3xl">🎟</div>
                             <h2 class="text-2xl font-bold text-gray-900">Promoções</h2>
                         </div>
                     </div>
