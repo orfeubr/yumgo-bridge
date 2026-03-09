@@ -26,8 +26,8 @@
                         </div>
                     @endif
                 </a>
-                <a href="/admin" class="text-gray-600 hover:text-red-600">
-                    Já tenho conta
+                <a href="/painel" class="text-gray-600 hover:text-red-600 font-semibold">
+                    <i class="fas fa-sign-in-alt mr-1"></i> Já tenho conta
                 </a>
             </div>
         </div>
@@ -358,10 +358,11 @@
     <script>
         function signupWizard() {
             return {
-                step: 1,
+                step: {{ $errors->any() ? (old('owner_name') ? 2 : (old('plan_id') ? 3 : 1)) : 1 }},
                 restaurant_name: '{{ old("restaurant_name") }}',
                 restaurant_slug: '{{ old("restaurant_slug") }}',
-                manuallyEditedSlug: false,
+                manuallyEditedSlug: {{ old("restaurant_slug") ? 'true' : 'false' }},
+                submitting: false,
 
                 generateSlug() {
                     if (!this.manuallyEditedSlug) {
@@ -444,6 +445,10 @@
 
                 // Submeter formulário
                 submitForm() {
+                    if (this.submitting) {
+                        return false; // Previne múltiplos submits
+                    }
+
                     const form = document.getElementById('signupForm');
 
                     // Verificar se um plano foi selecionado
@@ -452,6 +457,12 @@
                         alert('Por favor, selecione um plano.');
                         return false;
                     }
+
+                    // Marca como submetendo e adiciona feedback visual
+                    this.submitting = true;
+                    const submitBtn = event.target;
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Criando conta...';
 
                     // Submeter o formulário
                     form.submit();
