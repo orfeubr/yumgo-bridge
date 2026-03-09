@@ -96,6 +96,11 @@ class Tenant extends BaseTenant implements TenantWithDatabase
         'avg_rating',
         'total_reviews',
         'stats_updated_at',
+        // Aprovação de restaurantes
+        'approval_status',
+        'approved_at',
+        'rejected_at',
+        'rejection_reason',
     ];
 
     protected $casts = [
