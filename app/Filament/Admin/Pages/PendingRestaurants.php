@@ -89,8 +89,8 @@ class PendingRestaurants extends Page implements HasTable
                             ->body("O restaurante \"{$record->name}\" foi aprovado com sucesso.")
                             ->send();
 
-                        // Reload da página
-                        $this->js('setTimeout(() => window.location.reload(), 1000)');
+                        // Força reload usando redirect
+                        return redirect(static::getUrl());
                     }),
 
                 Tables\Actions\Action::make('reject')
@@ -118,8 +118,8 @@ class PendingRestaurants extends Page implements HasTable
                             ->body("O restaurante \"{$record->name}\" foi rejeitado.")
                             ->send();
 
-                        // Reload da página
-                        $this->js('setTimeout(() => window.location.reload(), 1000)');
+                        // Força reload usando redirect
+                        return redirect(static::getUrl());
                     }),
 
                 Tables\Actions\Action::make('view_details')
@@ -151,8 +151,8 @@ class PendingRestaurants extends Page implements HasTable
                             ->body(count($records) . ' restaurante(s) aprovado(s) com sucesso.')
                             ->send();
 
-                        // Reload da página
-                        $this->js('setTimeout(() => window.location.reload(), 1000)');
+                        // Força reload usando redirect
+                        return redirect(static::getUrl());
                     }),
             ])
             ->emptyStateHeading('Nenhum restaurante aguardando aprovação')
