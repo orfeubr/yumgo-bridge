@@ -188,6 +188,29 @@
                 padding-bottom: 0 !important;
             }
         }
+
+        /* 🌟 Shimmer effect (estilo iFood) */
+        @keyframes shimmer {
+            0% {
+                transform: translateX(-100%);
+            }
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        .animate-shimmer {
+            animation: shimmer 2s infinite;
+        }
+
+        /* Otimização de blur para performance */
+        .blur-sm {
+            filter: blur(4px);
+        }
+
+        .blur-0 {
+            filter: blur(0);
+        }
     </style>
 
     @yield('styles')
