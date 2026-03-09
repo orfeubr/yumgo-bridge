@@ -16,4 +16,16 @@ class ListOrders extends ListRecords
             Actions\CreateAction::make(),
         ];
     }
+
+    public function getHeaderWidgetsColumns(): int | array
+    {
+        return 1;
+    }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            OrderResource\Widgets\OrderLimitWidget::class,
+        ];
+    }
 }

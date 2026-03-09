@@ -5,41 +5,54 @@
         <!-- PRODUTOS (8 colunas) -->
         <div class="lg:col-span-8 space-y-4">
 
-            <!-- Busca -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <div class="flex gap-3">
+            <!-- Busca e Categorias Compactas -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2">
+                <!-- Busca + Toggle Imagens -->
+                <div class="flex gap-2 mb-2">
                     <div class="flex-1">
                         <x-filament::input.wrapper>
                             <x-filament::input
                                 wire:model.live.debounce.300ms="searchProduct"
                                 type="text"
-                                placeholder="🔍 Buscar produto..."
-                                class="text-base"
+                                placeholder="🔍 Buscar..."
+                                class="text-sm py-1"
                             />
                         </x-filament::input.wrapper>
                     </div>
+
+                    <!-- Toggle Imagens -->
+                    <x-filament::button
+                        wire:click="$toggle('showImages')"
+                        :color="$showImages ? 'primary' : 'gray'"
+                        size="xs"
+                        :title="$showImages ? 'Ocultar imagens' : 'Mostrar imagens'"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </x-filament::button>
+
                     @if($searchProduct)
                         <x-filament::button
                             wire:click="$set('searchProduct', '')"
                             color="gray"
                             outlined
+                            size="xs"
                         >
-                            Limpar
+                            ✕
                         </x-filament::button>
                     @endif
                 </div>
-            </div>
 
-            <!-- Categorias -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <div class="flex gap-2 overflow-x-auto pb-2">
+                <!-- Categorias -->
+                <div class="flex gap-1.5 overflow-x-auto pb-1">
                     <x-filament::button
                         wire:click="$set('selectedCategory', null)"
                         :color="!$selectedCategory ? 'primary' : 'gray'"
                         :outlined="$selectedCategory !== null"
-                        size="sm"
+                        size="xs"
                     >
-                        🍽️ Todas
+                        Todas
                     </x-filament::button>
 
                     @foreach($this->getCategories() as $category)
@@ -47,7 +60,7 @@
                             wire:click="$set('selectedCategory', {{ $category->id }})"
                             :color="$selectedCategory == $category->id ? 'primary' : 'gray'"
                             :outlined="$selectedCategory != $category->id"
-                            size="sm"
+                            size="xs"
                         >
                             {{ $category->name }}
                         </x-filament::button>
@@ -55,71 +68,88 @@
                 </div>
             </div>
 
-            <!-- Grid de Produtos -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <h3 class="text-base font-bold mb-4 text-gray-700 dark:text-gray-300">Produtos Disponíveis</h3>
-
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[calc(100vh-350px)] overflow-y-auto pr-2">
+            <!-- Grid de Produtos (COMPACTO) -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2">
+                <div class="grid @if($showImages) grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 @else grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 @endif gap-1.5 max-h-[calc(100vh-240px)] overflow-y-auto pr-1">
                     @forelse($this->getProducts() as $product)
                         <button
                             wire:click="addToCart({{ $product->id }})"
-                            class="group relative flex flex-col bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-3 hover:border-primary-500 hover:shadow-lg transition-all duration-200 cursor-pointer"
+                            class="group relative flex flex-col bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg @if($showImages) p-1.5 @else p-2 @endif hover:border-primary-500 hover:shadow-md transition-all duration-150 cursor-pointer"
                             @if($product->has_stock_control && !$product->hasStock())
                                 disabled
                                 class="opacity-50 cursor-not-allowed"
                             @endif
                         >
-                            <!-- Imagem -->
-                            <div class="relative mb-3">
-                                @if($product->image)
-                                    <img
-                                        src="{{ Storage::url($product->image) }}"
-                                        alt="{{ $product->name }}"
-                                        class="w-full h-24 object-cover rounded-lg"
-                                    >
-                                @else
-                                    <div class="w-full h-24 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-lg flex items-center justify-center">
-                                        <span class="text-4xl">🍕</span>
-                                    </div>
-                                @endif
+                            <!-- Imagem Compacta (Opcional) -->
+                            @if($showImages)
+                                <div class="relative mb-1.5">
+                                    @if($product->image)
+                                        <img
+                                            src="{{ Storage::url($product->image) }}"
+                                            alt="{{ $product->name }}"
+                                            class="w-full h-16 object-cover rounded"
+                                        >
+                                    @else
+                                        <div class="w-full h-16 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded flex items-center justify-center">
+                                            <span class="text-2xl">🍕</span>
+                                        </div>
+                                    @endif
 
-                                @if($product->is_pizza)
-                                    <span class="absolute -top-1 -right-1 bg-orange-500 text-white text-xs px-2 py-1 rounded-full font-bold">
-                                        🍕
-                                    </span>
-                                @endif
+                                    @if($product->is_pizza)
+                                        <span class="absolute top-0 right-0 bg-orange-500 text-white text-[9px] px-1 rounded-full font-bold">
+                                            🍕
+                                        </span>
+                                    @endif
 
-                                @if($product->has_stock_control && $product->stock_quantity <= 10 && $product->stock_quantity > 0)
-                                    <span class="absolute -bottom-1 -right-1 bg-yellow-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
-                                        {{ $product->stock_quantity }}un
-                                    </span>
-                                @elseif($product->has_stock_control && $product->stock_quantity === 0)
-                                    <span class="absolute -bottom-1 -right-1 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
-                                        ESGOTADO
-                                    </span>
-                                @endif
-                            </div>
+                                    @if($product->has_stock_control && $product->stock_quantity <= 10 && $product->stock_quantity > 0)
+                                        <span class="absolute bottom-0 right-0 bg-yellow-500 text-white text-[9px] px-1 rounded-full font-bold">
+                                            {{ $product->stock_quantity }}
+                                        </span>
+                                    @elseif($product->has_stock_control && $product->stock_quantity === 0)
+                                        <span class="absolute bottom-0 right-0 bg-red-500 text-white text-[9px] px-1 rounded-full font-bold">
+                                            SEM
+                                        </span>
+                                    @endif
+                                </div>
+                            @endif
 
-                            <!-- Info -->
-                            <div class="flex-1 flex flex-col justify-between">
-                                <h4 class="font-semibold text-sm text-gray-900 dark:text-white line-clamp-2 mb-2">
-                                    {{ $product->name }}
-                                </h4>
+                            <!-- Info Compacta -->
+                            <div class="flex-1 flex flex-col justify-between min-h-0">
+                                <div class="flex items-start justify-between gap-1 mb-1">
+                                    <h4 class="font-semibold @if($showImages) text-[10px] @else text-xs @endif leading-tight text-gray-900 dark:text-white line-clamp-2 flex-1">
+                                        {{ $product->name }}
+                                    </h4>
 
-                                <div class="flex items-center justify-between">
-                                    <span class="text-lg font-bold text-primary-600 dark:text-primary-400">
+                                    @if(!$showImages)
+                                        @if($product->is_pizza)
+                                            <span class="text-xs">🍕</span>
+                                        @endif
+                                        @if($product->has_stock_control && $product->stock_quantity <= 10 && $product->stock_quantity > 0)
+                                            <span class="bg-yellow-500 text-white text-[9px] px-1 rounded font-bold">
+                                                {{ $product->stock_quantity }}
+                                            </span>
+                                        @elseif($product->has_stock_control && $product->stock_quantity === 0)
+                                            <span class="bg-red-500 text-white text-[9px] px-1 rounded font-bold">
+                                                0
+                                            </span>
+                                        @endif
+                                    @endif
+                                </div>
+
+                                <div class="flex items-center justify-between gap-1">
+                                    <span class="text-xs font-bold text-primary-600 dark:text-primary-400">
                                         R$ {{ number_format($product->price, 2, ',', '.') }}
                                     </span>
-                                    <span class="w-8 h-8 bg-primary-500 text-white rounded-full flex items-center justify-center font-bold text-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span class="w-5 h-5 bg-primary-500 text-white rounded-full flex items-center justify-center font-bold text-xs opacity-0 group-hover:opacity-100 transition-opacity">
                                         +
                                     </span>
                                 </div>
                             </div>
                         </button>
                     @empty
-                        <div class="col-span-full text-center py-12">
-                            <div class="text-6xl mb-4">🔍</div>
-                            <p class="text-gray-500 text-sm">Nenhum produto encontrado</p>
+                        <div class="col-span-full text-center py-8">
+                            <div class="text-4xl mb-2">🔍</div>
+                            <p class="text-gray-500 text-xs">Nenhum produto encontrado</p>
                         </div>
                     @endforelse
                 </div>

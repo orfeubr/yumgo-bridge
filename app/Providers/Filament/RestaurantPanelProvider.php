@@ -47,6 +47,7 @@ class RestaurantPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Restaurant/Pages'), for: 'App\\Filament\\Restaurant\\Pages')
             ->discoverWidgets(in: app_path('Filament/Restaurant/Widgets'), for: 'App\\Filament\\Restaurant\\Widgets')
             ->widgets([
+                \App\Filament\Restaurant\Widgets\SubscriptionLimitsWidget::class,
                 Widgets\AccountWidget::class,
             ])
             ->middleware([
