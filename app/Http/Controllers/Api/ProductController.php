@@ -94,13 +94,20 @@ class ProductController extends Controller
      */
     private function formatProduct(Product $product): array
     {
+        // Usa thumbnail na listagem (mais rápido), imagem full no detalhe
+        $imageToUse = $product->thumbnail ?? $product->image;
+
         return [
             'id' => $product->id,
             'name' => $product->name,
             'description' => $product->description,
             'filling' => $product->filling,
             'price' => $product->price,
-            'image' => $product->image,
+            'image' => $imageToUse
+                ? (str_starts_with($imageToUse, 'http')
+                    ? $imageToUse
+                    : url('/storage/' . $imageToUse))
+                : null,
             'is_featured' => $product->is_featured,
             'is_active' => $product->is_active,
             'category' => [
@@ -163,8 +170,16 @@ class ProductController extends Controller
 
                 'price' => $product->price,
                 'price_formatted' => 'R$ ' . number_format($product->price, 2, ',', '.'),
-                'image' => $product->image,
-                'image_thumb' => $product->image, // TODO: implementar thumbs
+                'image' => $product->image
+                    ? (str_starts_with($product->image, 'http')
+                        ? $product->image
+                        : url('/storage/' . $product->image))
+                    : null,
+                'image_thumb' => $product->image
+                    ? (str_starts_with($product->image, 'http')
+                        ? $product->image
+                        : url('/storage/' . $product->image))
+                    : null,
                 'description' => $product->description,
                 'category' => [
                     'id' => $product->category->id,

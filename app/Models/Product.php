@@ -19,6 +19,7 @@ class Product extends Model
         'description',
         'price',
         'image',
+        'thumbnail',
         'images',
         'filling',
         'pizza_config',
@@ -39,6 +40,9 @@ class Product extends Model
         'border_prices',
         'order',
         'print_location',
+        'ncm',
+        'cfop',
+        'cest',
     ];
 
     protected $casts = [
