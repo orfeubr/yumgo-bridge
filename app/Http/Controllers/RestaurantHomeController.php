@@ -134,8 +134,9 @@ class RestaurantHomeController extends Controller
         }
 
         // Configurações de pizzas (para JavaScript) - filtradas pelo cardápio se houver
+        // ⚠️ Filtrar por pizza_config não nulo (produtos que têm configuração de pizza)
         $pizzaConfigs = Product::where('is_active', true)
-            ->where('is_pizza', true)
+            ->whereNotNull('pizza_config') // ✅ Identifica pizzas pela configuração JSONB
             ->where(function ($q) {
                 $q->where('has_stock_control', false)
                   ->orWhere(function ($sq) {
