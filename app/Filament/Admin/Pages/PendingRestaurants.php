@@ -37,6 +37,7 @@ class PendingRestaurants extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
+            ->poll('5s')  // Atualiza automaticamente a cada 5 segundos
             ->query(
                 Tenant::select(['id', 'name', 'email', 'phone', 'slug', 'created_at', 'approval_status'])
                     ->where('approval_status', 'pending_approval')
@@ -88,9 +89,6 @@ class PendingRestaurants extends Page implements HasTable
                             ->title('Restaurante aprovado!')
                             ->body("O restaurante \"{$record->name}\" foi aprovado com sucesso.")
                             ->send();
-
-                        // Dispara evento para recarregar página
-                        $this->dispatch('approval-success');
                     }),
 
                 Tables\Actions\Action::make('reject')
@@ -117,9 +115,6 @@ class PendingRestaurants extends Page implements HasTable
                             ->title('Restaurante rejeitado')
                             ->body("O restaurante \"{$record->name}\" foi rejeitado.")
                             ->send();
-
-                        // Dispara evento para recarregar página
-                        $this->dispatch('approval-success');
                     }),
 
                 Tables\Actions\Action::make('view_details')
@@ -150,9 +145,6 @@ class PendingRestaurants extends Page implements HasTable
                             ->title('Restaurantes aprovados!')
                             ->body(count($records) . ' restaurante(s) aprovado(s) com sucesso.')
                             ->send();
-
-                        // Dispara evento para recarregar página
-                        $this->dispatch('approval-success');
                     }),
             ])
             ->emptyStateHeading('Nenhum restaurante aguardando aprovação')
