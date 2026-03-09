@@ -157,4 +157,72 @@ class PagarMeWebhookController extends Controller
 
         return $this->handle($request);
     }
+
+    /**
+     * Webhook específico para ASSINATURAS
+     * Endpoint: /api/webhooks/pagarme/subscriptions
+     *
+     * Eventos processados:
+     * - subscription.created - Assinatura criada
+     * - subscription.paid - Pagamento de assinatura confirmado
+     * - subscription.payment_failed - Falha no pagamento
+     * - subscription.canceled - Assinatura cancelada
+     */
+    public function subscriptions(Request $request)
+    {
+        Log::info('🔔 Webhook Pagar.me SUBSCRIPTION recebido', [
+            'timestamp' => now()->toDateTimeString(),
+            'ip' => $request->ip(),
+            'event' => $request->input('type'),
+        ]);
+
+        $data = $request->all();
+        $event = $data['type'] ?? null;
+
+        Log::info('Webhook Assinatura - Processando', [
+            'event' => $event,
+            'subscription_id' => $data['data']['id'] ?? null,
+        ]);
+
+        try {
+            // 🔐 VALIDAÇÃO DE ASSINATURA (SEGURANÇA)
+            if (!$this->validateSignature($request)) {
+                Log::error('🚨 WEBHOOK SUBSCRIPTION: Assinatura inválida');
+                return response()->json(['message' => 'Invalid signature'], 403);
+            }
+
+            // Processar webhook de assinatura via PagarMeService
+            $pagarmeService = app(PagarMeService::class);
+            $success = $pagarmeService->handleSubscriptionWebhook($data);
+
+            if ($success) {
+                Log::info('✅ Webhook de assinatura processado com sucesso', [
+                    'event' => $event,
+                ]);
+
+                return response()->json([
+                    'message' => 'Subscription webhook processed successfully',
+                ], 200);
+            } else {
+                Log::warning('⚠️ Webhook de assinatura não processado', [
+                    'event' => $event,
+                ]);
+
+                return response()->json([
+                    'message' => 'Subscription webhook received but not processed',
+                ], 200);
+            }
+        } catch (\Exception $e) {
+            Log::error('❌ Erro ao processar webhook de assinatura', [
+                'event' => $event,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => 'Error processing subscription webhook',
+                'error' => $e->getMessage(),
+            ], 200);
+        }
+    }
 }

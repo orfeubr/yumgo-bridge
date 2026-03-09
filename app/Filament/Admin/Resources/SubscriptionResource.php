@@ -4,17 +4,20 @@ namespace App\Filament\Admin\Resources;
 
 use App\Filament\Admin\Resources\SubscriptionResource\Pages;
 use App\Models\Subscription;
+use App\Services\PagarMeService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Notifications\Notification;
+use Illuminate\Support\HtmlString;
 
 class SubscriptionResource extends Resource
 {
     protected static ?string $model = Subscription::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-document-text';
+    protected static ?string $navigationIcon = 'heroicon-o-credit-card';
 
     protected static ?string $navigationLabel = 'Assinaturas';
 
@@ -22,54 +25,124 @@ class SubscriptionResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Assinaturas';
 
-    protected static ?string $navigationGroup = 'Plataforma';
+    protected static ?string $navigationGroup = 'Financeiro';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Informações da Assinatura')
+                Forms\Components\Section::make('Informações Básicas')
                     ->schema([
                         Forms\Components\Select::make('tenant_id')
                             ->label('Restaurante')
                             ->relationship('tenant', 'name')
-                            ->required()
                             ->searchable()
-                            ->preload(),
+                            ->preload()
+                            ->required()
+                            ->columnSpan(2),
 
                         Forms\Components\Select::make('plan_id')
                             ->label('Plano')
                             ->relationship('plan', 'name')
                             ->required()
-                            ->preload(),
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                $plan = \App\Models\Plan::find($state);
+                                if ($plan) {
+                                    $set('amount', $plan->price_monthly);
+                                }
+                            })
+                            ->columnSpan(1),
 
                         Forms\Components\Select::make('status')
                             ->label('Status')
                             ->options([
-                                'active' => 'Ativa',
-                                'cancelled' => 'Cancelada',
-                                'expired' => 'Expirada',
-                                'suspended' => 'Suspensa',
+                                'trialing' => 'Trial (Teste Grátis)',
+                                'active' => 'Ativo',
+                                'past_due' => 'Atrasado',
+                                'canceled' => 'Cancelado',
                             ])
+                            ->default('trialing')
                             ->required()
-                            ->default('active'),
-
-                        Forms\Components\DatePicker::make('starts_at')
-                            ->label('Data de Início')
-                            ->required()
-                            ->default(now()),
-
-                        Forms\Components\DatePicker::make('ends_at')
-                            ->label('Data de Término')
-                            ->helperText('Deixe vazio para assinatura sem data de término'),
-
-                        Forms\Components\DatePicker::make('cancelled_at')
-                            ->label('Data de Cancelamento')
-                            ->helperText('Preenchido automaticamente ao cancelar'),
+                            ->columnSpan(1),
                     ])
                     ->columns(2),
+
+                Forms\Components\Section::make('Datas')
+                    ->schema([
+                        Forms\Components\DateTimePicker::make('starts_at')
+                            ->label('Data de Início')
+                            ->default(now())
+                            ->required(),
+
+                        Forms\Components\DateTimePicker::make('trial_ends_at')
+                            ->label('Fim do Trial')
+                            ->default(now()->addDays(15))
+                            ->helperText('15 dias de teste grátis'),
+
+                        Forms\Components\DateTimePicker::make('next_billing_date')
+                            ->label('Próxima Cobrança')
+                            ->helperText('Data da próxima cobrança automática'),
+
+                        Forms\Components\DateTimePicker::make('last_payment_date')
+                            ->label('Último Pagamento')
+                            ->helperText('Data do último pagamento confirmado'),
+
+                        Forms\Components\DateTimePicker::make('ends_at')
+                            ->label('Data de Término'),
+
+                        Forms\Components\DateTimePicker::make('canceled_at')
+                            ->label('Data de Cancelamento'),
+                    ])
+                    ->columns(3)
+                    ->collapsible(),
+
+                Forms\Components\Section::make('Pagamento')
+                    ->schema([
+                        Forms\Components\TextInput::make('amount')
+                            ->label('Valor Mensal')
+                            ->prefix('R$')
+                            ->numeric()
+                            ->minValue(0)
+                            ->maxValue(9999)
+                            ->helperText('Valor cobrado mensalmente'),
+
+                        Forms\Components\Select::make('payment_method')
+                            ->label('Método de Pagamento')
+                            ->options([
+                                'credit_card' => 'Cartão de Crédito',
+                                'boleto' => 'Boleto',
+                            ])
+                            ->helperText('Como o restaurante paga'),
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
+
+                Forms\Components\Section::make('Pagar.me (Integração)')
+                    ->schema([
+                        Forms\Components\TextInput::make('pagarme_subscription_id')
+                            ->label('ID da Assinatura (Pagar.me)')
+                            ->maxLength(255)
+                            ->disabled()
+                            ->helperText('ID gerado pelo Pagar.me'),
+
+                        Forms\Components\TextInput::make('pagarme_customer_id')
+                            ->label('ID do Cliente (Pagar.me)')
+                            ->maxLength(255)
+                            ->disabled()
+                            ->helperText('ID do cliente no Pagar.me'),
+
+                        Forms\Components\TextInput::make('pagarme_status')
+                            ->label('Status no Pagar.me')
+                            ->maxLength(255)
+                            ->disabled()
+                            ->helperText('Status retornado pelo Pagar.me'),
+                    ])
+                    ->columns(3)
+                    ->collapsible()
+                    ->collapsed(),
             ]);
     }
 
@@ -81,17 +154,22 @@ class SubscriptionResource extends Resource
                     ->label('Restaurante')
                     ->searchable()
                     ->sortable()
-                    ->description(fn (Subscription $record): string => $record->tenant->slug ?? ''),
+                    ->weight('medium'),
 
                 Tables\Columns\TextColumn::make('plan.name')
                     ->label('Plano')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'Starter' => 'info',
+                    ->color(fn($record) => match($record->plan->name) {
+                        'Starter' => 'gray',
                         'Pro' => 'success',
                         'Enterprise' => 'warning',
                         default => 'gray',
                     })
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('amount')
+                    ->label('Valor')
+                    ->money('BRL')
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('status')
@@ -99,30 +177,48 @@ class SubscriptionResource extends Resource
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'active' => 'success',
-                        'cancelled' => 'danger',
-                        'expired' => 'warning',
-                        'suspended' => 'gray',
-                        default => 'gray',
+                        'trialing' => 'info',
+                        'past_due' => 'danger',
+                        'canceled' => 'gray',
+                        default => 'warning',
                     })
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'active' => 'Ativa',
-                        'cancelled' => 'Cancelada',
-                        'expired' => 'Expirada',
-                        'suspended' => 'Suspensa',
+                        'active' => 'Ativo',
+                        'trialing' => 'Trial',
+                        'past_due' => 'Atrasado',
+                        'canceled' => 'Cancelado',
                         default => $state,
                     })
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('next_billing_date')
+                    ->label('Próxima Cobrança')
+                    ->date('d/m/Y')
+                    ->sortable()
+                    ->placeholder('–'),
+
+                Tables\Columns\TextColumn::make('last_payment_date')
+                    ->label('Último Pagamento')
+                    ->date('d/m/Y')
+                    ->sortable()
+                    ->placeholder('Nunca')
+                    ->toggleable(),
+
+                Tables\Columns\IconColumn::make('pagarme_subscription_id')
+                    ->label('Pagar.me')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('gray')
+                    ->tooltip(fn ($record) => $record->pagarme_subscription_id ? 'Integrado' : 'Não integrado')
+                    ->toggleable(),
+
                 Tables\Columns\TextColumn::make('starts_at')
                     ->label('Início')
                     ->date('d/m/Y')
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('ends_at')
-                    ->label('Término')
-                    ->date('d/m/Y')
                     ->sortable()
-                    ->placeholder('Sem término'),
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Criado em')
@@ -130,39 +226,129 @@ class SubscriptionResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultSort('created_at', 'desc')
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Status')
                     ->options([
-                        'active' => 'Ativa',
-                        'cancelled' => 'Cancelada',
-                        'expired' => 'Expirada',
-                        'suspended' => 'Suspensa',
-                    ]),
+                        'active' => 'Ativo',
+                        'trialing' => 'Trial',
+                        'past_due' => 'Atrasado',
+                        'canceled' => 'Cancelado',
+                    ])
+                    ->multiple(),
 
-                Tables\Filters\SelectFilter::make('plan')
+                Tables\Filters\SelectFilter::make('plan_id')
+                    ->label('Plano')
                     ->relationship('plan', 'name')
-                    ->label('Plano'),
+                    ->multiple(),
+
+                Tables\Filters\Filter::make('has_pagarme')
+                    ->label('Integrado com Pagar.me')
+                    ->query(fn ($query) => $query->whereNotNull('pagarme_subscription_id')),
+
+                Tables\Filters\Filter::make('expiring_soon')
+                    ->label('Vence em 7 dias')
+                    ->query(fn ($query) => $query
+                        ->where('status', 'active')
+                        ->whereBetween('next_billing_date', [now(), now()->addDays(7)])
+                    ),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('sync')
+                    ->label('Sincronizar')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('info')
+                    ->visible(fn ($record) => !empty($record->pagarme_subscription_id))
+                    ->requiresConfirmation()
+                    ->action(function (Subscription $record) {
+                        try {
+                            $service = new PagarMeService();
+                            $info = $service->getSubscriptionInfo($record->pagarme_subscription_id);
+
+                            if ($info) {
+                                $record->update([
+                                    'pagarme_status' => $info['status'],
+                                    'next_billing_date' => $info['next_billing_at'] ?? null,
+                                ]);
+
+                                Notification::make()
+                                    ->success()
+                                    ->title('Sincronizado com sucesso!')
+                                    ->body('Status atualizado do Pagar.me.')
+                                    ->send();
+                            } else {
+                                throw new \Exception('Não foi possível obter informações do Pagar.me');
+                            }
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Erro ao sincronizar')
+                                ->body($e->getMessage())
+                                ->send();
+                        }
+                    }),
+
                 Tables\Actions\Action::make('cancel')
                     ->label('Cancelar')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
-                    ->visible(fn (Subscription $record) => $record->status === 'active')
+                    ->visible(fn ($record) => in_array($record->status, ['active', 'trialing', 'past_due']))
                     ->requiresConfirmation()
-                    ->action(fn (Subscription $record) => $record->update([
-                        'status' => 'cancelled',
-                        'cancelled_at' => now(),
-                    ])),
+                    ->modalHeading('Cancelar Assinatura')
+                    ->modalDescription('Tem certeza? O restaurante perderá acesso ao sistema.')
+                    ->modalSubmitActionLabel('Sim, cancelar')
+                    ->action(function (Subscription $record) {
+                        try {
+                            // Cancelar no Pagar.me se existir
+                            if ($record->pagarme_subscription_id) {
+                                $service = new PagarMeService();
+                                $service->cancelSubscription($record->pagarme_subscription_id);
+                            }
+
+                            // Atualizar status local
+                            $record->update([
+                                'status' => 'canceled',
+                                'canceled_at' => now(),
+                                'ends_at' => now(),
+                            ]);
+
+                            Notification::make()
+                                ->success()
+                                ->title('Assinatura cancelada')
+                                ->body('O restaurante foi notificado.')
+                                ->send();
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Erro ao cancelar')
+                                ->body($e->getMessage())
+                                ->send();
+                        }
+                    }),
+
+                Tables\Actions\EditAction::make(),
+
+                Tables\Actions\Action::make('view_pagarme')
+                    ->label('Ver no Pagar.me')
+                    ->icon('heroicon-o-arrow-top-right-on-square')
+                    ->color('gray')
+                    ->visible(fn ($record) => !empty($record->pagarme_subscription_id))
+                    ->url(fn ($record) => "https://dashboard.pagar.me/subscriptions/{$record->pagarme_subscription_id}", shouldOpenInNewTab: true),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->requiresConfirmation(),
                 ]),
-            ])
-            ->defaultSort('created_at', 'desc');
+            ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            //
+        ];
     }
 
     public static function getPages(): array
@@ -172,5 +358,15 @@ class SubscriptionResource extends Resource
             'create' => Pages\CreateSubscription::route('/create'),
             'edit' => Pages\EditSubscription::route('/{record}/edit'),
         ];
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        return static::getModel()::where('status', 'past_due')->count() ?: null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'danger';
     }
 }

@@ -855,4 +855,349 @@ class PagarMeService
 
         return '' . $n1 . $n2 . $n3 . $n4 . $n5 . $n6 . $n7 . $n8 . $n9 . $d1 . $d2;
     }
+
+    // ==================== MÉTODOS DE ASSINATURAS ====================
+
+    /**
+     * Cria um cliente no Pagar.me para assinaturas
+     *
+     * @param \App\Models\Tenant $tenant
+     * @return array|null - ['id' => customer_id, 'status' => ...]
+     */
+    public function createCustomer(\App\Models\Tenant $tenant): ?array
+    {
+        $cpfCnpj = preg_replace('/[^0-9]/', '', $tenant->cpf_cnpj ?? $tenant->cnpj ?? '');
+
+        // Se não tiver CPF/CNPJ, gera um CNPJ único
+        if (empty($cpfCnpj)) {
+            $cpfCnpj = '11222333' . str_pad((string) $tenant->id, 4, '0', STR_PAD_LEFT) . '81';
+        }
+
+        $phone = preg_replace('/[^0-9]/', '', $tenant->phone ?? '11912345678');
+        $ddd = substr($phone, 0, 2);
+        $number = substr($phone, 2);
+
+        $payload = [
+            'name' => $tenant->name,
+            'email' => $tenant->email,
+            'document' => $cpfCnpj,
+            'type' => strlen($cpfCnpj) === 11 ? 'individual' : 'company',
+            'phones' => [
+                'mobile_phone' => [
+                    'country_code' => '55',
+                    'area_code' => $ddd,
+                    'number' => $number,
+                ],
+            ],
+        ];
+
+        \Log::info('🔵 Pagar.me: Criando customer para tenant', [
+            'tenant_id' => $tenant->id,
+            'tenant_name' => $tenant->name,
+        ]);
+
+        $response = Http::withBasicAuth($this->apiKey, '')
+            ->withHeaders(['Content-Type' => 'application/json'])
+            ->post("{$this->baseUrl}/customers", $payload);
+
+        if ($response->successful()) {
+            $responseData = $response->json();
+            \Log::info('✅ Pagar.me: Customer criado com sucesso', [
+                'customer_id' => $responseData['id'],
+            ]);
+
+            return [
+                'id' => $responseData['id'],
+                'status' => $responseData['status'] ?? 'active',
+            ];
+        }
+
+        \Log::error('❌ Pagar.me: Erro ao criar customer', [
+            'status' => $response->status(),
+            'response' => $response->json(),
+        ]);
+
+        return null;
+    }
+
+    /**
+     * Cria plano de assinatura no Pagar.me
+     *
+     * @param \App\Models\Plan $plan
+     * @return array|null - ['id' => plan_id, ...]
+     */
+    public function createPlan(\App\Models\Plan $plan): ?array
+    {
+        // Verifica se já existe um plano criado
+        if ($plan->pagarme_plan_id) {
+            return ['id' => $plan->pagarme_plan_id];
+        }
+
+        $payload = [
+            'name' => $plan->name,
+            'interval' => 'month',
+            'interval_count' => 1,
+            'billing_type' => 'prepaid', // Pré-pago (cobra antes)
+            'payment_methods' => ['credit_card', 'boleto'],
+            'installments' => [1], // Apenas 1x
+            'items' => [
+                [
+                    'name' => "Assinatura {$plan->name}",
+                    'quantity' => 1,
+                    'pricing_scheme' => [
+                        'price' => (int) ($plan->price_monthly * 100), // Centavos
+                    ],
+                ],
+            ],
+            'metadata' => [
+                'plan_id' => $plan->id,
+                'type' => 'restaurant_subscription',
+            ],
+        ];
+
+        \Log::info('🔵 Pagar.me: Criando plano de assinatura', [
+            'plan_id' => $plan->id,
+            'plan_name' => $plan->name,
+            'price' => $plan->price_monthly,
+        ]);
+
+        $response = Http::withBasicAuth($this->apiKey, '')
+            ->withHeaders(['Content-Type' => 'application/json'])
+            ->post("{$this->baseUrl}/plans", $payload);
+
+        if ($response->successful()) {
+            $responseData = $response->json();
+            \Log::info('✅ Pagar.me: Plano criado com sucesso', [
+                'plan_id' => $responseData['id'],
+            ]);
+
+            return [
+                'id' => $responseData['id'],
+                'status' => $responseData['status'] ?? 'active',
+            ];
+        }
+
+        \Log::error('❌ Pagar.me: Erro ao criar plano', [
+            'status' => $response->status(),
+            'response' => $response->json(),
+        ]);
+
+        return null;
+    }
+
+    /**
+     * Cria assinatura no Pagar.me
+     *
+     * @param \App\Models\Subscription $subscription
+     * @param array $paymentData - ['card_id' => ..., 'payment_method' => ...]
+     * @return array|null
+     */
+    public function createSubscription(\App\Models\Subscription $subscription, array $paymentData): ?array
+    {
+        $tenant = $subscription->tenant;
+        $plan = $subscription->plan;
+
+        // 1. Criar ou obter customer
+        $customerId = $tenant->pagarme_customer_id;
+        if (!$customerId) {
+            $customerData = $this->createCustomer($tenant);
+            if (!$customerData) {
+                return null;
+            }
+            $customerId = $customerData['id'];
+            $tenant->update(['pagarme_customer_id' => $customerId]);
+        }
+
+        // 2. Criar ou obter plano
+        $planId = $plan->pagarme_plan_id;
+        if (!$planId) {
+            $planData = $this->createPlan($plan);
+            if (!$planData) {
+                return null;
+            }
+            $planId = $planData['id'];
+            $plan->update(['pagarme_plan_id' => $planId]);
+        }
+
+        // 3. Preparar payload da assinatura
+        $payload = [
+            'customer_id' => $customerId,
+            'plan_id' => $planId,
+            'payment_method' => $paymentData['payment_method'] ?? 'credit_card',
+            'metadata' => [
+                'tenant_id' => $tenant->id,
+                'subscription_id' => $subscription->id,
+            ],
+        ];
+
+        // Adicionar dados do cartão se for credit_card
+        if ($payload['payment_method'] === 'credit_card') {
+            if (isset($paymentData['card_id'])) {
+                // Token do cartão
+                $payload['card_id'] = $paymentData['card_id'];
+            } else {
+                \Log::error('❌ Pagar.me: card_id não fornecido para assinatura');
+                return null;
+            }
+        }
+
+        \Log::info('🔵 Pagar.me: Criando assinatura', [
+            'tenant_id' => $tenant->id,
+            'plan_id' => $plan->id,
+            'customer_id' => $customerId,
+            'payment_method' => $payload['payment_method'],
+        ]);
+
+        $response = Http::withBasicAuth($this->apiKey, '')
+            ->withHeaders(['Content-Type' => 'application/json'])
+            ->post("{$this->baseUrl}/subscriptions", $payload);
+
+        if ($response->successful()) {
+            $responseData = $response->json();
+            \Log::info('✅ Pagar.me: Assinatura criada com sucesso', [
+                'subscription_id' => $responseData['id'],
+                'status' => $responseData['status'],
+            ]);
+
+            return [
+                'id' => $responseData['id'],
+                'status' => $responseData['status'],
+                'current_cycle' => $responseData['current_cycle'] ?? null,
+                'next_billing_at' => $responseData['next_billing_at'] ?? null,
+            ];
+        }
+
+        \Log::error('❌ Pagar.me: Erro ao criar assinatura', [
+            'status' => $response->status(),
+            'response' => $response->json(),
+        ]);
+
+        return null;
+    }
+
+    /**
+     * Cancela assinatura no Pagar.me
+     *
+     * @param string $subscriptionId - ID da assinatura no Pagar.me
+     * @return bool
+     */
+    public function cancelSubscription(string $subscriptionId): bool
+    {
+        \Log::info('🔵 Pagar.me: Cancelando assinatura', [
+            'subscription_id' => $subscriptionId,
+        ]);
+
+        $response = Http::withBasicAuth($this->apiKey, '')
+            ->delete("{$this->baseUrl}/subscriptions/{$subscriptionId}");
+
+        if ($response->successful()) {
+            \Log::info('✅ Pagar.me: Assinatura cancelada com sucesso');
+            return true;
+        }
+
+        \Log::error('❌ Pagar.me: Erro ao cancelar assinatura', [
+            'status' => $response->status(),
+            'response' => $response->json(),
+        ]);
+
+        return false;
+    }
+
+    /**
+     * Obtém informações de uma assinatura
+     *
+     * @param string $subscriptionId
+     * @return array|null
+     */
+    public function getSubscriptionInfo(string $subscriptionId): ?array
+    {
+        $response = Http::withBasicAuth($this->apiKey, '')
+            ->get("{$this->baseUrl}/subscriptions/{$subscriptionId}");
+
+        if ($response->successful()) {
+            return $response->json();
+        }
+
+        \Log::error('❌ Pagar.me: Erro ao obter assinatura', [
+            'subscription_id' => $subscriptionId,
+            'status' => $response->status(),
+        ]);
+
+        return null;
+    }
+
+    /**
+     * Processa webhook de eventos de assinatura
+     *
+     * @param array $data - Dados do webhook
+     * @return bool
+     */
+    public function handleSubscriptionWebhook(array $data): bool
+    {
+        $event = $data['type'] ?? null;
+        $subscriptionData = $data['data'] ?? null;
+
+        if (!$event || !$subscriptionData) {
+            \Log::warning('⚠️ Pagar.me Webhook: Dados incompletos', ['data' => $data]);
+            return false;
+        }
+
+        \Log::info('📨 Pagar.me Webhook: Evento de assinatura recebido', [
+            'event' => $event,
+            'subscription_id' => $subscriptionData['id'] ?? null,
+        ]);
+
+        // Buscar assinatura local
+        $subscription = \App\Models\Subscription::where('pagarme_subscription_id', $subscriptionData['id'])->first();
+        if (!$subscription) {
+            \Log::warning('⚠️ Assinatura não encontrada no banco', [
+                'pagarme_subscription_id' => $subscriptionData['id'],
+            ]);
+            return false;
+        }
+
+        // Processar eventos
+        switch ($event) {
+            case 'subscription.created':
+                $subscription->update([
+                    'pagarme_status' => $subscriptionData['status'],
+                    'status' => 'active',
+                ]);
+                break;
+
+            case 'subscription.paid':
+                $subscription->update([
+                    'pagarme_status' => 'active',
+                    'status' => 'active',
+                    'last_payment_date' => now(),
+                    'next_billing_date' => $subscriptionData['next_billing_at'] ?? null,
+                ]);
+                \Log::info('✅ Assinatura paga com sucesso', ['tenant_id' => $subscription->tenant_id]);
+                break;
+
+            case 'subscription.payment_failed':
+                $subscription->update([
+                    'pagarme_status' => 'unpaid',
+                    'status' => 'past_due',
+                ]);
+                \Log::warning('⚠️ Pagamento de assinatura falhou', ['tenant_id' => $subscription->tenant_id]);
+                break;
+
+            case 'subscription.canceled':
+                $subscription->update([
+                    'pagarme_status' => 'canceled',
+                    'status' => 'canceled',
+                    'canceled_at' => now(),
+                    'ends_at' => now(),
+                ]);
+                \Log::info('🚫 Assinatura cancelada', ['tenant_id' => $subscription->tenant_id]);
+                break;
+
+            default:
+                \Log::info('ℹ️ Evento de assinatura não tratado', ['event' => $event]);
+                break;
+        }
+
+        return true;
+    }
 }

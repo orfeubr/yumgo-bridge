@@ -7,6 +7,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Subscription extends Model
 {
+    // ⚠️ IMPORTANTE: Subscriptions está no schema PUBLIC (central)
+    // Força usar conexão central mesmo quando tenancy está ativo
+    protected $connection = 'pgsql';
+
     protected $fillable = [
         'tenant_id',
         'plan_id',
@@ -15,6 +19,14 @@ class Subscription extends Model
         'ends_at',
         'trial_ends_at',
         'canceled_at',
+        // Pagar.me fields
+        'pagarme_subscription_id',
+        'pagarme_customer_id',
+        'pagarme_status',
+        'next_billing_date',
+        'last_payment_date',
+        'amount',
+        'payment_method',
     ];
 
     protected $casts = [
@@ -22,6 +34,9 @@ class Subscription extends Model
         'ends_at' => 'datetime',
         'trial_ends_at' => 'datetime',
         'canceled_at' => 'datetime',
+        'next_billing_date' => 'datetime',
+        'last_payment_date' => 'datetime',
+        'amount' => 'decimal:2',
     ];
 
     /**

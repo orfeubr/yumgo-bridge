@@ -12,6 +12,7 @@ class Plan extends Model
         'description',
         'price_monthly',
         'commission_percentage',
+        'pagarme_plan_id',
         'features',
         'max_products',
         'max_orders_per_month',
