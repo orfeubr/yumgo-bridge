@@ -17,9 +17,16 @@ class MarketplaceController extends Controller
             ->where('approval_status', 'approved')
             ->with('domains');
 
-        // Busca por nome
+        // Busca por nome (validado e sanitizado)
         if ($request->filled('search')) {
-            $query->where('name', 'ilike', '%' . $request->search . '%');
+            $search = $request->get('search', '');
+            // Sanitizar: remove caracteres perigosos, permite unicode (ção, etc)
+            $search = preg_replace('/[^a-zA-Z0-9\s\-\p{L}]/u', '', $search);
+            $search = substr($search, 0, 50); // Limitar tamanho
+
+            if (strlen($search) >= 2) {
+                $query->where('name', 'ilike', '%' . $search . '%');
+            }
         }
 
         // Geolocalização do cliente (se disponível)

@@ -126,8 +126,9 @@ class OrderService
             // Calcula total final
             $total = $totalBeforeCashback - $cashbackUsed;
 
+            // PROTEÇÃO: Total não pode ficar negativo (lançar exceção)
             if ($total < 0) {
-                $total = 0;
+                throw new \Exception('Cashback superior ao total do pedido');
             }
 
             // Define expiração do pedido (final do dia)

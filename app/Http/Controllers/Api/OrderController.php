@@ -30,8 +30,13 @@ class OrderController extends Controller
      */
     public function index(Request $request)
     {
-        $orders = $request->user()
-            ->orders()
+        $tenantCustomer = $this->getTenantCustomer($request->user());
+
+        if (!$tenantCustomer) {
+            return response()->json(['message' => 'Cliente não encontrado'], 404);
+        }
+
+        $orders = $tenantCustomer->orders()
             ->with(['items.product'])
             ->orderBy('created_at', 'desc')
             ->paginate(10);
@@ -56,7 +61,9 @@ class OrderController extends Controller
         $order = Order::with(['items.product', 'delivery'])->findOrFail($id);
 
         // Verificar se o pedido pertence ao cliente autenticado
-        if ($order->customer_id !== $this->getTenantCustomer($request->user())?->id) {
+        $tenantCustomer = $this->getTenantCustomer($request->user());
+
+        if (!$tenantCustomer || $order->customer_id !== $tenantCustomer->id) {
             return response()->json(['message' => 'Pedido não encontrado.'], 404);
         }
 
@@ -281,11 +288,17 @@ class OrderController extends Controller
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
                 'payment_method' => $request->payment_method,
+                'customer_id' => $customer->id ?? null,
                 // ⚠️ NÃO logar: trace completo (pode conter dados de request)
             ]);
 
+            // Esconder detalhes de erro em produção
+            $message = config('app.debug')
+                ? 'Erro ao criar pedido: ' . $e->getMessage()
+                : 'Erro ao processar pedido. Por favor, tente novamente.';
+
             return response()->json([
-                'message' => 'Erro ao criar pedido: ' . $e->getMessage(),
+                'message' => $message,
                 'debug' => config('app.debug') ? [
                     'file' => $e->getFile(),
                     'line' => $e->getLine(),
