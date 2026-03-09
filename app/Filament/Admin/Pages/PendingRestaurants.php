@@ -39,8 +39,7 @@ class PendingRestaurants extends Page implements HasTable
         return $table
             ->poll('5s')  // Atualiza automaticamente a cada 5 segundos
             ->query(
-                Tenant::select(['id', 'name', 'email', 'phone', 'slug', 'created_at', 'approval_status'])
-                    ->where('approval_status', 'pending_approval')
+                Tenant::where('approval_status', 'pending_approval')
                     ->orderBy('created_at', 'desc')
             )
             ->columns([
