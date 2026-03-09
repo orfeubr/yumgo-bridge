@@ -89,7 +89,7 @@ class SignupController extends Controller
                 'email' => $request->restaurant_email,
                 'phone' => $request->restaurant_phone,
                 'plan_id' => $request->plan_id,
-                'status' => 'pending', // Aguardando configuração de pagamento
+                'status' => 'trial', // Aguardando configuração de pagamento
                 'approval_status' => 'pending_approval', // Aguardando aprovação manual
                 'payment_gateway' => 'pagarme',
                 // Dados bancários (se fornecidos)
