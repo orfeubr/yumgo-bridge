@@ -163,12 +163,14 @@ class RestaurantHomeController extends Controller
             });
 
         // Verificar horário de funcionamento
+        $settings = null;
+        $isOpen = true;
+
         try {
             $settings = Settings::current();
             $isOpen = $settings->isOpenNow();
         } catch (\Exception $e) {
-            // Fallback se tabela settings não existir
-            $isOpen = true;
+            // Fallback se tabela settings não existir (continua com valores padrão)
         }
 
         // Determinar motivo se loja está vazia (não aplicável em preview mode)
@@ -188,7 +190,7 @@ class RestaurantHomeController extends Controller
         // Obter horário de abertura para hoje
         $now = Carbon::now();
         $dayOfWeek = strtolower($now->format('l'));
-        $todayHours = $settings->business_hours[$dayOfWeek] ?? null;
+        $todayHours = $settings?->business_hours[$dayOfWeek] ?? null;
         $openTime = $todayHours['open'] ?? null;
         $closeTime = $todayHours['close'] ?? null;
 
