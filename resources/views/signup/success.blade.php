@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cadastro Realizado - YumGo</title>
+    <title>Cadastro Realizado - {{ $platformSettings->platform_name ?? 'YumGo' }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -55,13 +55,13 @@
                     </div>
 
                     <div class="flex items-start">
-                        <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mr-4">
-                            <i class="fas fa-calendar text-green-600"></i>
+                        <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mr-4">
+                            <i class="fas fa-clock text-orange-600"></i>
                         </div>
                         <div class="flex-1">
-                            <div class="font-semibold text-gray-900 mb-1">Período de teste</div>
-                            <div class="text-gray-600">
-                                15 dias grátis (até {{ $tenant->trial_ends_at->format('d/m/Y') }})
+                            <div class="font-semibold text-gray-900 mb-1">Status da Conta</div>
+                            <div class="text-orange-600 font-semibold">
+                                🕐 Aguardando aprovação
                             </div>
                         </div>
                     </div>
@@ -69,27 +69,30 @@
             </div>
 
             <!-- Next Steps -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+            <div class="bg-blue-50 border border-blue-300 rounded-lg p-6 mb-6">
                 <h3 class="font-bold text-blue-900 mb-4 flex items-center">
-                    <i class="fas fa-list-check mr-2"></i>
+                    <i class="fas fa-info-circle mr-2"></i>
                     Próximos Passos
                 </h3>
-                <ol class="space-y-3 text-blue-800">
+                <p class="text-blue-800 mb-4">
+                    Seu cadastro foi realizado com sucesso! <strong>Nossa equipe irá revisar</strong> e aprovar seu restaurante em breve.
+                </p>
+                <ol class="space-y-3 text-yellow-900">
                     <li class="flex items-start">
                         <span class="font-bold mr-2">1.</span>
-                        <span>Acesse o painel administrativo e configure seu restaurante</span>
+                        <span><strong>Acesse "Minha Assinatura"</strong> no painel administrativo</span>
                     </li>
                     <li class="flex items-start">
                         <span class="font-bold mr-2">2.</span>
-                        <span>Adicione produtos, categorias e configure horários de funcionamento</span>
+                        <span><strong>Configure dados bancários</strong> para receber pagamentos (Pagar.me)</span>
                     </li>
                     <li class="flex items-start">
                         <span class="font-bold mr-2">3.</span>
-                        <span>Configure dados bancários para receber pagamentos (Pagar.me)</span>
+                        <span><strong>Ative sua assinatura</strong> para liberar o sistema completo</span>
                     </li>
                     <li class="flex items-start">
                         <span class="font-bold mr-2">4.</span>
-                        <span>Personalize o cashback e comece a receber pedidos!</span>
+                        <span>Adicione produtos, configure cashback e comece a vender!</span>
                     </li>
                 </ol>
             </div>
