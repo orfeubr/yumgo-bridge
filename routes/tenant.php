@@ -236,6 +236,10 @@ Route::prefix('api/v1')->middleware([
     // Cupons (público) (🔒 RATE LIMITED)
     Route::post('/coupons/validate', [\App\Http\Controllers\Api\CouponController::class, 'validate'])->middleware('throttle:30,1'); // 30 req/min
 
+    // 🛒 Carrinho (público) (🔒 RATE LIMITED)
+    Route::post('/cart/validate', [\App\Http\Controllers\Api\CartController::class, 'validate'])->middleware('throttle:30,1'); // 30 req/min
+    Route::post('/cart/check-expiration', [\App\Http\Controllers\Api\CartController::class, 'checkExpiration'])->middleware('throttle:30,1'); // 30 req/min
+
     // Localização (público)
     Route::prefix('location')->group(function () {
         Route::get('/enabled-cities', [LocationController::class, 'getEnabledCities']);
