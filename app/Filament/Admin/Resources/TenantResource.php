@@ -120,9 +120,35 @@ class TenantResource extends Resource
                             ->columnSpanFull()
                             ->helperText('Descrição breve do restaurante (máx. 500 caracteres)'),
 
+                        Forms\Components\CheckboxList::make('cuisine_types')
+                            ->label('Tipos de Culinária')
+                            ->options([
+                                'brasileira' => '🇧🇷 Brasileira',
+                                'pizza' => '🍕 Pizza',
+                                'hamburguer' => '🍔 Hambúrguer',
+                                'japonesa' => '🍱 Japonesa',
+                                'italiana' => '🍝 Italiana',
+                                'lanches' => '🥪 Lanches',
+                                'marmitex' => '🍲 Marmitex',
+                                'bebidas' => '🥤 Bebidas',
+                                'sobremesas' => '🍰 Sobremesas',
+                                'saudavel' => '🥗 Saudável',
+                                'vegetariana' => '🌱 Vegetariana/Vegana',
+                                'frutos-mar' => '🦞 Frutos do Mar',
+                                'churrasco' => '🥩 Churrasco',
+                                'arabe' => '🥙 Árabe',
+                                'chinesa' => '🥡 Chinesa',
+                                'mexicana' => '🌮 Mexicana',
+                            ])
+                            ->columns(3)
+                            ->gridDirection('row')
+                            ->columnSpanFull()
+                            ->helperText('Selecione os tipos de comida que seu restaurante serve'),
+
                         Forms\Components\FileUpload::make('logo')
                             ->label('Logo do Restaurante')
                             ->image()
+                            ->disk('public')
                             ->imageEditor()
                             ->imageEditorAspectRatios([
                                 '1:1',
@@ -132,8 +158,129 @@ class TenantResource extends Resource
                             ->directory('tenants/logos')
                             ->visibility('public')
                             ->helperText('Imagem do logo (máx. 2MB, formatos: JPG, PNG)')
+                            ->imagePreviewHeight('150')
                             ->columnSpanFull(),
                     ])->columns(2),
+
+                Forms\Components\Section::make('Dados da Empresa e Endereço')
+                    ->schema([
+                        Forms\Components\TextInput::make('cnpj')
+                            ->label('CNPJ')
+                            ->mask('99.999.999/9999-99')
+                            ->placeholder('00.000.000/0000-00')
+                            ->maxLength(18)
+                            ->helperText('CNPJ da empresa (obrigatório para emissão de NFC-e)'),
+
+                        Forms\Components\TextInput::make('razao_social')
+                            ->label('Razão Social')
+                            ->maxLength(255)
+                            ->helperText('Nome empresarial registrado na Receita Federal'),
+
+                        Forms\Components\TextInput::make('address_zipcode')
+                            ->label('CEP')
+                            ->mask('99999-999')
+                            ->placeholder('00000-000')
+                            ->maxLength(9)
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function (Forms\Set $set, ?string $state) {
+                                if (!$state) {
+                                    return;
+                                }
+
+                                $viaCep = app(\App\Services\ViaCepService::class);
+                                $endereco = $viaCep->buscarCep($state);
+
+                                if ($endereco) {
+                                    $set('address_street', $endereco['logradouro']);
+                                    $set('address_neighborhood', $endereco['bairro']);
+                                    $set('address_city', $endereco['localidade']);
+                                    $set('address_state', $endereco['uf']);
+
+                                    \Filament\Notifications\Notification::make()
+                                        ->title('CEP encontrado!')
+                                        ->body('Endereço preenchido automaticamente.')
+                                        ->success()
+                                        ->send();
+                                }
+                            })
+                            ->helperText('Digite o CEP e pressione Tab para buscar automaticamente')
+                            ->suffixIcon('heroicon-o-magnifying-glass'),
+
+                        Forms\Components\TextInput::make('address_street')
+                            ->label('Rua/Avenida')
+                            ->maxLength(255)
+                            ->columnSpan(2),
+
+                        Forms\Components\Grid::make(3)
+                            ->schema([
+                                Forms\Components\TextInput::make('address_number')
+                                    ->label('Número')
+                                    ->maxLength(20)
+                                    ->required(),
+
+                                Forms\Components\TextInput::make('address_complement')
+                                    ->label('Complemento')
+                                    ->maxLength(100)
+                                    ->placeholder('Apto, Sala, Bloco...'),
+
+                                Forms\Components\TextInput::make('address_neighborhood')
+                                    ->label('Bairro')
+                                    ->maxLength(100),
+                            ]),
+
+                        Forms\Components\TextInput::make('address_city')
+                            ->label('Cidade')
+                            ->maxLength(100)
+                            ->required(),
+
+                        Forms\Components\Select::make('address_state')
+                            ->label('Estado')
+                            ->options([
+                                'AC' => 'Acre',
+                                'AL' => 'Alagoas',
+                                'AP' => 'Amapá',
+                                'AM' => 'Amazonas',
+                                'BA' => 'Bahia',
+                                'CE' => 'Ceará',
+                                'DF' => 'Distrito Federal',
+                                'ES' => 'Espírito Santo',
+                                'GO' => 'Goiás',
+                                'MA' => 'Maranhão',
+                                'MT' => 'Mato Grosso',
+                                'MS' => 'Mato Grosso do Sul',
+                                'MG' => 'Minas Gerais',
+                                'PA' => 'Pará',
+                                'PB' => 'Paraíba',
+                                'PR' => 'Paraná',
+                                'PE' => 'Pernambuco',
+                                'PI' => 'Piauí',
+                                'RJ' => 'Rio de Janeiro',
+                                'RN' => 'Rio Grande do Norte',
+                                'RS' => 'Rio Grande do Sul',
+                                'RO' => 'Rondônia',
+                                'RR' => 'Roraima',
+                                'SC' => 'Santa Catarina',
+                                'SP' => 'São Paulo',
+                                'SE' => 'Sergipe',
+                                'TO' => 'Tocantins',
+                            ])
+                            ->required()
+                            ->searchable(),
+
+                        Forms\Components\TextInput::make('latitude')
+                            ->label('Latitude')
+                            ->numeric()
+                            ->placeholder('-23.550520')
+                            ->helperText('Coordenada geográfica (opcional)'),
+
+                        Forms\Components\TextInput::make('longitude')
+                            ->label('Longitude')
+                            ->numeric()
+                            ->placeholder('-46.633308')
+                            ->helperText('Coordenada geográfica (opcional)'),
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
 
                 Forms\Components\Section::make('Plano e Status')
                     ->schema([
@@ -278,9 +425,11 @@ class TenantResource extends Resource
             ->columns([
                 Tables\Columns\ImageColumn::make('logo')
                     ->label('Logo')
+                    ->disk('public')
                     ->circular()
-                    ->defaultImageUrl(asset('images/default-restaurant.png'))
-                    ->size(50),
+                    ->defaultImageUrl(url('/images/default-restaurant.svg'))
+                    ->size(50)
+                    ->extraImgAttributes(['loading' => 'lazy', 'class' => 'object-cover']),
 
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome')
