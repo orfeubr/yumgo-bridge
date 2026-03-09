@@ -76,39 +76,21 @@ class PendingRestaurants extends Page implements HasTable
                     ->modalHeading('Aprovar Restaurante')
                     ->modalDescription(fn ($record) => "Deseja aprovar o restaurante \"{$record->name}\"? Ele ficará visível no marketplace.")
                     ->action(function ($record) {
-                        try {
-                            \Log::info('Tentando aprovar restaurante', ['id' => $record->id, 'name' => $record->name]);
+                        $record->update([
+                            'approval_status' => 'approved',
+                            'approved_at' => now(),
+                            'rejection_reason' => null,
+                            'rejected_at' => null,
+                        ]);
 
-                            $record->update([
-                                'approval_status' => 'approved',
-                                'approved_at' => now(),
-                                'rejection_reason' => null,
-                                'rejected_at' => null,
-                            ]);
+                        Notification::make()
+                            ->success()
+                            ->title('Restaurante aprovado!')
+                            ->body("O restaurante \"{$record->name}\" foi aprovado com sucesso.")
+                            ->send();
 
-                            \Log::info('Restaurante aprovado com sucesso', ['id' => $record->id]);
-
-                            Notification::make()
-                                ->success()
-                                ->title('Restaurante aprovado!')
-                                ->body("O restaurante \"{$record->name}\" foi aprovado com sucesso.")
-                                ->send();
-
-                            // Força reload da tabela
-                            $this->dispatch('$refresh');
-                        } catch (\Exception $e) {
-                            \Log::error('Erro ao aprovar restaurante', [
-                                'id' => $record->id,
-                                'error' => $e->getMessage(),
-                                'trace' => $e->getTraceAsString()
-                            ]);
-
-                            Notification::make()
-                                ->danger()
-                                ->title('Erro ao aprovar')
-                                ->body('Erro: ' . $e->getMessage())
-                                ->send();
-                        }
+                        // Reload da página
+                        $this->js('setTimeout(() => window.location.reload(), 1000)');
                     }),
 
                 Tables\Actions\Action::make('reject')
@@ -123,34 +105,21 @@ class PendingRestaurants extends Page implements HasTable
                             ->rows(3),
                     ])
                     ->action(function ($record, array $data) {
-                        try {
-                            $record->update([
-                                'approval_status' => 'rejected',
-                                'rejection_reason' => $data['rejection_reason'],
-                                'rejected_at' => now(),
-                                'approved_at' => null,
-                            ]);
+                        $record->update([
+                            'approval_status' => 'rejected',
+                            'rejection_reason' => $data['rejection_reason'],
+                            'rejected_at' => now(),
+                            'approved_at' => null,
+                        ]);
 
-                            Notification::make()
-                                ->warning()
-                                ->title('Restaurante rejeitado')
-                                ->body("O restaurante \"{$record->name}\" foi rejeitado.")
-                                ->send();
+                        Notification::make()
+                            ->warning()
+                            ->title('Restaurante rejeitado')
+                            ->body("O restaurante \"{$record->name}\" foi rejeitado.")
+                            ->send();
 
-                            // Força reload da tabela
-                            $this->dispatch('$refresh');
-                        } catch (\Exception $e) {
-                            \Log::error('Erro ao rejeitar restaurante', [
-                                'id' => $record->id,
-                                'error' => $e->getMessage()
-                            ]);
-
-                            Notification::make()
-                                ->danger()
-                                ->title('Erro ao rejeitar')
-                                ->body('Erro: ' . $e->getMessage())
-                                ->send();
-                        }
+                        // Reload da página
+                        $this->js('setTimeout(() => window.location.reload(), 1000)');
                     }),
 
                 Tables\Actions\Action::make('view_details')
@@ -182,8 +151,8 @@ class PendingRestaurants extends Page implements HasTable
                             ->body(count($records) . ' restaurante(s) aprovado(s) com sucesso.')
                             ->send();
 
-                        // Força reload da tabela
-                        $this->dispatch('$refresh');
+                        // Reload da página
+                        $this->js('setTimeout(() => window.location.reload(), 1000)');
                     }),
             ])
             ->emptyStateHeading('Nenhum restaurante aguardando aprovação')
