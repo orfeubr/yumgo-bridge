@@ -266,18 +266,85 @@
                     </div>
                 </section>
 
-                <!-- ========== ⭐ RESTAURANTES POPULARES ========== -->
+                <!-- ========== 💰 RESTAURANTES COM CASHBACK ========== -->
+                @if($withCashback->count() > 0)
                 <section class="mb-10">
                     <div class="flex items-center justify-between mb-6">
                         <div class="flex items-center gap-3">
-                            <div class="text-3xl">⭐</div>
-                            <h2 class="text-2xl font-bold text-gray-900">Restaurantes populares</h2>
+                            <div class="text-3xl">💰</div>
+                            <h2 class="text-2xl font-bold text-gray-900">Ganhe cashback</h2>
                         </div>
-                        <a href="/?sort=rating" class="text-primary font-semibold hover:underline">Ver todos</a>
+                        <span class="text-sm text-gray-600">Compre e ganhe de volta!</span>
+                    </div>
+
+                    <!-- Horizontal Scroll Cards -->
+                    <div class="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                        @foreach($withCashback as $restaurant)
+                            @if($restaurant->delivers)
+                            <a href="{{ $restaurant->url }}" class="restaurant-card bg-white rounded-2xl overflow-hidden shadow-sm flex-shrink-0 w-[280px]">
+                                <!-- Image -->
+                                <div class="relative h-40 overflow-hidden bg-gray-100">
+                                    @if($restaurant->logo)
+                                        <img src="{{ $restaurant->logo_url }}" alt="{{ $restaurant->name }}"
+                                             class="w-full h-full object-cover"
+                                             onerror="this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&h=400&fit=crop';">
+                                    @else
+                                        <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&h=400&fit=crop"
+                                             alt="Food" class="w-full h-full object-cover">
+                                    @endif
+
+                                    <!-- Cashback Badge (Destaque) -->
+                                    <div class="absolute top-3 left-3">
+                                        <span class="px-3 py-1.5 bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 text-sm font-bold rounded-full shadow-lg flex items-center gap-1">
+                                            💰 {{ number_format($restaurant->cashback_percentage, 1) }}% cashback
+                                        </span>
+                                    </div>
+
+                                    <!-- Status -->
+                                    @if($restaurant->is_open)
+                                        <span class="absolute top-3 right-3 px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full shadow-lg">
+                                            ABERTO
+                                        </span>
+                                    @else
+                                        <span class="absolute top-3 right-3 px-3 py-1 bg-gray-800 text-white text-xs font-bold rounded-full shadow-lg">
+                                            FECHADO
+                                        </span>
+                                    @endif
+                                </div>
+
+                                <!-- Content -->
+                                <div class="p-4">
+                                    <h3 class="font-bold text-gray-900 mb-2 line-clamp-1">{{ $restaurant->name }}</h3>
+
+                                    <!-- Rating -->
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <div class="flex items-center gap-1 bg-green-50 px-2 py-1 rounded-lg">
+                                            <i class="fas fa-star text-yellow-500 text-xs"></i>
+                                            <span class="text-xs font-bold text-green-700">4.8</span>
+                                        </div>
+                                        @if($restaurant->cuisine_types && count($restaurant->cuisine_types) > 0)
+                                            <span class="text-xs text-gray-500">{{ ucfirst(str_replace('-', ' ', $restaurant->cuisine_types[0])) }}</span>
+                                        @endif
+                                    </div>
+
+                                    <!-- Delivery Info -->
+                                    <div class="flex items-center justify-between text-xs text-gray-600 border-t border-gray-100 pt-3">
+                                        <span><i class="fas fa-clock text-gray-400"></i> 30-40 min</span>
+                                        @if($restaurant->is_free_delivery)
+                                            <span class="font-bold text-green-600">Grátis</span>
+                                        @else
+                                            <span class="font-bold text-gray-900">{{ $restaurant->delivery_fee_formatted }}</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </a>
+                            @endif
+                        @endforeach
                     </div>
                 </section>
+                @endif
 
-                <!-- ========== 💰 PROMOÇÕES ========== -->
+                <!-- ========== 🎟 PROMOÇÕES ========== -->
                 @if($restaurants->where('is_free_delivery', true)->count() > 0)
                 <section class="mb-10">
                     <div class="flex items-center justify-between mb-6">

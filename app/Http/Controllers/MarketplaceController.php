@@ -79,6 +79,9 @@ class MarketplaceController extends Controller
                 $restaurant->delivers = true;
             }
 
+            // Buscar configuração de cashback do restaurante
+            $restaurant->cashback_percentage = $this->getCashbackPercentage($restaurant);
+
             return $restaurant;
         });
 
@@ -120,12 +123,22 @@ class MarketplaceController extends Controller
                 $restaurant->delivers = true;
             }
 
+            // Buscar configuração de cashback do restaurante
+            $restaurant->cashback_percentage = $this->getCashbackPercentage($restaurant);
+
             return $restaurant;
         });
+
+        // ===== 💰 RESTAURANTES COM CASHBACK =====
+        // Filtra apenas restaurantes que têm cashback configurado
+        $withCashback = $restaurants->getCollection()->filter(function ($restaurant) {
+            return $restaurant->cashback_percentage && $restaurant->cashback_percentage > 0;
+        })->take(6);
 
         return view('marketplace.index', [
             'restaurants' => $restaurants,
             'mostOrdered' => $mostOrdered,
+            'withCashback' => $withCashback,
             'search' => $request->search ?? '',
             'hasLocation' => $clientLat && $clientLon,
             'platformSettings' => (object)[
@@ -155,5 +168,36 @@ class MarketplaceController extends Controller
     public function pricing()
     {
         return redirect()->route('para-restaurantes');
+    }
+
+    /**
+     * Busca a porcentagem de cashback configurada para o restaurante
+     */
+    private function getCashbackPercentage(Tenant $restaurant): ?float
+    {
+        try {
+            // Inicializa tenancy para acessar o schema do restaurante
+            tenancy()->initialize($restaurant);
+
+            // Busca as configurações de cashback
+            $settings = \DB::connection('tenant')
+                ->table('cashback_settings')
+                ->where('is_active', true)
+                ->first();
+
+            // Finaliza tenancy
+            tenancy()->end();
+
+            if ($settings && isset($settings->bronze_percentage)) {
+                // Retorna a porcentagem do tier bronze (padrão para novos clientes)
+                return (float) $settings->bronze_percentage;
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            // Em caso de erro, retorna null (restaurante sem cashback)
+            tenancy()->end();
+            return null;
+        }
     }
 }
