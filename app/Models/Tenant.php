@@ -109,6 +109,9 @@ class Tenant extends BaseTenant implements TenantWithDatabase
         'business_hours' => 'array',
         'accepting_orders' => 'boolean',
         'trial_ends_at' => 'datetime',
+        'approved_at' => 'datetime',
+        'rejected_at' => 'datetime',
+        'stats_updated_at' => 'datetime',
     ];
 
     public static function getCustomColumns(): array

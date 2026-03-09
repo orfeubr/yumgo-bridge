@@ -37,9 +37,9 @@ class PendingRestaurants extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->poll('5s')  // Atualiza automaticamente a cada 5 segundos
             ->query(
-                Tenant::where('approval_status', 'pending_approval')
+                Tenant::query()
+                    ->where('approval_status', 'pending_approval')
                     ->orderBy('created_at', 'desc')
             )
             ->columns([
@@ -76,43 +76,21 @@ class PendingRestaurants extends Page implements HasTable
                     ->modalHeading('Aprovar Restaurante')
                     ->modalDescription(fn ($record) => "Deseja aprovar o restaurante \"{$record->name}\"? Ele ficará visível no marketplace.")
                     ->action(function ($record) {
-                        \Log::info('=== AÇÃO DE APROVAÇÃO INICIADA ===', [
-                            'record_id' => $record->id,
-                            'record_name' => $record->name,
-                            'status_antes' => $record->approval_status
-                        ]);
+                        // ⚠️ IMPORTANTE: Usando DB::update() direto porque o stancl/tenancy
+                        // bloqueia atualização de campos não-padrão via Eloquent (save/update)
+                        // Tentativas com $record->save() e $record->update() NÃO funcionam!
+                        \DB::update(
+                            'UPDATE tenants SET approval_status = ?, approved_at = ?, rejection_reason = NULL, rejected_at = NULL WHERE id = ?',
+                            ['approved', now(), $record->id]
+                        );
 
-                        try {
-                            $updated = $record->update([
-                                'approval_status' => 'approved',
-                                'approved_at' => now(),
-                                'rejection_reason' => null,
-                                'rejected_at' => null,
-                            ]);
-
-                            \Log::info('=== UPDATE EXECUTADO ===', [
-                                'success' => $updated,
-                                'status_depois' => $record->fresh()->approval_status
-                            ]);
-
-                            Notification::make()
-                                ->success()
-                                ->title('Restaurante aprovado!')
-                                ->body("O restaurante \"{$record->name}\" foi aprovado com sucesso.")
-                                ->send();
-                        } catch (\Exception $e) {
-                            \Log::error('=== ERRO NA APROVAÇÃO ===', [
-                                'error' => $e->getMessage(),
-                                'trace' => $e->getTraceAsString()
-                            ]);
-
-                            Notification::make()
-                                ->danger()
-                                ->title('Erro!')
-                                ->body($e->getMessage())
-                                ->send();
-                        }
-                    }),
+                        Notification::make()
+                            ->success()
+                            ->title('Restaurante aprovado!')
+                            ->body("O restaurante \"{$record->name}\" foi aprovado com sucesso.")
+                            ->send();
+                    })
+                    ->after(fn ($livewire) => $livewire->dispatch('$refresh')),
 
                 Tables\Actions\Action::make('reject')
                     ->label('Rejeitar')
@@ -126,19 +104,19 @@ class PendingRestaurants extends Page implements HasTable
                             ->rows(3),
                     ])
                     ->action(function ($record, array $data) {
-                        $record->update([
-                            'approval_status' => 'rejected',
-                            'rejection_reason' => $data['rejection_reason'],
-                            'rejected_at' => now(),
-                            'approved_at' => null,
-                        ]);
+                        // UPDATE direto (bypass Eloquent)
+                        \DB::update(
+                            'UPDATE tenants SET approval_status = ?, rejection_reason = ?, rejected_at = ?, approved_at = NULL WHERE id = ?',
+                            ['rejected', $data['rejection_reason'], now(), $record->id]
+                        );
 
                         Notification::make()
                             ->warning()
                             ->title('Restaurante rejeitado')
                             ->body("O restaurante \"{$record->name}\" foi rejeitado.")
                             ->send();
-                    }),
+                    })
+                    ->after(fn ($livewire) => $livewire->dispatch('$refresh')),
 
                 Tables\Actions\Action::make('view_details')
                     ->label('Detalhes')
@@ -154,21 +132,21 @@ class PendingRestaurants extends Page implements HasTable
                     ->color('success')
                     ->requiresConfirmation()
                     ->action(function ($records) {
-                        $records->each(function ($record) {
-                            $record->update([
-                                'approval_status' => 'approved',
-                                'approved_at' => now(),
-                                'rejection_reason' => null,
-                                'rejected_at' => null,
-                            ]);
-                        });
+                        $ids = $records->pluck('id')->toArray();
+
+                        // UPDATE direto em massa (bypass Eloquent)
+                        \DB::update(
+                            'UPDATE tenants SET approval_status = ?, approved_at = ?, rejection_reason = NULL, rejected_at = NULL WHERE id = ANY(?)',
+                            ['approved', now(), '{' . implode(',', array_map(fn($id) => '"' . $id . '"', $ids)) . '}']
+                        );
 
                         Notification::make()
                             ->success()
                             ->title('Restaurantes aprovados!')
                             ->body(count($records) . ' restaurante(s) aprovado(s) com sucesso.')
                             ->send();
-                    }),
+                    })
+                    ->after(fn ($livewire) => $livewire->dispatch('$refresh')),
             ])
             ->emptyStateHeading('Nenhum restaurante aguardando aprovação')
             ->emptyStateDescription('Todos os restaurantes foram revisados!')

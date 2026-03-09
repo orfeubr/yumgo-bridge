@@ -1,10 +1,5 @@
 <x-filament-panels::page>
     <div class="space-y-6">
-        <!-- Debug: Mostra quando foi atualizado -->
-        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-2 text-xs">
-            🔄 Última atualização: {{ now()->format('H:i:s') }} | Pendentes: {{ \App\Models\Tenant::where('approval_status', 'pending_approval')->count() }}
-        </div>
-
         <!-- Info Card -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div class="flex items-start gap-3">
@@ -28,26 +23,4 @@
         <!-- Table -->
         {{ $this->table }}
     </div>
-
-    @script
-    <script>
-        // Escuta o evento de sucesso e recarrega a página
-        document.addEventListener('DOMContentLoaded', function() {
-            window.addEventListener('approval-success', () => {
-                console.log('Evento approval-success recebido! Recarregando em 1.5s...');
-                setTimeout(() => {
-                    window.location.reload(true); // true força reload do servidor
-                }, 1500);
-            });
-        });
-
-        // Também escuta evento Livewire
-        Livewire.on('approval-success', () => {
-            console.log('Livewire evento approval-success! Recarregando em 1.5s...');
-            setTimeout(() => {
-                window.location.reload(true);
-            }, 1500);
-        });
-    </script>
-    @endscript
 </x-filament-panels::page>
