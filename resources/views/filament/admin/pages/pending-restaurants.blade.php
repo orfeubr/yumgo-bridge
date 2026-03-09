@@ -27,9 +27,20 @@
     @script
     <script>
         // Escuta o evento de sucesso e recarrega a página
-        window.addEventListener('approval-success', () => {
+        document.addEventListener('DOMContentLoaded', function() {
+            window.addEventListener('approval-success', () => {
+                console.log('Evento approval-success recebido! Recarregando em 1.5s...');
+                setTimeout(() => {
+                    window.location.reload(true); // true força reload do servidor
+                }, 1500);
+            });
+        });
+
+        // Também escuta evento Livewire
+        Livewire.on('approval-success', () => {
+            console.log('Livewire evento approval-success! Recarregando em 1.5s...');
             setTimeout(() => {
-                window.location.reload();
+                window.location.reload(true);
             }, 1500);
         });
     </script>
