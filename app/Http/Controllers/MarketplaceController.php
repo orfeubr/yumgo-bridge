@@ -191,11 +191,11 @@ class MarketplaceController extends Controller
                     ->first();
 
                 if ($settings && isset($settings->bronze_percentage)) {
-                    // Retorna a porcentagem do tier bronze (padrão para novos clientes)
                     return (float) $settings->bronze_percentage;
                 }
 
                 return null;
+
             } catch (\Exception $e) {
                 // Em caso de erro, retorna null (restaurante sem cashback)
                 \Log::warning('Erro ao buscar cashback do restaurante', [
@@ -203,9 +203,10 @@ class MarketplaceController extends Controller
                     'error' => $e->getMessage(),
                 ]);
                 return null;
+
             } finally {
                 // 🔒 SEGURANÇA: SEMPRE finalizar tenancy, independente de sucesso ou exception
-                // Previne vazamento de dados entre tenants
+                // ⚠️ IMPORTANTE: finally DENTRO do Cache::remember() para executar apenas em cache miss
                 tenancy()->end();
             }
         });
