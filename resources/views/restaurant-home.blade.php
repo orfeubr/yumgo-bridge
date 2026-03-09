@@ -284,7 +284,7 @@
             <!-- Primeira linha: Logo e Botões -->
             <div class="flex justify-between items-center mb-3">
                 <div class="flex items-center gap-4">
-                    @if($settings->logo)
+                    @if($settings?->logo)
                     <img src="{{ route('stancl.tenancy.asset', ['path' => $settings->logo]) }}" class="h-20 w-20 md:h-24 md:w-24 rounded-2xl object-cover shadow-lg ring-2 ring-gray-100">
                     @else
                     <div class="h-20 w-20 md:h-24 md:w-24 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center text-4xl shadow-lg">🍽️</div>

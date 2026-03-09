@@ -16,13 +16,23 @@ class ProductController extends Controller
         $query = Product::with(['category', 'variations', 'addons'])
             ->where('is_active', true);
 
-        // Busca por nome
+        // Busca por nome (validado e sanitizado)
         if ($request->has('search')) {
-            $query->where('name', 'LIKE', '%' . $request->search . '%');
+            $search = $request->get('search', '');
+            // Sanitizar: remove caracteres perigosos, permite unicode (ção, etc)
+            $search = preg_replace('/[^a-zA-Z0-9\s\-\p{L}]/u', '', $search);
+            $search = substr($search, 0, 50); // Limitar tamanho
+
+            if (strlen($search) >= 2) {
+                $query->where('name', 'LIKE', '%' . $search . '%');
+            }
         }
 
-        // Ordenação
-        $sortBy = $request->get('sort_by', 'name');
+        // Ordenação (validado com whitelist)
+        $allowedSorts = ['name', 'price', 'created_at', 'updated_at', 'order'];
+        $sortBy = in_array($request->get('sort_by'), $allowedSorts, true)
+            ? $request->get('sort_by')
+            : 'name';
         $sortOrder = $request->get('sort_order', 'asc');
         $query->orderBy($sortBy, $sortOrder);
 
@@ -142,14 +152,20 @@ class ProductController extends Controller
             ->whereNotNull('pizza_config')
             ->where('is_active', true);
 
-        // Busca por nome ou recheio
+        // Busca por nome ou recheio (validado e sanitizado)
         if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%")
-                  ->orWhere('filling', 'LIKE', "%{$search}%")
-                  ->orWhere('description', 'LIKE', "%{$search}%");
-            });
+            $search = $request->get('search', '');
+            // Sanitizar: remove caracteres perigosos, permite unicode (ção, etc)
+            $search = preg_replace('/[^a-zA-Z0-9\s\-\p{L}]/u', '', $search);
+            $search = substr($search, 0, 50); // Limitar tamanho
+
+            if (strlen($search) >= 2) {
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'LIKE', "%{$search}%")
+                      ->orWhere('filling', 'LIKE', "%{$search}%")
+                      ->orWhere('description', 'LIKE', "%{$search}%");
+                });
+            }
         }
 
         // Ordenação
