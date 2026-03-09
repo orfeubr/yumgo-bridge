@@ -40,7 +40,7 @@ class SignupController extends Controller
 
             // Dados do responsável
             'owner_name' => 'required|string|max:255',
-            'owner_email' => 'required|email',
+            'owner_email' => 'required|email|unique:platform_users,email',
             'owner_password' => 'required|string|min:6|confirmed',
 
             // Plano
@@ -53,7 +53,8 @@ class SignupController extends Controller
             'bank_account_digit' => 'nullable|string|max:2',
             'bank_account_type' => 'nullable|in:checking,savings',
         ], [
-            'restaurant_email.unique' => 'Este email já está cadastrado.',
+            'restaurant_email.unique' => 'Este email de restaurante já está cadastrado.',
+            'owner_email.unique' => 'Este email de responsável já está cadastrado.',
             'restaurant_slug.unique' => 'Este nome de URL já está em uso.',
             'restaurant_slug.alpha_dash' => 'A URL só pode conter letras, números, hífens e underscores.',
             'owner_password.confirmed' => 'As senhas não conferem.',
@@ -74,8 +75,8 @@ class SignupController extends Controller
                 'email' => $request->restaurant_email,
                 'phone' => $request->restaurant_phone,
                 'plan_id' => $request->plan_id,
-                'status' => 'trial',
-                'trial_ends_at' => now()->addDays(15),
+                'status' => 'pending', // Aguardando configuração de pagamento
+                'approval_status' => 'pending_approval', // Aguardando aprovação manual
                 'payment_gateway' => 'pagarme',
                 // Dados bancários (se fornecidos)
                 'bank_code' => $request->bank_code,
