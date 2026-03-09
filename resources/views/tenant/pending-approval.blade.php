@@ -119,29 +119,6 @@
             font-size: 14px;
         }
 
-        .logo {
-            width: 100px;
-            height: 100px;
-            margin: 0 auto 20px;
-            border-radius: 50%;
-            overflow: hidden;
-            background: #F3F4F6;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .logo img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .logo-placeholder {
-            font-size: 40px;
-            color: #9CA3AF;
-        }
-
         @media (max-width: 640px) {
             .container {
                 padding: 40px 24px;
@@ -159,13 +136,7 @@
 </head>
 <body>
     <div class="container">
-        @if($tenant->logo)
-            <div class="logo">
-                <img src="{{ asset('storage/' . $tenant->logo) }}" alt="{{ $tenant->name }}">
-            </div>
-        @else
-            <div class="icon">⏳</div>
-        @endif
+        <div class="icon">⏳</div>
 
         <h1>{{ $tenant->name }}</h1>
         <div class="subtitle">Aguardando Aprovação</div>
