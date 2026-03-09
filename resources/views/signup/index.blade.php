@@ -457,10 +457,10 @@
                     return true;
                 },
 
-                // Submeter formulário
-                submitForm() {
+                // Submeter formulário via AJAX
+                async submitForm() {
                     if (this.submitting) {
-                        return false; // Previne múltiplos submits
+                        return false;
                     }
 
                     const form = document.getElementById('signupForm');
@@ -472,14 +472,49 @@
                         return false;
                     }
 
-                    // Marca como submetendo e adiciona feedback visual
+                    // Marca como submetendo
                     this.submitting = true;
                     const submitBtn = event.target;
                     submitBtn.disabled = true;
                     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Criando conta...';
 
-                    // Submeter o formulário
-                    form.submit();
+                    // Submeter via AJAX para melhor controle de erros
+                    const formData = new FormData(form);
+
+                    try {
+                        const response = await fetch(form.action, {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json'
+                            }
+                        });
+
+                        const data = await response.json().catch(() => ({}));
+
+                        if (response.ok && data.success) {
+                            // Sucesso - redireciona para página de sucesso
+                            submitBtn.innerHTML = '<i class="fas fa-check mr-2"></i> Sucesso! Redirecionando...';
+                            window.location.href = data.redirect;
+                        } else if (response.status === 419) {
+                            // Token CSRF expirado
+                            alert('⏰ Sua sessão expirou. A página será recarregada.');
+                            window.location.reload();
+                        } else if (response.status === 422) {
+                            // Erros de validação - recarrega para mostrar erros
+                            alert('Por favor, corrija os erros no formulário.');
+                            window.location.reload();
+                        } else {
+                            throw new Error(data.error || 'Erro ao criar conta');
+                        }
+                    } catch (error) {
+                        console.error('Erro:', error);
+                        alert('❌ ' + (error.message || 'Erro ao criar conta. Por favor, tente novamente.'));
+                        this.submitting = false;
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fas fa-check mr-2"></i> Criar Minha Conta';
+                    }
                 }
             }
         }

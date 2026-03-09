@@ -61,6 +61,11 @@ class SignupController extends Controller
         ]);
 
         if ($validator->fails()) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'errors' => $validator->errors()
+                ], 422);
+            }
             return redirect()->back()
                 ->withErrors($validator)
                 ->withInput();
@@ -101,12 +106,23 @@ class SignupController extends Controller
             ]);
 
             // Redirecionar para página de sucesso
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'redirect' => route('signup.success', ['slug' => $tenant->slug])
+                ]);
+            }
             return redirect()->route('signup.success', ['slug' => $tenant->slug])
                 ->with('success', 'Cadastro realizado com sucesso!');
 
         } catch (\Exception $e) {
             \Log::error('Erro ao criar tenant: ' . $e->getMessage());
 
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'error' => 'Erro ao criar cadastro. Por favor, tente novamente.'
+                ], 500);
+            }
             return redirect()->back()
                 ->with('error', 'Erro ao criar cadastro. Por favor, tente novamente.')
                 ->withInput();
