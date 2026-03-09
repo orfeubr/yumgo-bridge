@@ -1,0 +1,4 @@
+categoria,nome,descricao,preco,variacoes,adicionais,foto_url,ativo
+Pizzas,Pizza Calabresa,Molho de tomate calabresa cebola oregano,45.00,P:35.00;M:45.00;G:55.00,Borda Catupiry:8.00;Borda Cheddar:7.00,https://static.ifood-static.com.br/image/upload/f_auto,t_high/pratos/65ed9b64-5a82-4ca0-940c-01c26f71cc0e/202301112115_77C9_i.jpg,sim
+Bebidas,Coca-Cola 2L,Refrigerante sabor cola,10.00,,,https://static.ifood-static.com.br/image/upload/f_auto,t_high/pratos/65ed9b64-5a82-4ca0-940c-01c26f71cc0e/202102031823_q3uk_.jpeg,sim
+Marmitex,Executivo,Arroz feijao carne salada,25.00,P:20.00;G:30.00,Frango:0.00;Carne:5.00;Peixe:8.00,,sim
