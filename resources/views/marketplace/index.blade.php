@@ -294,11 +294,6 @@
                                              alt="Food" class="w-full h-full object-cover">
                                     @endif
 
-                                    <!-- Popular Badge -->
-                                    <span class="absolute top-3 left-3 px-3 py-1 bg-yellow-500 text-white text-xs font-bold rounded-full shadow-lg">
-                                        ⭐ POPULAR
-                                    </span>
-
                                     <!-- Status -->
                                     @if($restaurant->is_open)
                                         <span class="absolute top-3 right-3 px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full shadow-lg">
