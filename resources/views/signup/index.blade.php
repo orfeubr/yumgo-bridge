@@ -125,7 +125,7 @@
                             </label>
                             <div class="flex">
                                 <input type="text" name="restaurant_slug" value="{{ old('restaurant_slug') }}"
-                                       required pattern="[a-z0-9-]+"
+                                       required pattern="[a-z0-9\-]+"
                                        class="flex-1 px-4 py-3 border-2 border-gray-200 rounded-l-lg focus:ring-2 focus:ring-primary focus:border-primary transition"
                                        placeholder="pizzaria-bella">
                                 <div class="px-6 py-3 bg-gray-100 border-2 border-l-0 border-gray-200 rounded-r-lg text-gray-600 font-medium">
@@ -283,13 +283,16 @@
         const btn = document.getElementById('submitBtn');
 
         form.addEventListener('submit', function(e) {
-            console.log('Formulário submetido!');
+            console.log('✅ Formulário submetido!');
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Criando sua conta...';
 
-            // Log dos dados do formulário
+            // Log dos dados (sem senhas)
             const formData = new FormData(form);
-            console.log('Dados do formulário:', Object.fromEntries(formData));
+            const data = Object.fromEntries(formData);
+            delete data.owner_password;
+            delete data.owner_password_confirmation;
+            console.log('📋 Dados do formulário:', data);
         });
 
         // Auto-gerar slug do nome do restaurante
