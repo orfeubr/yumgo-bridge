@@ -1,5 +1,10 @@
 <x-filament-panels::page>
     <div class="space-y-6">
+        <!-- Debug: Mostra quando foi atualizado -->
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-2 text-xs">
+            🔄 Última atualização: {{ now()->format('H:i:s') }} | Pendentes: {{ \App\Models\Tenant::where('approval_status', 'pending_approval')->count() }}
+        </div>
+
         <!-- Info Card -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div class="flex items-start gap-3">
