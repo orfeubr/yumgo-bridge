@@ -31,6 +31,11 @@ class SignupController extends Controller
      */
     public function store(Request $request)
     {
+        \Log::info('=== CADASTRO INICIADO ===', [
+            'ip' => $request->ip(),
+            'data' => $request->except(['owner_password', 'owner_password_confirmation'])
+        ]);
+
         $validator = Validator::make($request->all(), [
             // Dados do restaurante
             'restaurant_name' => 'required|string|max:255',
@@ -61,6 +66,10 @@ class SignupController extends Controller
         ]);
 
         if ($validator->fails()) {
+            \Log::warning('=== ERROS DE VALIDAÇÃO ===', [
+                'errors' => $validator->errors()->toArray()
+            ]);
+
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'errors' => $validator->errors()

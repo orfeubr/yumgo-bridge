@@ -77,6 +77,29 @@
                     </div>
                 @endif
 
+                @if(session('error'))
+                    <div class="mb-6 bg-red-50 border-2 border-red-300 rounded-lg p-6">
+                        <div class="flex items-start">
+                            <i class="fas fa-exclamation-circle text-red-600 text-2xl mr-4"></i>
+                            <div class="flex-1">
+                                <strong class="font-bold text-lg text-red-900 block mb-2">Erro ao criar conta:</strong>
+                                <p class="text-sm text-red-700">{{ session('error') }}</p>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
+                @if(session('success'))
+                    <div class="mb-6 bg-green-50 border-2 border-green-300 rounded-lg p-6">
+                        <div class="flex items-start">
+                            <i class="fas fa-check-circle text-green-600 text-2xl mr-4"></i>
+                            <div class="flex-1">
+                                <strong class="font-bold text-lg text-green-900">{{ session('success') }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 <!-- Dados do Restaurante -->
                 <div class="mb-8">
                     <h2 class="text-2xl font-bold text-gray-900 mb-1 flex items-center">
@@ -215,7 +238,7 @@
                                     <h3 class="text-xl font-bold mb-3 text-gray-900">{{ $plan->name }}</h3>
 
                                     <div class="mb-4">
-                                        <span class="text-4xl font-bold text-primary">R$ {{ number_format($plan->price_monthly, 0) }}</span>
+                                        <span class="text-4xl font-bold text-primary">R$ {{ number_format($plan->price_monthly, 2, ',', '.') }}</span>
                                         <span class="text-gray-600">/mês</span>
                                     </div>
 
@@ -256,10 +279,17 @@
 
     <script>
         // Prevenir múltiplos submits
-        document.getElementById('signupForm').addEventListener('submit', function(e) {
-            const btn = document.getElementById('submitBtn');
+        const form = document.getElementById('signupForm');
+        const btn = document.getElementById('submitBtn');
+
+        form.addEventListener('submit', function(e) {
+            console.log('Formulário submetido!');
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Criando sua conta...';
+
+            // Log dos dados do formulário
+            const formData = new FormData(form);
+            console.log('Dados do formulário:', Object.fromEntries(formData));
         });
 
         // Auto-gerar slug do nome do restaurante
