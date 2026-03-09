@@ -213,6 +213,8 @@ Route::prefix('api/v1')->middleware([
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1'); // 3 tentativas/min
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1'); // 5 tentativas/min
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:3,1'); // 3 tentativas/min
+    Route::post('/verify-reset-token', [AuthController::class, 'verifyResetToken'])->middleware('throttle:5,1'); // 5 tentativas/min
+    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:3,1'); // 3 tentativas/min
 
     // Autenticação Social (API) (🔒 RATE LIMITED)
     Route::post('/auth/whatsapp/request-code', [SocialAuthController::class, 'requestWhatsAppCode'])->middleware('throttle:3,1'); // 3 códigos/min

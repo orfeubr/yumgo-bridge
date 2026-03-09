@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Carbon\Carbon;
 
 class AuthController extends Controller
 {
@@ -180,24 +183,186 @@ class AuthController extends Controller
     /**
      * Solicitar reset de senha
      *
-     * ⚠️ TEMPORARIAMENTE NÃO IMPLEMENTADO
-     * TODO: Implementar envio de email com token de reset via Laravel Notifications
-     *
-     * Por enquanto, retorna mensagem genérica para não expor
-     * se o email existe ou não no sistema (proteção contra enumeração de usuários)
-     *
-     * @see https://laravel.com/docs/11.x/passwords
+     * Gera token seguro e envia email (ou retorna token em dev)
+     * Sempre retorna sucesso para não expor se email existe (anti-enumeração)
      */
     public function forgotPassword(Request $request)
     {
         $request->validate([
             'email' => 'required|email',
+        ], [
+            'email.required' => 'O email é obrigatório.',
+            'email.email' => 'Digite um email válido.',
         ]);
 
-        // Retorna sempre sucesso (não expõe se email existe - segurança)
-        // Isso previne ataques de enumeração de usuários
+        $email = $request->email;
+
+        // Buscar customer NO SCHEMA CENTRAL (não no tenant)
+        // ⚠️ Importante: senha é única entre todos os restaurantes
+        $customer = Customer::on('pgsql')->where('email', $email)->first();
+
+        if ($customer) {
+            // Deletar tokens antigos deste email (CENTRAL)
+            DB::connection('pgsql')->table('password_reset_tokens')
+                ->where('email', $email)
+                ->delete();
+
+            // Gerar token seguro (6 dígitos numéricos - mais fácil de digitar)
+            $token = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+            // Salvar token hasheado no schema CENTRAL (segurança)
+            DB::connection('pgsql')->table('password_reset_tokens')->insert([
+                'email' => $email,
+                'token' => Hash::make($token),
+                'created_at' => Carbon::now(),
+            ]);
+
+            // TODO: Enviar email com token
+            // Mail::to($email)->send(new ResetPasswordMail($token));
+
+            // Em desenvolvimento, retorna o token (REMOVER EM PRODUÇÃO)
+            if (config('app.debug')) {
+                return response()->json([
+                    'message' => 'Token gerado com sucesso (DEV MODE).',
+                    'token' => $token, // ⚠️ APENAS EM DEV!
+                    'email' => $email,
+                ]);
+            }
+        }
+
+        // Sempre retorna sucesso (não expõe se email existe - segurança)
         return response()->json([
-            'message' => 'Se o email existir, você receberá instruções para redefinir sua senha.',
+            'message' => 'Se o email existir, você receberá um código para redefinir sua senha.',
+        ]);
+    }
+
+    /**
+     * Verificar se token de reset é válido
+     *
+     * Útil para validar token antes de mostrar tela de nova senha
+     */
+    public function verifyResetToken(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'token' => 'required|string|size:6',
+        ]);
+
+        $resetRecord = DB::connection('pgsql')->table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->first();
+
+        if (!$resetRecord) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'Token inválido ou expirado.',
+            ], 400);
+        }
+
+        // Verificar se token expirou (15 minutos)
+        $createdAt = Carbon::parse($resetRecord->created_at);
+        if ($createdAt->addMinutes(15)->isPast()) {
+            // Token expirado, deletar
+            DB::connection('pgsql')->table('password_reset_tokens')
+                ->where('email', $request->email)
+                ->delete();
+
+            return response()->json([
+                'valid' => false,
+                'message' => 'Token expirado. Solicite um novo código.',
+            ], 400);
+        }
+
+        // Verificar se token está correto
+        if (!Hash::check($request->token, $resetRecord->token)) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'Código incorreto.',
+            ], 400);
+        }
+
+        return response()->json([
+            'valid' => true,
+            'message' => 'Token válido!',
+        ]);
+    }
+
+    /**
+     * Redefinir senha com token
+     *
+     * Valida token e atualiza senha do customer
+     */
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'token' => 'required|string|size:6',
+            'password' => 'required|string|min:6|confirmed',
+        ], [
+            'email.required' => 'O email é obrigatório.',
+            'email.email' => 'Digite um email válido.',
+            'token.required' => 'O código é obrigatório.',
+            'token.size' => 'O código deve ter 6 dígitos.',
+            'password.required' => 'A senha é obrigatória.',
+            'password.min' => 'A senha deve ter no mínimo 6 caracteres.',
+            'password.confirmed' => 'As senhas não coincidem.',
+        ]);
+
+        // Buscar registro de reset (CENTRAL)
+        $resetRecord = DB::connection('pgsql')->table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->first();
+
+        if (!$resetRecord) {
+            throw ValidationException::withMessages([
+                'token' => ['Token inválido ou expirado.'],
+            ]);
+        }
+
+        // Verificar se token expirou (15 minutos)
+        $createdAt = Carbon::parse($resetRecord->created_at);
+        if ($createdAt->addMinutes(15)->isPast()) {
+            // Token expirado, deletar
+            DB::connection('pgsql')->table('password_reset_tokens')
+                ->where('email', $request->email)
+                ->delete();
+
+            throw ValidationException::withMessages([
+                'token' => ['Token expirado. Solicite um novo código.'],
+            ]);
+        }
+
+        // Verificar se token está correto
+        if (!Hash::check($request->token, $resetRecord->token)) {
+            throw ValidationException::withMessages([
+                'token' => ['Código incorreto.'],
+            ]);
+        }
+
+        // Buscar customer NO SCHEMA CENTRAL
+        $customer = Customer::on('pgsql')->where('email', $request->email)->first();
+
+        if (!$customer) {
+            throw ValidationException::withMessages([
+                'email' => ['Email não encontrado.'],
+            ]);
+        }
+
+        // Atualizar senha
+        $customer->update([
+            'password' => Hash::make($request->password),
+        ]);
+
+        // Deletar token usado (CENTRAL)
+        DB::connection('pgsql')->table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->delete();
+
+        // Revogar todos os tokens de acesso antigos (por segurança)
+        $customer->tokens()->delete();
+
+        return response()->json([
+            'message' => 'Senha redefinida com sucesso! Faça login com sua nova senha.',
         ]);
     }
 }
