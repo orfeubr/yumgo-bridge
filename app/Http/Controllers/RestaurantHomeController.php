@@ -193,23 +193,28 @@ class RestaurantHomeController extends Controller
         $closeTime = $todayHours['close'] ?? null;
 
         // Zonas de entrega (bairros habilitados com taxas)
-        $deliveryZones = \App\Models\Neighborhood::where('enabled', true)
-            ->orderBy('city')
-            ->orderBy('name')
-            ->get()
-            ->groupBy('city')
-            ->map(function ($neighborhoods) {
-                return $neighborhoods->map(function ($n) {
-                    return [
-                        'id' => $n->id,
-                        'name' => $n->name,
-                        'city' => $n->city,
-                        'fee' => (float) $n->delivery_fee,
-                        'time' => $n->delivery_time,
-                    ];
-                })->toArray();
-            })
-            ->toArray();
+        try {
+            $deliveryZones = \App\Models\Neighborhood::where('enabled', true)
+                ->orderBy('city')
+                ->orderBy('name')
+                ->get()
+                ->groupBy('city')
+                ->map(function ($neighborhoods) {
+                    return $neighborhoods->map(function ($n) {
+                        return [
+                            'id' => $n->id,
+                            'name' => $n->name,
+                            'city' => $n->city,
+                            'fee' => (float) $n->delivery_fee,
+                            'time' => $n->delivery_time,
+                        ];
+                    })->toArray();
+                })
+                ->toArray();
+        } catch (\Exception $e) {
+            // Fallback se tabela neighborhoods não existir
+            $deliveryZones = [];
+        }
 
         $allowDelivery = $settings->allow_delivery ?? true;
         $allowPickup = $settings->allow_pickup ?? true;
