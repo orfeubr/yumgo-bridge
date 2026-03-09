@@ -23,4 +23,15 @@
         <!-- Table -->
         {{ $this->table }}
     </div>
+
+    @script
+    <script>
+        // Escuta o evento de sucesso e recarrega a página
+        window.addEventListener('approval-success', () => {
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        });
+    </script>
+    @endscript
 </x-filament-panels::page>
