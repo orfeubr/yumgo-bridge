@@ -22,7 +22,8 @@ class CategoryResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-tag';
     protected static ?string $navigationLabel = 'Categorias';
     protected static ?string $modelLabel = 'Categoria';
-    protected static ?int $navigationSort = 3;
+    protected static ?string $navigationGroup = 'Produtos';
+    protected static ?int $navigationSort = 21;
 
     // Garantir que o menu sempre apareça na navegação
     protected static bool $shouldRegisterNavigation = true;

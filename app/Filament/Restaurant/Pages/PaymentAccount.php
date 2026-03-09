@@ -18,7 +18,9 @@ class PaymentAccount extends Page
 
     protected static ?string $title = 'Configurar Recebimentos';
 
-    protected static ?int $navigationSort = 11;
+    protected static ?string $navigationGroup = 'Financeiro';
+
+    protected static ?int $navigationSort = 41;
 
     protected static string $view = 'filament.restaurant.pages.payment-account';
 

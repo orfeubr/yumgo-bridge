@@ -86,7 +86,60 @@ Route::middleware([
         return view('tenant.auth.login');
     })->name('login');
 
+    // 🔧 Login simples (fallback para problemas com Filament)
+    Route::get('/simple-login', function () {
+        return view('tenant.simple-login');
+    })->name('simple-login');
+
+    Route::post('/simple-login', function (\Illuminate\Http\Request $request) {
+        $credentials = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
+
+        if (\Illuminate\Support\Facades\Auth::guard('web')->attempt($credentials)) {
+            $request->session()->regenerate();
+            return redirect('/painel')->with('success', 'Login realizado com sucesso!');
+        }
+
+        return back()->withErrors([
+            'email' => 'Email ou senha incorretos.',
+        ])->withInput();
+    })->name('simple-login.submit');
+
     // Login Social - MOVIDO para grupo sem PreventAccessFromCentralDomains (linhas 31-38)
+
+    // 📸 Servir imagens de produtos do tenant (com streaming e cache)
+    Route::get('/storage/{path}', function ($path) {
+        $filePath = storage_path("app/public/{$path}");
+
+        if (!file_exists($filePath)) {
+            abort(404);
+        }
+
+        // Headers otimizados para cache
+        $headers = [
+            'Content-Type' => mime_content_type($filePath),
+            'Cache-Control' => 'public, max-age=31536000, immutable',
+            'Expires' => gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT',
+            'Pragma' => 'public',
+        ];
+
+        // Se o browser tem cache válido (ETag), retorna 304
+        $etag = md5_file($filePath);
+        $headers['ETag'] = $etag;
+
+        if (request()->header('If-None-Match') === $etag) {
+            return response('', 304, $headers);
+        }
+
+        // Stream do arquivo (mais rápido que response()->file())
+        return response()->stream(function () use ($filePath) {
+            $stream = fopen($filePath, 'rb');
+            fpassthru($stream);
+            fclose($stream);
+        }, 200, $headers);
+    })->where('path', '.*')->name('tenant.storage');
 
     // Página de checkout (requer autenticação via JavaScript)
     Route::get('/checkout', function () {

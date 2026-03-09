@@ -2,8 +2,9 @@
 
 return [
     App\Providers\AppServiceProvider::class,
-    App\Providers\TenancyServiceProvider::class,
     App\Providers\Filament\AdminPanelProvider::class,
     App\Providers\Filament\RestaurantPanelProvider::class,
     App\Providers\HorizonServiceProvider::class,
+    App\Providers\TenancyServiceProvider::class,
+    App\Providers\ViewServiceProvider::class,
 ];

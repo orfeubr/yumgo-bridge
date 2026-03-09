@@ -18,11 +18,13 @@ class SettingsResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
 
-    protected static ?string $navigationLabel = 'Configurações';
+    protected static ?string $navigationLabel = 'Configurações Gerais';
 
     protected static ?string $modelLabel = 'Configuração';
 
-    protected static ?int $navigationSort = 100;
+    protected static ?string $navigationGroup = 'Configurações';
+
+    protected static ?int $navigationSort = 90;
 
     public static function form(Form $form): Form
     {

@@ -24,9 +24,9 @@ class POS extends Page implements HasForms
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';
-    protected static ?string $navigationLabel = 'PDV - Frente de Caixa';
+    protected static ?string $navigationLabel = '💰 PDV - Frente de Caixa';
     protected static ?string $title = 'PDV - Ponto de Venda';
-    protected static ?int $navigationSort = 0; // Primeiro no menu
+    protected static ?int $navigationSort = 1;
 
     protected static string $view = 'filament.restaurant.pages.p-o-s';
 
@@ -34,6 +34,7 @@ class POS extends Page implements HasForms
     public $cart = [];
     public $selectedCategory = null;
     public $searchProduct = '';
+    public $showImages = true; // Toggle imagens
 
     // Cliente
     public $selectedCustomer = null;

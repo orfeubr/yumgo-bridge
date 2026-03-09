@@ -36,34 +36,59 @@ class ManageRestaurantUsers extends Page implements HasTable, HasForms
     public function mount(): void
     {
         // Seleciona o primeiro tenant por padrão
-        $firstTenant = Tenant::first();
+        $firstTenant = Tenant::orderBy('name')->first();
         if ($firstTenant) {
             $this->selectedTenantId = $firstTenant->id;
         }
+    }
+
+    public function updatedSelectedTenantId($value): void
+    {
+        // Força refresh da tabela quando muda o tenant
+        $this->dispatch('$refresh');
     }
 
     public function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('tenant_id')
-                    ->label('Selecione o Restaurante')
-                    ->options(Tenant::pluck('name', 'id'))
-                    ->searchable()
-                    ->required()
-                    ->live()
-                    ->afterStateUpdated(function ($state) {
-                        $this->selectedTenantId = $state;
-                    })
-                    ->default($this->selectedTenantId),
-            ])
-            ->statePath('data');
+                Forms\Components\Section::make()
+                    ->schema([
+                        Forms\Components\Select::make('selectedTenantId')
+                            ->label('🔍 Selecione o Restaurante')
+                            ->options(
+                                Tenant::orderBy('name')
+                                    ->get()
+                                    ->mapWithKeys(function ($tenant) {
+                                        return [$tenant->id => $tenant->name . ' (' . $tenant->slug . ')'];
+                                    })
+                            )
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->live(onBlur: false, debounce: 100)
+                            ->afterStateUpdated(function ($state) {
+                                $this->selectedTenantId = $state;
+                            })
+                            ->helperText('💡 Digite para buscar por nome ou slug • Total: ' . Tenant::count() . ' restaurantes')
+                            ->placeholder('Digite para buscar...')
+                            ->native(false)
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(1),
+            ]);
     }
 
     public function table(Table $table): Table
     {
         return $table
-            ->heading('Usuários do Restaurante')
+            ->heading(function () {
+                if ($this->selectedTenantId) {
+                    $tenant = Tenant::find($this->selectedTenantId);
+                    return $tenant ? '👥 Usuários de: ' . $tenant->name : 'Selecione um restaurante';
+                }
+                return '👥 Selecione um restaurante para ver os usuários';
+            })
             ->query(function () {
                 if (!$this->selectedTenantId) {
                     return User::query()->whereRaw('false');
@@ -79,6 +104,8 @@ class ManageRestaurantUsers extends Page implements HasTable, HasForms
 
                 return User::query();
             })
+            ->poll('5s') // Auto-refresh a cada 5 segundos
+            ->deferLoading() // Carrega sob demanda
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome')

@@ -22,7 +22,8 @@ class ProductResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
     protected static ?string $navigationLabel = 'Produtos';
     protected static ?string $modelLabel = 'Produto';
-    protected static ?int $navigationSort = 2;
+    protected static ?string $navigationGroup = 'Produtos';
+    protected static ?int $navigationSort = 20;
 
     public static function form(Form $form): Form
     {
@@ -723,5 +724,96 @@ class ProductResource extends Resource
             'create' => Pages\CreateProduct::route('/create'),
             'edit' => Pages\EditProduct::route('/{record}/edit'),
         ];
+    }
+
+    /**
+     * Verifica se pode criar produto (limite de plano)
+     */
+    public static function canCreate(): bool
+    {
+        $tenant = tenancy()->tenant;
+
+        if (!$tenant) {
+            return false;
+        }
+
+        // Verifica se pode criar produto baseado no plano
+        if (!$tenant->canCreateProduct()) {
+            // Notificar usuário sobre limite atingido
+            \Filament\Notifications\Notification::make()
+                ->warning()
+                ->title('⚠️ Limite de Produtos Atingido')
+                ->body('Você atingiu o limite de produtos do seu plano. Faça upgrade para adicionar mais produtos.')
+                ->persistent()
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('upgrade')
+                        ->label('🚀 Fazer Upgrade')
+                        ->url(route('filament.restaurant.pages.manage-subscription'))
+                        ->markAsRead(),
+                ])
+                ->send();
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Retorna badge com contador (exibe limite)
+     */
+    public static function getNavigationBadge(): ?string
+    {
+        $tenant = tenancy()->tenant;
+
+        if (!$tenant) {
+            return null;
+        }
+
+        $subscription = $tenant->activeSubscription();
+
+        if (!$subscription) {
+            return null;
+        }
+
+        $maxProducts = $subscription->plan->max_products ?? null;
+
+        // Se ilimitado, não exibe badge
+        if ($maxProducts === null) {
+            return null;
+        }
+
+        // Contar produtos
+        $currentCount = \App\Models\Product::count();
+
+        return "{$currentCount}/{$maxProducts}";
+    }
+
+    /**
+     * Cor do badge baseado no uso
+     */
+    public static function getNavigationBadgeColor(): ?string
+    {
+        $tenant = tenancy()->tenant;
+
+        if (!$tenant) {
+            return null;
+        }
+
+        $subscription = $tenant->activeSubscription();
+
+        if (!$subscription || !$subscription->plan->max_products) {
+            return null;
+        }
+
+        $maxProducts = $subscription->plan->max_products;
+        $currentCount = \App\Models\Product::count();
+        $percentage = ($currentCount / $maxProducts) * 100;
+
+        return match (true) {
+            $percentage >= 100 => 'danger',
+            $percentage >= 80 => 'warning',
+            default => 'primary',
+        };
     }
 }

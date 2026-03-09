@@ -150,70 +150,78 @@
     <!-- Produtos -->
     <div x-show="!loading" class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 pb-32 md:pb-8">
         <!-- Grid Responsivo -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
             <template x-for="product in filteredProducts" :key="product.id">
                 <div @click="isOpenNow && openProduct(product)"
                      :class="!isOpenNow && 'opacity-50 cursor-not-allowed'"
-                     class="bg-white border border-gray-200 rounded-xl overflow-hidden card-hover transition-smooth hover:shadow-lg group"
+                     class="bg-white rounded-lg overflow-hidden card-hover transition-smooth shadow-sm hover:shadow-md group cursor-pointer"
                      :style="!isOpenNow && 'pointer-events: none; filter: grayscale(100%);'">
-                    <!-- Imagem com Lazy Loading -->
-                    <div class="relative h-48 md:h-52 lg:h-56 bg-gray-200 overflow-hidden">
-                        <!-- Skeleton Loader -->
-                        <div class="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-pulse"></div>
+                    <!-- Imagem com Lazy Loading e Blur Placeholder -->
+                    <div class="relative h-32 sm:h-36 md:h-40 bg-gray-200 overflow-hidden"
+                         x-data="{ imageLoaded: false }">
+
+                        <!-- Blur Placeholder (estilo iFood) -->
+                        <div class="absolute inset-0 bg-gradient-to-br from-gray-300 via-gray-200 to-gray-100
+                                    transition-opacity duration-500"
+                             :class="imageLoaded ? 'opacity-0' : 'opacity-100'">
+                            <!-- Shimmer effect -->
+                            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent
+                                        opacity-30 animate-shimmer"></div>
+                        </div>
 
                         <!-- Imagem -->
                         <img :src="product.image"
                              :alt="product.name"
                              loading="lazy"
                              decoding="async"
-                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 relative z-10"
-                             @load="$el.previousElementSibling.style.display='none'"
-                             onerror="this.src='https://via.placeholder.com/600x400?text=Sem+Foto'">
+                             class="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 relative z-10"
+                             :class="imageLoaded ? 'opacity-100 blur-0' : 'opacity-0 blur-sm'"
+                             @load="imageLoaded = true"
+                             onerror="this.src='https://via.placeholder.com/600x400?text=Sem+Foto'; imageLoaded = true">
 
-                        <!-- Badge Destaque -->
+                        <!-- Badge Destaque (discreto) -->
                         <div x-show="product.is_featured && isOpenNow"
-                             class="absolute top-3 left-3 bg-primary-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md z-20">
-                            ⭐ Destaque
+                             class="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-medium px-2 py-1 rounded shadow-sm z-20">
+                            Destaque
                         </div>
 
-                        <!-- Badge Fechado -->
+                        <!-- Badge Fechado (discreto) -->
                         <div x-show="!isOpenNow"
-                             class="absolute top-3 left-3 bg-gray-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md z-20">
-                            🔒 Fechado
+                             class="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-gray-600 text-xs font-medium px-2 py-1 rounded shadow-sm z-20">
+                            Fechado
                         </div>
                     </div>
 
                     <!-- Info -->
-                    <div class="p-4 md:p-5">
-                        <h3 class="font-bold mb-2 text-base md:text-lg"
-                            :class="isOpenNow ? 'text-gray-900' : 'text-gray-500'"
+                    <div class="p-2">
+                        <h3 class="font-semibold mb-1 text-xs leading-tight line-clamp-2"
+                            :class="isOpenNow ? 'text-gray-800' : 'text-gray-500'"
                             x-text="product.name"></h3>
-                        <p class="text-xs md:text-sm mb-4 line-cloak-2"
-                           :class="isOpenNow ? 'text-gray-600' : 'text-gray-400'"
-                           x-text="product.description"></p>
 
-                        <!-- Preços -->
-                        <div class="flex items-center justify-between">
-                            <div class="flex gap-3 md:gap-4">
-                                <template x-for="variation in product.variations" :key="variation.id">
-                                    <div class="text-center">
-                                        <p class="text-xs font-medium mb-1"
-                                           :class="isOpenNow ? 'text-gray-500' : 'text-gray-400'"
-                                           x-text="variation.name"></p>
-                                        <p class="text-sm md:text-base font-bold"
-                                           :class="isOpenNow ? 'text-primary-500' : 'text-gray-400'"
-                                           x-text="'R$ ' + (parseFloat(product.price) + parseFloat(variation.price_modifier)).toFixed(2)"></p>
-                                    </div>
-                                </template>
-                            </div>
-                            <button :disabled="!isOpenNow"
-                                    :class="isOpenNow ? 'bg-primary-50 text-primary-500 hover:bg-primary-100 group-hover:bg-primary-500 group-hover:text-white cursor-pointer' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
-                                    class="p-2.5 md:p-3 rounded-lg transition-smooth">
-                                <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                </svg>
-                            </button>
+                        <!-- Preços (Compacto) -->
+                        <div class="flex flex-wrap gap-1.5 mb-2">
+                            <template x-for="variation in product.variations" :key="variation.id">
+                                <div class="inline-flex items-baseline gap-1">
+                                    <span class="text-[10px] font-medium"
+                                          :class="isOpenNow ? 'text-gray-500' : 'text-gray-400'"
+                                          x-text="variation.name + ':'"></span>
+                                    <span class="text-xs font-bold"
+                                          :class="isOpenNow ? 'text-primary-500' : 'text-gray-400'"
+                                          x-text="'R$ ' + (parseFloat(product.price) + parseFloat(variation.price_modifier)).toFixed(2)"></span>
+                                </div>
+                            </template>
                         </div>
+
+                        <!-- Botão Add (Compacto) -->
+                        <button :disabled="!isOpenNow"
+                                @click.stop="isOpenNow && openProduct(product)"
+                                :class="isOpenNow ? 'bg-primary-500 text-white hover:bg-primary-600 cursor-pointer' : 'bg-gray-200 text-gray-400 cursor-not-allowed'"
+                                class="w-full py-1.5 rounded text-xs font-semibold transition-smooth flex items-center justify-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            <span>Adicionar</span>
+                        </button>
                     </div>
                 </div>
             </template>
@@ -423,7 +431,8 @@ function catalogApp() {
 
         async loadProducts() {
             try {
-                const response = await fetch('/api/v1/products');
+                // Carrega apenas 8 produtos inicialmente (mais rápido)
+                const response = await fetch('/api/v1/products?per_page=50');
                 if (response.ok) {
                     const data = await response.json();
                     this.products = data.data || [];

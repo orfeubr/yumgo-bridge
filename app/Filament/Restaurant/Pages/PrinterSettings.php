@@ -16,7 +16,7 @@ class PrinterSettings extends Page
 
     protected static ?string $title = 'Impressão Automática';
 
-    protected static ?int $navigationSort = 50;
+    protected static ?int $navigationSort = 94;
 
     protected static ?string $navigationGroup = 'Configurações';
 

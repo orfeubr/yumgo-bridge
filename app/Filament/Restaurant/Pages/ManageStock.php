@@ -23,7 +23,8 @@ class ManageStock extends Page implements HasTable
     protected static ?string $navigationIcon = 'heroicon-o-cube';
     protected static ?string $navigationLabel = 'Gerenciar Estoque';
     protected static ?string $title = 'Gerenciamento de Estoque';
-    protected static ?int $navigationSort = 5;
+    protected static ?string $navigationGroup = 'Produtos';
+    protected static ?int $navigationSort = 24;
 
     protected static string $view = 'filament.restaurant.pages.manage-stock';
 

@@ -22,7 +22,7 @@ class OrderResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';
     protected static ?string $navigationLabel = 'Pedidos';
     protected static ?string $modelLabel = 'Pedido';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {
@@ -320,5 +320,101 @@ class OrderResource extends Resource
             'create' => Pages\CreateOrder::route('/create'),
             'edit' => Pages\EditOrder::route('/{record}/edit'),
         ];
+    }
+
+    /**
+     * Verifica se pode criar pedido (limite mensal de plano)
+     */
+    public static function canCreate(): bool
+    {
+        $tenant = tenancy()->tenant;
+
+        if (!$tenant) {
+            return false;
+        }
+
+        // Verifica se pode criar pedido baseado no plano
+        if (!$tenant->canCreateOrder()) {
+            // Notificar usuário sobre limite atingido
+            \Filament\Notifications\Notification::make()
+                ->warning()
+                ->title('⚠️ Limite de Pedidos Atingido')
+                ->body('Você atingiu o limite de pedidos deste mês. Faça upgrade para processar mais pedidos.')
+                ->persistent()
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('upgrade')
+                        ->label('🚀 Fazer Upgrade')
+                        ->url(route('filament.restaurant.pages.manage-subscription'))
+                        ->markAsRead(),
+                ])
+                ->send();
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Retorna badge com contador (exibe limite mensal)
+     */
+    public static function getNavigationBadge(): ?string
+    {
+        $tenant = tenancy()->tenant;
+
+        if (!$tenant) {
+            return null;
+        }
+
+        $subscription = $tenant->activeSubscription();
+
+        if (!$subscription) {
+            return null;
+        }
+
+        $maxOrders = $subscription->plan->max_orders_per_month ?? null;
+
+        // Se ilimitado, não exibe badge
+        if ($maxOrders === null) {
+            return null;
+        }
+
+        // Contar pedidos deste mês
+        $currentCount = \App\Models\Order::whereYear('created_at', now()->year)
+            ->whereMonth('created_at', now()->month)
+            ->count();
+
+        return "{$currentCount}/{$maxOrders}";
+    }
+
+    /**
+     * Cor do badge baseado no uso mensal
+     */
+    public static function getNavigationBadgeColor(): ?string
+    {
+        $tenant = tenancy()->tenant;
+
+        if (!$tenant) {
+            return null;
+        }
+
+        $subscription = $tenant->activeSubscription();
+
+        if (!$subscription || !$subscription->plan->max_orders_per_month) {
+            return null;
+        }
+
+        $maxOrders = $subscription->plan->max_orders_per_month;
+        $currentCount = \App\Models\Order::whereYear('created_at', now()->year)
+            ->whereMonth('created_at', now()->month)
+            ->count();
+
+        $percentage = ($currentCount / $maxOrders) * 100;
+
+        return match (true) {
+            $percentage >= 100 => 'danger',
+            $percentage >= 80 => 'warning',
+            default => 'info',
+        };
     }
 }

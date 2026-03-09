@@ -13,7 +13,7 @@ class CashbackConfig extends Page
     protected static ?string $navigationIcon = 'heroicon-o-gift';
     protected static ?string $navigationLabel = 'Cashback';
     protected static ?string $navigationGroup = 'Configurações';
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 91;
     protected static string $view = 'filament.pages.cashback-config';
 
     public ?array $data = [];

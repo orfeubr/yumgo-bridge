@@ -46,5 +46,11 @@ class AppServiceProvider extends ServiceProvider
 
         // Registrar observer para validar ordem de categorias
         Category::observe(CategoryObserver::class);
+
+        // Compartilhar settings da plataforma em views do marketplace
+        \Illuminate\Support\Facades\View::composer(
+            ['marketplace.*', 'welcome'],
+            \App\View\Composers\PlatformSettingsComposer::class
+        );
     }
 }

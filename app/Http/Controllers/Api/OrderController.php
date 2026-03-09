@@ -68,6 +68,17 @@ class OrderController extends Controller
      */
     public function store(Request $request)
     {
+        // ===== VERIFICAR LIMITE DE PEDIDOS DO PLANO =====
+        $tenant = tenancy()->tenant;
+
+        if ($tenant && !$tenant->canCreateOrder()) {
+            return response()->json([
+                'message' => 'O restaurante atingiu o limite de pedidos deste mês. Por favor, tente novamente mais tarde.',
+                'error' => 'order_limit_reached',
+                'limit_reached' => true,
+            ], 402); // 402 = Payment Required (limite de plano)
+        }
+
         // ===== PROTEÇÃO CONTRA SQL INJECTION E MANIPULAÇÃO DE DADOS =====
         $request->validate([
             'items' => 'required|array|min:1|max:50', // Máx 50 items

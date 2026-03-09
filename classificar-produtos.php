@@ -7,7 +7,14 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 echo "\n🔧 Classificando produtos com NCM/CFOP corretos...\n\n";
 
-$tenant = \App\Models\Tenant::first();
+$tenant = \App\Models\Tenant::where('slug', 'marmitariadagi')->first();
+
+if (!$tenant) {
+    echo "❌ Tenant Marmitaria da Gi não encontrado\n";
+    exit(1);
+}
+
+echo "Tenant: {$tenant->name}\n\n";
 tenancy()->initialize($tenant);
 
 // Mapeamento de classificação fiscal

@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cadastre seu Restaurante - YumGo</title>
+    <title>Cadastre seu Restaurante - {{ $platformSettings->platform_name ?? 'YumGo' }}</title>
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v={{ time() }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v={{ time() }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -13,10 +15,16 @@
     <header class="bg-white shadow-sm">
         <div class="container mx-auto px-4">
             <div class="flex items-center justify-between h-16">
-                <a href="/" class="flex items-center space-x-2">
-                    <div class="bg-red-600 text-white px-3 py-2 rounded-lg font-bold text-xl">
-                        YumGo
-                    </div>
+                <a href="/" class="flex items-center">
+                    @if(isset($platformSettings) && $platformSettings->platform_logo && file_exists(public_path('logo.png')))
+                        <img src="{{ asset('logo.png') }}?v={{ filemtime(public_path('logo.png')) }}"
+                             alt="{{ $platformSettings->platform_name }}"
+                             class="h-16 md:h-20 max-w-[280px] object-contain">
+                    @else
+                        <div class="bg-red-600 text-white px-3 py-2 rounded-lg font-bold text-xl">
+                            {{ $platformSettings->platform_name ?? 'YumGo' }}
+                        </div>
+                    @endif
                 </a>
                 <a href="/admin" class="text-gray-600 hover:text-red-600">
                     Já tenho conta
@@ -77,7 +85,7 @@
             </div>
 
             <!-- Formulário -->
-            <form action="{{ route('signup.store') }}" method="POST" class="bg-white rounded-lg shadow-lg p-8">
+            <form action="{{ route('signup.store') }}" method="POST" class="bg-white rounded-lg shadow-lg p-8" id="signupForm">
                 @csrf
 
                 @if($errors->any())
@@ -115,6 +123,7 @@
                             <div class="flex items-center">
                                 <input type="text" name="restaurant_slug" value="{{ old('restaurant_slug') }}"
                                        x-model="restaurant_slug"
+                                       @input="markSlugAsManuallyEdited()"
                                        required
                                        pattern="[a-z0-9-]+"
                                        class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
@@ -152,7 +161,7 @@
                     </div>
 
                     <div class="mt-8 flex justify-end">
-                        <button type="button" @click="step = 2"
+                        <button type="button" @click="validateStep1()"
                                 class="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold">
                             Próximo <i class="fas fa-arrow-right ml-2"></i>
                         </button>
@@ -213,7 +222,7 @@
                                 class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold">
                             <i class="fas fa-arrow-left mr-2"></i> Voltar
                         </button>
-                        <button type="button" @click="step = 3"
+                        <button type="button" @click="validateStep2()"
                                 class="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold">
                             Próximo <i class="fas fa-arrow-right ml-2"></i>
                         </button>
@@ -223,7 +232,7 @@
                 <!-- Step 3: Escolha do Plano -->
                 <div x-show="step === 3" x-transition>
                     <h2 class="text-2xl font-bold mb-6">Escolha seu Plano</h2>
-                    <p class="text-gray-600 mb-6">Todos os planos incluem 15 dias de teste grátis!</p>
+                    <p class="text-gray-600 mb-6">Configure seu método de pagamento após o cadastro para ativar sua conta.</p>
 
                     <div class="grid md:grid-cols-3 gap-6 mb-6">
                         @foreach($plans as $plan)
@@ -265,13 +274,68 @@
                         @endforeach
                     </div>
 
+                    <!-- Vantagens do Modelo -->
+                    <div class="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-6 mb-6">
+                        <div class="text-center mb-4">
+                            <h3 class="text-xl font-bold text-gray-900 mb-2">
+                                💰 Pague Menos, Ganhe Mais
+                            </h3>
+                            <p class="text-gray-600 text-sm">
+                                Nosso modelo é ideal para quem está começando
+                            </p>
+                        </div>
+
+                        <div class="grid md:grid-cols-3 gap-4 mb-4">
+                            <!-- Preço Inicial Baixo -->
+                            <div class="bg-white rounded-lg p-4 text-center">
+                                <div class="text-3xl mb-2">🎯</div>
+                                <div class="font-bold text-gray-900 mb-1">Comece Pequeno</div>
+                                <div class="text-sm text-gray-600">
+                                    A partir de <span class="font-bold text-green-600">R$ 99,99/mês</span>
+                                </div>
+                            </div>
+
+                            <!-- Comissão Baixa -->
+                            <div class="bg-white rounded-lg p-4 text-center">
+                                <div class="text-3xl mb-2">📈</div>
+                                <div class="font-bold text-gray-900 mb-1">Cresça Sem Peso</div>
+                                <div class="text-sm text-gray-600">
+                                    Comissão de apenas <span class="font-bold text-green-600">1,5%</span> por pedido
+                                </div>
+                            </div>
+
+                            <!-- Recursos Completos -->
+                            <div class="bg-white rounded-lg p-4 text-center">
+                                <div class="text-3xl mb-2">✨</div>
+                                <div class="font-bold text-gray-900 mb-1">Recursos Completos</div>
+                                <div class="text-sm text-gray-600">
+                                    Tudo que você precisa desde o dia 1
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-lg p-4 border-2 border-green-500">
+                            <div class="text-center">
+                                <div class="text-sm text-gray-600 mb-1">Exemplo: Faturando R$ 10.000/mês</div>
+                                <div class="text-2xl font-bold text-green-600">
+                                    R$ 99,99 <span class="text-lg text-gray-500">mensalidade</span> + R$ 150 <span class="text-lg text-gray-500">comissão</span>
+                                </div>
+                                <div class="text-lg font-bold text-gray-900 mt-2">
+                                    = R$ 249,99/mês total
+                                </div>
+                                <div class="text-xs text-gray-500 mt-2">
+                                    Investimento baixo para começar, cresce com você! 🚀
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                         <div class="flex items-start">
                             <i class="fas fa-info-circle text-blue-600 mt-1 mr-3"></i>
                             <div class="text-sm text-blue-800">
-                                <strong>Teste grátis por 15 dias!</strong><br>
-                                Você pode cancelar a qualquer momento durante o período de teste sem ser cobrado.
-                                Dados bancários podem ser configurados depois no painel administrativo.
+                                <strong>Próximo passo:</strong><br>
+                                Após criar sua conta, configure os dados de recebimento no painel administrativo para ativar sua assinatura e começar a receber pedidos.
                             </div>
                         </div>
                     </div>
@@ -281,9 +345,9 @@
                                 class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold">
                             <i class="fas fa-arrow-left mr-2"></i> Voltar
                         </button>
-                        <button type="submit"
+                        <button type="button" @click="submitForm()"
                                 class="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold text-lg">
-                            <i class="fas fa-check mr-2"></i> Criar Minha Conta Grátis
+                            <i class="fas fa-check mr-2"></i> Criar Minha Conta
                         </button>
                     </div>
                 </div>
@@ -297,9 +361,10 @@
                 step: 1,
                 restaurant_name: '{{ old("restaurant_name") }}',
                 restaurant_slug: '{{ old("restaurant_slug") }}',
+                manuallyEditedSlug: false,
 
                 generateSlug() {
-                    if (!this.restaurant_slug || this.restaurant_slug === '') {
+                    if (!this.manuallyEditedSlug) {
                         this.restaurant_slug = this.restaurant_name
                             .toLowerCase()
                             .normalize('NFD')
@@ -307,6 +372,89 @@
                             .replace(/[^a-z0-9]+/g, '-')
                             .replace(/^-+|-+$/g, '');
                     }
+                },
+
+                markSlugAsManuallyEdited() {
+                    this.manuallyEditedSlug = true;
+                },
+
+                // Validar Step 1
+                validateStep1() {
+                    const form = document.querySelector('form');
+                    const name = form.querySelector('[name="restaurant_name"]');
+                    const slug = form.querySelector('[name="restaurant_slug"]');
+                    const email = form.querySelector('[name="restaurant_email"]');
+                    const phone = form.querySelector('[name="restaurant_phone"]');
+
+                    if (!name.value || !slug.value || !email.value || !phone.value) {
+                        alert('Por favor, preencha todos os campos obrigatórios.');
+                        return false;
+                    }
+
+                    // Validar formato de email
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(email.value)) {
+                        alert('Por favor, informe um email válido.');
+                        email.focus();
+                        return false;
+                    }
+
+                    this.step = 2;
+                    return true;
+                },
+
+                // Validar Step 2
+                validateStep2() {
+                    const form = document.querySelector('form');
+                    const ownerName = form.querySelector('[name="owner_name"]');
+                    const ownerEmail = form.querySelector('[name="owner_email"]');
+                    const password = form.querySelector('[name="owner_password"]');
+                    const passwordConfirmation = form.querySelector('[name="owner_password_confirmation"]');
+
+                    if (!ownerName.value || !ownerEmail.value || !password.value || !passwordConfirmation.value) {
+                        alert('Por favor, preencha todos os campos obrigatórios.');
+                        return false;
+                    }
+
+                    // Validar formato de email
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(ownerEmail.value)) {
+                        alert('Por favor, informe um email válido.');
+                        ownerEmail.focus();
+                        return false;
+                    }
+
+                    // Validar senha mínimo 6 caracteres
+                    if (password.value.length < 6) {
+                        alert('A senha deve ter no mínimo 6 caracteres.');
+                        password.focus();
+                        return false;
+                    }
+
+                    // Validar se senhas coincidem
+                    if (password.value !== passwordConfirmation.value) {
+                        alert('As senhas não coincidem.');
+                        passwordConfirmation.focus();
+                        return false;
+                    }
+
+                    this.step = 3;
+                    return true;
+                },
+
+                // Submeter formulário
+                submitForm() {
+                    const form = document.getElementById('signupForm');
+
+                    // Verificar se um plano foi selecionado
+                    const planSelected = form.querySelector('input[name="plan_id"]:checked');
+                    if (!planSelected) {
+                        alert('Por favor, selecione um plano.');
+                        return false;
+                    }
+
+                    // Submeter o formulário
+                    form.submit();
                 }
             }
         }

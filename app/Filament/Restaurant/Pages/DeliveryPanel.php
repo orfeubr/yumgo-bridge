@@ -17,7 +17,7 @@ class DeliveryPanel extends Page implements HasTable
     protected static ?string $navigationIcon = 'heroicon-o-truck';
     protected static ?string $navigationLabel = '🚗 Entregas';
     protected static ?string $title = 'Painel de Entregas';
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 11;
     protected static ?string $navigationGroup = 'Operações';
     protected static string $view = 'filament.restaurant.pages.delivery-panel';
     protected static ?string $pollingInterval = '10s';
