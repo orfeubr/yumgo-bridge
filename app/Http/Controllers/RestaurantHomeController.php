@@ -13,6 +13,24 @@ class RestaurantHomeController extends Controller
 {
     public function index()
     {
+        // ✅ Verificar status de aprovação do restaurante
+        $tenant = tenant();
+
+        if ($tenant->approval_status === 'pending_approval') {
+            return view('tenant.pending-approval', [
+                'tenant' => $tenant,
+            ]);
+        }
+
+        if ($tenant->approval_status === 'rejected') {
+            return view('tenant.rejected', [
+                'tenant' => $tenant,
+                'reason' => $tenant->rejection_reason,
+            ]);
+        }
+
+        // ✅ Apenas restaurantes aprovados continuam
+
         // Verificar se há cardápio semanal ativo
         $activeMenu = WeeklyMenu::getActive();
         $todayProductIds = null;
