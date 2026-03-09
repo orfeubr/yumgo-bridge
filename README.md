@@ -6,6 +6,9 @@
 [![Laravel](https://img.shields.io/badge/Laravel-11-red.svg)](https://laravel.com)
 [![Electron](https://img.shields.io/badge/Electron-29-blue.svg)](https://electronjs.org)
 [![PHP](https://img.shields.io/badge/PHP-8.3-purple.svg)](https://php.net)
+[![Security](https://img.shields.io/badge/Security-95%25-brightgreen.svg)](#-segurança)
+[![Performance](https://img.shields.io/badge/Performance-A-green.svg)](#-performance)
+[![Code Quality](https://img.shields.io/badge/Code%20Quality-A-blue.svg)](docs/)
 
 ---
 

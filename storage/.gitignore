@@ -1,0 +1,21 @@
+# Ignorar diretórios de tenants (contém dados sensíveis)
+tenant*/
+!tenant*/.gitignore
+
+# Logs
+logs/
+*.log
+
+# Backups
+backups/
+
+# Framework cache
+framework/cache/*
+framework/sessions/*
+framework/testing/*
+framework/views/*
+
+# Arquivos temporários
+*.tmp
+*.temp
+*.xml
