@@ -11,8 +11,19 @@ use Carbon\Carbon;
 class CashbackService
 {
     /**
-     * Calcula o cashback para um pedido
-     * SIMPLIFICADO: Todos os clientes ganham o mesmo percentual
+     * Calcula o cashback que o cliente receberá ao confirmar o pedido
+     *
+     * Regras aplicadas:
+     * 1. Sistema deve estar ativo (is_active = true)
+     * 2. Pedido deve atingir valor mínimo configurado
+     * 3. Percentual base: bronze_percentage (todos os clientes)
+     * 4. Bônus de aniversário: multiplica por birthday_multiplier
+     * 5. Base de cálculo: subtotal (sem taxa de entrega, antes de descontos)
+     *
+     * @param Order $order Pedido a calcular cashback
+     * @return float Valor do cashback (0 se não aplicável)
+     *
+     * @see CashbackSettings Para configurações do sistema
      */
     public function calculateCashback(Order $order): float
     {
@@ -43,7 +54,18 @@ class CashbackService
     }
 
     /**
-     * Adiciona cashback ganho ao saldo do cliente
+     * Credita cashback ganho ao saldo do cliente após confirmação de pagamento
+     *
+     * Fluxo:
+     * 1. Incrementa cashback_balance do customer
+     * 2. Registra transação tipo 'earned' em cashback_transactions
+     * 3. Define data de expiração baseada em expiration_days
+     *
+     * @param Order $order Pedido que gerou o cashback
+     * @param float $amount Valor do cashback a creditar
+     * @return void
+     *
+     * @see CashbackTransaction Para histórico de transações
      */
     public function addEarnedCashback(Order $order, float $amount): void
     {
@@ -75,7 +97,24 @@ class CashbackService
     }
 
     /**
-     * Usa cashback do cliente em um pedido
+     * Debita cashback do saldo do cliente para usar como desconto
+     *
+     * Validações:
+     * 1. Cliente tem saldo suficiente?
+     * 2. Valor >= mínimo configurado? (se saldo >= mínimo)
+     * 3. ⭐ EXCEÇÃO: Se saldo < mínimo, permite usar todo saldo
+     *
+     * Fluxo:
+     * 1. Valida saldo disponível
+     * 2. Valida valor mínimo (com exceção)
+     * 3. Debita do cashback_balance
+     * 4. Registra transação tipo 'used'
+     *
+     * @param Customer $customer Cliente que usará cashback
+     * @param float $amount Valor a debitar
+     * @return bool true se debitado com sucesso, false se inválido
+     *
+     * @see CashbackSettings::min_cashback_to_use Para valor mínimo
      */
     public function useCashback(Customer $customer, float $amount): bool
     {

@@ -17,7 +17,36 @@ class OrderService
     ) {}
 
     /**
-     * Cria um novo pedido
+     * Cria um novo pedido com cashback e pagamento integrado
+     *
+     * Fluxo completo:
+     * 1. Sincroniza customer entre schema central e tenant
+     * 2. Enriquece items com dados atualizados dos produtos
+     * 3. Calcula subtotal + taxa de entrega
+     * 4. Aplica cupom de desconto (se fornecido)
+     * 5. Aplica cashback (se solicitado)
+     * 6. Cria cobrança no gateway (Pagar.me)
+     * 7. Registra pedido no banco
+     *
+     * @param Customer $customer Cliente (pode ser do central ou tenant)
+     * @param array $data Dados do pedido
+     *   - items: array [product_id, quantity, variation_id?, addons?, notes?]
+     *   - delivery_address: string (obrigatório)
+     *   - delivery_city: string (obrigatório)
+     *   - delivery_neighborhood: string (obrigatório)
+     *   - delivery_fee: float (calculado no backend)
+     *   - payment_method: string (pix|credit_card|debit_card|cash)
+     *   - cashback_used: float (calculado no backend)
+     *   - coupon_code: string|null
+     *   - notes: string|null
+     *
+     * @return Order Pedido criado com payment anexado
+     *
+     * @throws \Exception Se falhar ao criar cobrança no gateway
+     * @throws \Exception Se falhar ao debitar cashback
+     *
+     * @see CashbackService::useCashback() Para lógica de débito de cashback
+     * @see PagarMeService::createCharge() Para criação de cobrança
      */
     public function createOrder(Customer $customer, array $data): Order
     {
@@ -281,10 +310,25 @@ class OrderService
     }
 
     /**
-     * Confirma pagamento e adiciona cashback
+     * Confirma pagamento e credita cashback ao cliente
+     *
+     * Chamado quando pagamento é aprovado pelo gateway (webhook)
+     *
+     * Fluxo:
+     * 1. Verifica se pagamento já não foi confirmado (idempotência)
+     * 2. Atualiza status do pedido (payment_status = 'paid', status = 'confirmed')
+     * 3. Calcula e credita cashback ao cliente
+     * 4. Atualiza estatísticas do tenant (total_orders, total_revenue)
      *
      * ⚠️ IMPORTANTE: Cashback só é gerado APÓS confirmação de pagamento
-     * Este método deve ser chamado apenas quando o pagamento for APROVADO
+     * ⚠️ IDEMPOTENTE: Pode ser chamado múltiplas vezes (previne duplicação)
+     *
+     * @param Order $order Pedido a ser confirmado
+     * @return void
+     *
+     * @throws \Exception Se falhar ao creditar cashback
+     *
+     * @see CashbackService::awardCashback() Para lógica de crédito
      */
     public function confirmPayment(Order $order): void
     {

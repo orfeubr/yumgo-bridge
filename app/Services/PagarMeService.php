@@ -35,10 +35,26 @@ class PagarMeService
 
     /**
      * Cria recebedor (recipient) para o tenant (restaurante)
+     *
      * Equivalente ao createSubAccount do Asaas
      *
-     * @param Tenant|array $data - Tenant model ou array com dados
-     * @return array|null - Retorna ['id' => ..., 'status' => ...] ou null
+     * O recipient é necessário para split automático de pagamentos:
+     * - Plataforma recebe comissão configurada no plano
+     * - Restaurante recebe o restante automaticamente
+     *
+     * Dados obrigatórios:
+     * - name: Nome do restaurante
+     * - email: Email válido
+     * - document: CPF (11 dígitos) ou CNPJ (14 dígitos)
+     * - type: 'individual' ou 'company'
+     * - bank_account: Conta bancária completa
+     *
+     * @param Tenant|array $data Tenant model ou array com dados
+     * @return array|null ['id' => recipient_id, 'status' => 'active'] ou null em erro
+     *
+     * @throws \Exception Se API key não estiver configurada
+     *
+     * @see https://docs.pagar.me/reference/criar-recebedor
      */
     public function createRecipient($data): ?array
     {
@@ -152,8 +168,29 @@ class PagarMeService
     }
 
     /**
-     * Cria transação (pedido) com split automático
-     * Pagar.me usa "split_rules" na transação
+     * Cria transação de pagamento (PIX ou Cartão) com split automático
+     *
+     * Split automático:
+     * - Plataforma recebe comissão definida no plano do tenant
+     * - Restaurante recebe o restante
+     * - Dinheiro é dividido automaticamente pelo Pagar.me
+     *
+     * Suporta:
+     * - PIX: Gera QR Code base64 + código copia-cola
+     * - Cartão de Crédito/Débito: Requer tokenização prévia (card_id)
+     *
+     * @param Order $order Pedido a processar pagamento
+     * @param array $data Dados do pagamento
+     *   - payment_method: 'pix' | 'credit_card' | 'debit_card'
+     *   - card_id: Token do cartão (obrigatório para cartão)
+     *   - installments: Parcelas (opcional, padrão 1)
+     *
+     * @return array|null ['id' => charge_id, 'status' => 'pending', 'qr_code' => ...] ou null em erro
+     *
+     * @throws \Exception Se tenant não tiver recipient configurado
+     * @throws \Exception Se método de pagamento for inválido
+     *
+     * @see processCardPayment() Para pagamento direto com cartão tokenizado
      */
     public function createPayment(Order $order, array $data): ?array
     {
