@@ -19,6 +19,7 @@ class Order extends Model
         'subtotal',
         'delivery_fee',
         'discount',
+        'coupon_code', // ✅ Permite salvar código do cupom aplicado
         'cashback_used',
         'total',
         'cashback_earned',

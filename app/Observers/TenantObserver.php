@@ -35,7 +35,20 @@ class TenantObserver
     {
         try {
             $tenantId = $tenant->id;
+
+            // 🔒 SEGURANÇA: Validar tenant ID para prevenir command injection
+            // Aceitar apenas: letras, números, hífens, underscores (max 255 caracteres)
+            if (!preg_match('/^[a-zA-Z0-9\-_]{1,255}$/', $tenantId)) {
+                throw new \Exception("Tenant ID inválido: contém caracteres não permitidos");
+            }
+
             $baseDir = storage_path('tenant' . $tenantId);
+
+            // 🔒 Validar que path está dentro de storage/
+            $realBasePath = realpath(storage_path());
+            if (strpos($baseDir, $realBasePath) !== 0) {
+                throw new \Exception("Tentativa de acesso fora do diretório storage");
+            }
 
             $directories = [
                 $baseDir,
@@ -57,8 +70,10 @@ class TenantObserver
             }
 
             // Corrigir permissões para www-data
+            // 🔒 SEGURANÇA: Usar escapeshellarg() para prevenir injection
             if (function_exists('exec')) {
-                exec("sudo chown -R www-data:www-data {$baseDir}");
+                $safePath = escapeshellarg($baseDir);
+                exec("sudo chown -R www-data:www-data {$safePath}");
             }
 
             Log::info("✅ Estrutura de storage criada para tenant {$tenant->name}");

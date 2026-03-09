@@ -175,29 +175,39 @@ class MarketplaceController extends Controller
      */
     private function getCashbackPercentage(Tenant $restaurant): ?float
     {
-        try {
-            // Inicializa tenancy para acessar o schema do restaurante
-            tenancy()->initialize($restaurant);
+        // 🚀 PERFORMANCE: Cachear por 1 hora para prevenir N+1 queries
+        // Evita múltiplas inicializações de tenancy e queries no marketplace
+        $cacheKey = "cashback_percentage:{$restaurant->id}";
 
-            // Busca as configurações de cashback
-            $settings = \DB::connection('tenant')
-                ->table('cashback_settings')
-                ->where('is_active', true)
-                ->first();
+        return \Cache::remember($cacheKey, 3600, function () use ($restaurant) {
+            try {
+                // Inicializa tenancy para acessar o schema do restaurante
+                tenancy()->initialize($restaurant);
 
-            // Finaliza tenancy
-            tenancy()->end();
+                // Busca as configurações de cashback
+                $settings = \DB::connection('tenant')
+                    ->table('cashback_settings')
+                    ->where('is_active', true)
+                    ->first();
 
-            if ($settings && isset($settings->bronze_percentage)) {
-                // Retorna a porcentagem do tier bronze (padrão para novos clientes)
-                return (float) $settings->bronze_percentage;
+                if ($settings && isset($settings->bronze_percentage)) {
+                    // Retorna a porcentagem do tier bronze (padrão para novos clientes)
+                    return (float) $settings->bronze_percentage;
+                }
+
+                return null;
+            } catch (\Exception $e) {
+                // Em caso de erro, retorna null (restaurante sem cashback)
+                \Log::warning('Erro ao buscar cashback do restaurante', [
+                    'restaurant_id' => $restaurant->id,
+                    'error' => $e->getMessage(),
+                ]);
+                return null;
+            } finally {
+                // 🔒 SEGURANÇA: SEMPRE finalizar tenancy, independente de sucesso ou exception
+                // Previne vazamento de dados entre tenants
+                tenancy()->end();
             }
-
-            return null;
-        } catch (\Exception $e) {
-            // Em caso de erro, retorna null (restaurante sem cashback)
-            tenancy()->end();
-            return null;
-        }
+        });
     }
 }

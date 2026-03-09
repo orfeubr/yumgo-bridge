@@ -172,9 +172,10 @@ class OrderService
             \Log::info('✅ Items criados');
 
             // 🎟️ Incrementar contador de uso do cupom
+            // ⚠️ ATENÇÃO: Incremento agora é feito no OrderController com lockForUpdate()
+            // para prevenir race condition. NÃO incrementar aqui para evitar duplicação.
             if ($couponCode) {
-                \App\Models\Coupon::where('code', $couponCode)->increment('usage_count');
-                \Log::info('🎟️ Contador do cupom incrementado', ['code' => $couponCode]);
+                \Log::info('🎟️ Cupom aplicado (contador já incrementado no Controller)', ['code' => $couponCode]);
             }
 
             // ⭐ PAGAMENTO: Criar cobrança apenas para PIX (cartão será processado na página de pagamento)

@@ -191,43 +191,56 @@ class OrderController extends Controller
         if ($request->filled('coupon_code')) {
             $couponCodeInput = strtoupper(trim($request->coupon_code));
 
-            $coupon = \App\Models\Coupon::active()
-                ->byCode($couponCodeInput)
-                ->first();
+            // 🔒 SEGURANÇA: Usar transação com lock para prevenir race condition
+            // Previne que múltiplas requisições simultâneas ultrapassem o limite
+            try {
+                $coupon = \DB::transaction(function () use ($couponCodeInput, $customer) {
+                    // Buscar cupom com LOCK FOR UPDATE (bloqueia até transaction commit)
+                    $coupon = \App\Models\Coupon::active()
+                        ->byCode($couponCodeInput)
+                        ->lockForUpdate() // 🔒 Lock pessimista
+                        ->first();
 
-            if (!$coupon) {
+                    if (!$coupon) {
+                        throw new \Exception('Cupom inválido ou expirado');
+                    }
+
+                    // Verificar limite de uso global
+                    if ($coupon->usage_limit && $coupon->usage_count >= $coupon->usage_limit) {
+                        throw new \Exception('Cupom esgotado');
+                    }
+
+                    // Verificar limite por cliente
+                    if ($coupon->usage_per_customer) {
+                        $customerUsageCount = \App\Models\Order::where('customer_id', $customer->id)
+                            ->where('coupon_code', $couponCodeInput)
+                            ->whereIn('payment_status', ['paid', 'pending'])
+                            ->count();
+
+                        if ($customerUsageCount >= $coupon->usage_per_customer) {
+                            throw new \Exception('Você já atingiu o limite de uso deste cupom');
+                        }
+                    }
+
+                    // ✅ Cupom válido - incrementar uso dentro da transação
+                    $coupon->increment('usage_count');
+
+                    return $coupon;
+                }, 3); // 3 tentativas em caso de deadlock
+
+                $couponCode = $coupon->code;
+                \Log::info('🎟️ Cupom válido reservado', [
+                    'code' => $couponCode,
+                    'type' => $coupon->type,
+                    'value' => $coupon->value,
+                    'usage_count' => $coupon->usage_count,
+                ]);
+
+            } catch (\Exception $e) {
                 return response()->json([
-                    'message' => 'Cupom inválido ou expirado',
+                    'message' => $e->getMessage(),
                 ], 422);
             }
-
-            // Verificar limite de uso
-            if ($coupon->usage_limit && $coupon->usage_count >= $coupon->usage_limit) {
-                return response()->json([
-                    'message' => 'Cupom esgotado',
-                ], 422);
-            }
-
-            // Verificar limite por cliente
-            if ($coupon->usage_per_customer) {
-                $customerUsageCount = \App\Models\Order::where('customer_id', $customer->id)
-                    ->where('coupon_code', $couponCodeInput)
-                    ->whereIn('payment_status', ['paid', 'pending'])
-                    ->count();
-
-                if ($customerUsageCount >= $coupon->usage_per_customer) {
-                    return response()->json([
-                        'message' => 'Você já atingiu o limite de uso deste cupom',
-                    ], 422);
-                }
-            }
-
-            $couponCode = $coupon->code;
-            \Log::info('🎟️ Cupom válido encontrado', [
-                'code' => $couponCode,
-                'type' => $coupon->type,
-                'value' => $coupon->value,
-            ]);
         }
 
         try {
@@ -699,9 +712,9 @@ class OrderController extends Controller
         // 🔍 DEBUG: Log de entrada
         \Log::info('🔍 processCardPayment - Request recebido', [
             'order_number' => $orderNumber,
-            'payload' => $request->all(),
+            'payload' => $request->except(['card_id', 'password', 'cvv']), // 🔒 Não loga dados sensíveis
             'has_card_id' => $request->has('card_id'),
-            'card_id_value' => $request->input('card_id') ? substr($request->input('card_id'), 0, 20) . '...' : null,
+            'card_id_masked' => $request->input('card_id') ? 'tok_' . substr($request->input('card_id'), -6) : null,
         ]);
 
         // 🔐 Validar TOKEN do cartão (não dados brutos!)
@@ -712,11 +725,14 @@ class OrderController extends Controller
                 'installments' => 'nullable|integer|min:1|max:12',
             ]);
 
-            \Log::info('✅ Validação passou', ['validated' => $validated]);
+            \Log::info('✅ Validação passou', [
+                'method' => $validated['method'],
+                'installments' => $validated['installments'] ?? 1,
+            ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             \Log::error('❌ Erro de validação', [
                 'errors' => $e->errors(),
-                'payload' => $request->all(),
+                'payload' => $request->except(['card_id', 'password', 'cvv']), // 🔒 Não loga dados sensíveis
             ]);
             throw $e;
         }
