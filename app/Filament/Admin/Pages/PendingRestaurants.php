@@ -37,7 +37,11 @@ class PendingRestaurants extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->query(Tenant::where('approval_status', 'pending_approval')->orderBy('created_at', 'desc'))
+            ->query(
+                Tenant::select(['id', 'name', 'email', 'phone', 'slug', 'created_at', 'approval_status'])
+                    ->where('approval_status', 'pending_approval')
+                    ->orderBy('created_at', 'desc')
+            )
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Restaurante')
@@ -71,6 +75,7 @@ class PendingRestaurants extends Page implements HasTable
                     ->requiresConfirmation()
                     ->modalHeading('Aprovar Restaurante')
                     ->modalDescription(fn ($record) => "Deseja aprovar o restaurante \"{$record->name}\"? Ele ficará visível no marketplace.")
+                    ->successRedirectUrl(fn () => static::getUrl())
                     ->action(function ($record) {
                         try {
                             \Log::info('Tentando aprovar restaurante', ['id' => $record->id, 'name' => $record->name]);
@@ -108,6 +113,7 @@ class PendingRestaurants extends Page implements HasTable
                     ->label('Rejeitar')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
+                    ->successRedirectUrl(fn () => static::getUrl())
                     ->form([
                         Textarea::make('rejection_reason')
                             ->label('Motivo da rejeição')
@@ -156,6 +162,7 @@ class PendingRestaurants extends Page implements HasTable
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->requiresConfirmation()
+                    ->successRedirectUrl(fn () => static::getUrl())
                     ->action(function ($records) {
                         $records->each(function ($record) {
                             $record->update([
