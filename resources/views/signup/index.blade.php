@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="cache-control" content="no-cache, no-store, must-revalidate">
+    <meta name="pragma" content="no-cache">
+    <meta name="expires" content="0">
     <title>Cadastre seu Restaurante - {{ $platformSettings->platform_name ?? 'YumGo' }}</title>
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v={{ time() }}">
     <link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.ico') }}?v={{ time() }}">
@@ -89,13 +92,24 @@
                 @csrf
 
                 @if($errors->any())
-                    <div class="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
-                        <strong class="font-bold">Ops!</strong>
-                        <ul class="mt-2 list-disc list-inside">
-                            @foreach($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
+                    <div class="mb-6 bg-red-50 border-2 border-red-400 text-red-800 px-6 py-4 rounded-lg shadow-lg">
+                        <div class="flex items-start">
+                            <i class="fas fa-exclamation-triangle text-red-600 text-2xl mr-4 mt-1"></i>
+                            <div class="flex-1">
+                                <strong class="font-bold text-lg block mb-2">Ops! Encontramos alguns problemas:</strong>
+                                <ul class="space-y-1 text-sm">
+                                    @foreach($errors->all() as $error)
+                                        <li class="flex items-start">
+                                            <i class="fas fa-circle text-xs text-red-600 mr-2 mt-1.5"></i>
+                                            <span>{{ $error }}</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                                <div class="mt-3 text-sm bg-white px-3 py-2 rounded border border-red-200">
+                                    <strong>📍 Você está na etapa {{ step }} de 3</strong>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 @endif
 
