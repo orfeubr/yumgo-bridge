@@ -36,61 +36,8 @@ class MarketplaceController extends Controller
         // Paginação
         $restaurants = $query->orderBy('name', 'asc')->paginate(12);
 
-        // Adicionar informações extras
-        $restaurants->getCollection()->transform(function ($restaurant) use ($clientLat, $clientLon) {
-            // URL do restaurante (preferir slug-based domain ao invés de UUID)
-            $domain = $restaurant->domains->first(function($d) {
-                // Filtrar: rejeitar domínios que começam com UUID
-                return !preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\./', $d->domain);
-            });
-
-            // Fallback: se não encontrar slug-based, usa qualquer um
-            if (!$domain) {
-                $domain = $restaurant->domains->first();
-            }
-
-            $restaurant->url = $domain ? 'https://' . $domain->domain : null;
-
-            // Status de abertura
-            $restaurant->is_open = $restaurant->isOpen();
-
-            // URL da logo
-            $restaurant->logo_url = $restaurant->logo
-                ? asset('storage/' . $restaurant->logo)
-                : asset('images/default-restaurant.svg');
-
-            // Calcular distância e taxa de entrega se tiver localização
-            if ($clientLat && $clientLon && $restaurant->latitude && $restaurant->longitude) {
-                $distance = \App\Services\GeolocationService::calculateDistance(
-                    $clientLat,
-                    $clientLon,
-                    $restaurant->latitude,
-                    $restaurant->longitude
-                );
-
-                $deliveryInfo = \App\Services\GeolocationService::getDeliveryFee($restaurant, $distance);
-
-                $restaurant->distance = $distance;
-                $restaurant->distance_formatted = \App\Services\GeolocationService::formatDistance($distance);
-                $restaurant->delivery_fee = $deliveryInfo['fee'];
-                $restaurant->delivery_fee_formatted = \App\Services\GeolocationService::formatDeliveryFee($deliveryInfo);
-                $restaurant->is_free_delivery = $deliveryInfo['is_free'];
-                $restaurant->delivers = $deliveryInfo['delivers'] ?? true;
-            } else {
-                // Valores padrão se não tiver localização
-                $restaurant->distance = null;
-                $restaurant->distance_formatted = null;
-                $restaurant->delivery_fee = 5.00;
-                $restaurant->delivery_fee_formatted = 'R$ 5,00';
-                $restaurant->is_free_delivery = false;
-                $restaurant->delivers = true;
-            }
-
-            // Buscar configuração de cashback do restaurante
-            $restaurant->cashback_percentage = $this->getCashbackPercentage($restaurant);
-
-            return $restaurant;
-        });
+        // ⚡ REFATORADO: Usar método privado para evitar duplicação
+        $restaurants->getCollection()->transform(fn($r) => $this->enrichRestaurant($r, $clientLat, $clientLon));
 
         // ===== MAIS PEDIDOS (Top 5 por volume últimos 30 dias) =====
         $mostOrdered = Tenant::where('status', 'active')
@@ -100,41 +47,8 @@ class MarketplaceController extends Controller
             ->limit(5)
             ->get();
 
-        // Processar informações extras (mesmo tratamento dos restaurantes principais)
-        $mostOrdered->transform(function ($restaurant) use ($clientLat, $clientLon) {
-            $domain = $restaurant->domains->first(function($d) {
-                return !preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\./', $d->domain);
-            });
-            if (!$domain) {
-                $domain = $restaurant->domains->first();
-            }
-            $restaurant->url = $domain ? 'https://' . $domain->domain : null;
-            $restaurant->is_open = $restaurant->isOpen();
-            $restaurant->logo_url = $restaurant->logo ? asset('storage/' . $restaurant->logo) : asset('images/default-restaurant.svg');
-
-            if ($clientLat && $clientLon && $restaurant->latitude && $restaurant->longitude) {
-                $distance = \App\Services\GeolocationService::calculateDistance($clientLat, $clientLon, $restaurant->latitude, $restaurant->longitude);
-                $deliveryInfo = \App\Services\GeolocationService::getDeliveryFee($restaurant, $distance);
-                $restaurant->distance = $distance;
-                $restaurant->distance_formatted = \App\Services\GeolocationService::formatDistance($distance);
-                $restaurant->delivery_fee = $deliveryInfo['fee'];
-                $restaurant->delivery_fee_formatted = \App\Services\GeolocationService::formatDeliveryFee($deliveryInfo);
-                $restaurant->is_free_delivery = $deliveryInfo['is_free'];
-                $restaurant->delivers = $deliveryInfo['delivers'] ?? true;
-            } else {
-                $restaurant->distance = null;
-                $restaurant->distance_formatted = null;
-                $restaurant->delivery_fee = 5.00;
-                $restaurant->delivery_fee_formatted = 'R$ 5,00';
-                $restaurant->is_free_delivery = false;
-                $restaurant->delivers = true;
-            }
-
-            // Buscar configuração de cashback do restaurante
-            $restaurant->cashback_percentage = $this->getCashbackPercentage($restaurant);
-
-            return $restaurant;
-        });
+        // ⚡ REFATORADO: Usar mesmo método de enriquecimento
+        $mostOrdered->transform(fn($r) => $this->enrichRestaurant($r, $clientLat, $clientLon));
 
         // ===== 💰 RESTAURANTES COM CASHBACK =====
         // Filtra apenas restaurantes que têm cashback configurado
@@ -175,6 +89,72 @@ class MarketplaceController extends Controller
     public function pricing()
     {
         return redirect()->route('para-restaurantes');
+    }
+
+    /**
+     * Enriquece dados do restaurante com informações adicionais
+     *
+     * ⚡ REFATORADO: Método extraído para evitar duplicação de código
+     *
+     * @param Tenant $restaurant
+     * @param float|null $clientLat
+     * @param float|null $clientLon
+     * @return Tenant
+     */
+    private function enrichRestaurant(Tenant $restaurant, $clientLat = null, $clientLon = null): Tenant
+    {
+        // URL do restaurante (preferir slug-based domain ao invés de UUID)
+        $domain = $restaurant->domains->first(function($d) {
+            // Filtrar: rejeitar domínios que começam com UUID
+            return !preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\./', $d->domain);
+        });
+
+        // Fallback: se não encontrar slug-based, usa qualquer um
+        if (!$domain) {
+            $domain = $restaurant->domains->first();
+        }
+
+        $restaurant->url = $domain ? 'https://' . $domain->domain : null;
+
+        // Status de abertura
+        $restaurant->is_open = $restaurant->isOpen();
+
+        // URL da logo
+        $restaurant->logo_url = $restaurant->logo
+            ? asset('storage/' . $restaurant->logo)
+            : asset('images/default-restaurant.svg');
+
+        // Calcular distância e taxa de entrega se tiver localização
+        if ($clientLat && $clientLon && $restaurant->latitude && $restaurant->longitude) {
+            $distance = \App\Services\GeolocationService::calculateDistance(
+                $clientLat,
+                $clientLon,
+                $restaurant->latitude,
+                $restaurant->longitude
+            );
+
+            $deliveryInfo = \App\Services\GeolocationService::getDeliveryFee($restaurant, $distance);
+
+            $restaurant->distance = $distance;
+            $restaurant->distance_formatted = \App\Services\GeolocationService::formatDistance($distance);
+            $restaurant->delivery_fee = $deliveryInfo['fee'];
+            $restaurant->delivery_fee_formatted = \App\Services\GeolocationService::formatDeliveryFee($deliveryInfo);
+            $restaurant->is_free_delivery = $deliveryInfo['is_free'];
+            $restaurant->delivers = $deliveryInfo['delivers'] ?? true;
+        } else {
+            // Valores padrão se não tiver localização
+            $restaurant->distance = null;
+            $restaurant->distance_formatted = null;
+            $restaurant->delivery_fee = 5.00;
+            $restaurant->delivery_fee_formatted = 'R$ 5,00';
+            $restaurant->is_free_delivery = false;
+            $restaurant->delivers = true;
+        }
+
+        // Buscar configuração de cashback do restaurante
+        $restaurant->cashback_percentage = $this->getCashbackPercentage($restaurant);
+
+        return $restaurant;
     }
 
     /**

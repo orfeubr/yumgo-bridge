@@ -21,11 +21,14 @@ class TenantObserver
         // 2. Criar domínio automaticamente
         $this->createDomain($tenant);
 
-        // 3. ⚠️ Asaas REMOVIDO - usar Pagar.me (configurar manualmente no painel)
-        // $this->createAsaasAccount($tenant);
+        // 3. ⚠️ IMPORTANTE: Rodar migrations ANTES de criar usuário
+        $this->runMigrations($tenant);
 
-        // 4. Criar usuário admin automaticamente
+        // 4. Criar usuário admin automaticamente (requer tabela users criada)
         $this->createAdminUser($tenant);
+
+        // 5. ⚠️ Asaas REMOVIDO - usar Pagar.me (configurar manualmente no painel)
+        // $this->createAsaasAccount($tenant);
     }
 
     /**
@@ -242,6 +245,38 @@ class TenantObserver
             } catch (\Exception $e) {
                 Log::error("❌ Erro ao atualizar domínio: " . $e->getMessage());
             }
+        }
+    }
+
+    /**
+     * Roda migrations automaticamente para o tenant
+     *
+     * ⚠️ IMPORTANTE: Deve ser chamado ANTES de createAdminUser()
+     * pois precisa criar a tabela users primeiro
+     */
+    protected function runMigrations(Tenant $tenant): void
+    {
+        try {
+            Log::info("🔄 Rodando migrations para tenant {$tenant->name}...");
+
+            // Inicializar tenancy
+            tenancy()->initialize($tenant);
+
+            // Rodar migrations do tenant
+            \Artisan::call('migrate', [
+                '--path' => 'database/migrations/tenant',
+                '--force' => true,
+            ]);
+
+            // Finalizar tenancy
+            tenancy()->end();
+
+            Log::info("✅ Migrations executadas com sucesso para tenant {$tenant->name}");
+
+        } catch (\Exception $e) {
+            Log::error("❌ Erro ao rodar migrations para tenant {$tenant->id}: " . $e->getMessage());
+            // Não lançar exception para não bloquear criação do tenant
+            // Migrations podem ser executadas manualmente depois
         }
     }
 

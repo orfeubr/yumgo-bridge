@@ -72,6 +72,13 @@ class OrderController extends Controller
 
     /**
      * Criar novo pedido
+     *
+     * ⚡ REFATORADO: Métodos privados extraídos para melhor legibilidade
+     * @see validateCustomer()
+     * @see validateBusinessHours()
+     * @see calculateCashbackAmount()
+     * @see calculateDeliveryFee()
+     * @see validateAndReserveCoupon()
      */
     public function store(Request $request)
     {
@@ -105,41 +112,16 @@ class OrderController extends Controller
             'notes' => 'nullable|string|max:1000',
         ]);
 
-        $centralCustomer = $request->user();
-
-        // 🔄 BUSCAR CUSTOMER DO TENANT (cashback está no schema do tenant, não no central)
-        $customer = \App\Models\Customer::where('email', $centralCustomer->email)
-            ->orWhere('phone', $centralCustomer->phone)
-            ->first();
-
-        if (!$customer) {
-            return response()->json([
-                'message' => 'Cliente não encontrado no restaurante. Por favor, faça login novamente.',
-            ], 404);
+        // Validar customer do tenant (schema correto)
+        $customer = $this->validateCustomer($request);
+        if ($customer instanceof \Illuminate\Http\JsonResponse) {
+            return $customer; // Retorna erro se não encontrado
         }
 
-        // 🔒 VALIDAR HORÁRIO DE FUNCIONAMENTO
-        $settings = \App\Models\Settings::first();
-        if ($settings && !$settings->isOpenNow()) {
-            $now = now();
-            $dayOfWeek = strtolower($now->format('l')); // monday, tuesday...
-            $dayInPortuguese = \App\Models\Settings::getDayNameInPortuguese($dayOfWeek);
-            $hours = $settings->business_hours[$dayInPortuguese] ?? null;
-
-            if ($hours && is_string($hours) && str_contains($hours, ' - ')) {
-                [$open, $close] = explode(' - ', $hours);
-                return response()->json([
-                    'message' => "O restaurante está fechado. Horário de funcionamento hoje: " . trim($open) . " às " . trim($close) . ".",
-                    'restaurant_closed' => true,
-                    'open_time' => trim($open),
-                    'close_time' => trim($close),
-                ], 422);
-            }
-
-            return response()->json([
-                'message' => 'O restaurante está fechado no momento. Pedidos não podem ser criados fora do horário de funcionamento.',
-                'restaurant_closed' => true,
-            ], 422);
+        // Validar horário de funcionamento
+        $businessHoursValidation = $this->validateBusinessHours();
+        if ($businessHoursValidation instanceof \Illuminate\Http\JsonResponse) {
+            return $businessHoursValidation; // Retorna erro se fechado
         }
 
         // PROTEÇÃO: Sanitizar inputs de texto (XSS)
@@ -147,108 +129,22 @@ class OrderController extends Controller
         $deliveryNeighborhood = htmlspecialchars(trim($request->delivery_neighborhood), ENT_QUOTES, 'UTF-8');
         $deliveryAddress = htmlspecialchars(trim($request->delivery_address), ENT_QUOTES, 'UTF-8');
 
-        // PROTEÇÃO: Calcular cashback (sempre do banco do TENANT, nunca do frontend)
-        $customer->refresh(); // Garante dados atualizados do banco
-        $cashbackBalance = (float) $customer->cashback_balance;
+        // Calcular cashback a ser usado
+        $useCashback = $this->calculateCashbackAmount($request, $customer);
 
-        // 🎯 TOGGLE SIMPLES: Se marcou "usar cashback" = usa TODO saldo disponível
-        $useCashback = 0;
-        if ($request->use_cashback === true && $cashbackBalance > 0) {
-            // Usa todo saldo disponível (OrderService limitará ao total do pedido)
-            $useCashback = $cashbackBalance;
-
-            \Log::info('💰 Cliente optou por usar cashback', [
-                'customer_id' => $customer->id,
-                'saldo_disponivel' => $cashbackBalance,
-                'sera_usado' => $useCashback,
-            ]);
+        // Calcular taxa de entrega
+        $deliveryFeeResult = $this->calculateDeliveryFee($deliveryCity, $deliveryNeighborhood);
+        if ($deliveryFeeResult instanceof \Illuminate\Http\JsonResponse) {
+            return $deliveryFeeResult; // Retorna erro se bairro não encontrado
         }
+        $deliveryFee = $deliveryFeeResult;
 
-        // PROTEÇÃO: Calcular taxa de entrega SEMPRE no backend (nunca confiar no frontend)
-        \Log::info('🔍 Buscando taxa de entrega', [
-            'city' => $deliveryCity,
-            'neighborhood' => $deliveryNeighborhood,
-        ]);
-
-        $deliveryFee = \App\Models\Neighborhood::getFeeByName(
-            $deliveryCity,
-            $deliveryNeighborhood
-        );
-
-        \Log::info('💰 Taxa de entrega encontrada', ['fee' => $deliveryFee]);
-
-        if ($deliveryFee === null) {
-            \Log::warning('⚠️ Bairro não encontrado', [
-                'city' => $deliveryCity,
-                'neighborhood' => $deliveryNeighborhood,
-            ]);
-
-            return response()->json([
-                'message' => 'Não atendemos o bairro informado. Por favor, selecione um bairro válido.',
-            ], 422);
+        // Validar e reservar cupom (se informado)
+        $couponResult = $this->validateAndReserveCoupon($request, $customer);
+        if ($couponResult instanceof \Illuminate\Http\JsonResponse) {
+            return $couponResult; // Retorna erro se cupom inválido
         }
-
-        // PROTEÇÃO: Garantir que a taxa é numérica e positiva
-        $deliveryFee = max(0, (float) $deliveryFee);
-
-        // 🎟️ VALIDAR CUPOM DE DESCONTO (se informado)
-        $couponCode = null;
-        $couponDiscount = 0;
-
-        if ($request->filled('coupon_code')) {
-            $couponCodeInput = strtoupper(trim($request->coupon_code));
-
-            // 🔒 SEGURANÇA: Usar transação com lock para prevenir race condition
-            // Previne que múltiplas requisições simultâneas ultrapassem o limite
-            try {
-                $coupon = \DB::transaction(function () use ($couponCodeInput, $customer) {
-                    // Buscar cupom com LOCK FOR UPDATE (bloqueia até transaction commit)
-                    $coupon = \App\Models\Coupon::active()
-                        ->byCode($couponCodeInput)
-                        ->lockForUpdate() // 🔒 Lock pessimista
-                        ->first();
-
-                    if (!$coupon) {
-                        throw new \Exception('Cupom inválido ou expirado');
-                    }
-
-                    // Verificar limite de uso global
-                    if ($coupon->usage_limit && $coupon->usage_count >= $coupon->usage_limit) {
-                        throw new \Exception('Cupom esgotado');
-                    }
-
-                    // Verificar limite por cliente
-                    if ($coupon->usage_per_customer) {
-                        $customerUsageCount = \App\Models\Order::where('customer_id', $customer->id)
-                            ->where('coupon_code', $couponCodeInput)
-                            ->whereIn('payment_status', ['paid', 'pending'])
-                            ->count();
-
-                        if ($customerUsageCount >= $coupon->usage_per_customer) {
-                            throw new \Exception('Você já atingiu o limite de uso deste cupom');
-                        }
-                    }
-
-                    // ✅ Cupom válido - incrementar uso dentro da transação
-                    $coupon->increment('usage_count');
-
-                    return $coupon;
-                }, 3); // 3 tentativas em caso de deadlock
-
-                $couponCode = $coupon->code;
-                \Log::info('🎟️ Cupom válido reservado', [
-                    'code' => $couponCode,
-                    'type' => $coupon->type,
-                    'value' => $coupon->value,
-                    'usage_count' => $coupon->usage_count,
-                ]);
-
-            } catch (\Exception $e) {
-                return response()->json([
-                    'message' => $e->getMessage(),
-                ], 422);
-            }
-        }
+        $couponCode = $couponResult;
 
         try {
             // PROTEÇÃO: Usar apenas dados validados e sanitizados
@@ -839,6 +735,188 @@ class OrderController extends Controller
             return response()->json([
                 'message' => 'Erro ao processar pagamento: ' . $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Valida e retorna customer do tenant (schema correto)
+     *
+     * @return \App\Models\Customer|\Illuminate\Http\JsonResponse
+     */
+    private function validateCustomer(Request $request)
+    {
+        $centralCustomer = $request->user();
+
+        // Buscar customer do schema TENANT (não CENTRAL)
+        $customer = \App\Models\Customer::where('email', $centralCustomer->email)
+            ->orWhere('phone', $centralCustomer->phone)
+            ->first();
+
+        if (!$customer) {
+            return response()->json([
+                'message' => __('messages.customer.not_found'),
+            ], 404);
+        }
+
+        return $customer;
+    }
+
+    /**
+     * Valida horário de funcionamento do restaurante
+     *
+     * @return null|\Illuminate\Http\JsonResponse
+     */
+    private function validateBusinessHours()
+    {
+        $settings = \App\Models\Settings::first();
+
+        if (!$settings || $settings->isOpenNow()) {
+            return null; // Restaurante aberto
+        }
+
+        $now = now();
+        $dayOfWeek = strtolower($now->format('l')); // monday, tuesday...
+        $dayInPortuguese = \App\Models\Settings::getDayNameInPortuguese($dayOfWeek);
+        $hours = $settings->business_hours[$dayInPortuguese] ?? null;
+
+        if ($hours && is_string($hours) && str_contains($hours, ' - ')) {
+            [$open, $close] = explode(' - ', $hours);
+            return response()->json([
+                'message' => "O restaurante está fechado. Horário de funcionamento hoje: " . trim($open) . " às " . trim($close) . ".",
+                'restaurant_closed' => true,
+                'open_time' => trim($open),
+                'close_time' => trim($close),
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => 'O restaurante está fechado no momento. Pedidos não podem ser criados fora do horário de funcionamento.',
+            'restaurant_closed' => true,
+        ], 422);
+    }
+
+    /**
+     * Calcula valor de cashback a ser usado
+     *
+     * @param Request $request
+     * @param \App\Models\Customer $customer
+     * @return float Valor de cashback a usar
+     */
+    private function calculateCashbackAmount(Request $request, $customer): float
+    {
+        $customer->refresh(); // Garante dados atualizados do banco
+        $cashbackBalance = (float) $customer->cashback_balance;
+
+        if ($request->use_cashback !== true || $cashbackBalance <= 0) {
+            return 0;
+        }
+
+        // Usa todo saldo disponível (OrderService limitará ao total do pedido)
+        \Log::info('💰 Cliente optou por usar cashback', [
+            'customer_id' => $customer->id,
+            'saldo_disponivel' => $cashbackBalance,
+        ]);
+
+        return $cashbackBalance;
+    }
+
+    /**
+     * Calcula taxa de entrega baseada no bairro
+     *
+     * @param string $city
+     * @param string $neighborhood
+     * @return float|\Illuminate\Http\JsonResponse
+     */
+    private function calculateDeliveryFee(string $city, string $neighborhood)
+    {
+        \Log::info('🔍 Buscando taxa de entrega', [
+            'city' => $city,
+            'neighborhood' => $neighborhood,
+        ]);
+
+        $deliveryFee = \App\Models\Neighborhood::getFeeByName($city, $neighborhood);
+
+        \Log::info('💰 Taxa de entrega encontrada', ['fee' => $deliveryFee]);
+
+        if ($deliveryFee === null) {
+            \Log::warning('⚠️ Bairro não encontrado', [
+                'city' => $city,
+                'neighborhood' => $neighborhood,
+            ]);
+
+            return response()->json([
+                'message' => 'Não atendemos o bairro informado. Por favor, selecione um bairro válido.',
+            ], 422);
+        }
+
+        // PROTEÇÃO: Garantir que a taxa é numérica e positiva
+        return max(0, (float) $deliveryFee);
+    }
+
+    /**
+     * Valida cupom e reserva uso (race condition protected)
+     *
+     * @param Request $request
+     * @param \App\Models\Customer $customer
+     * @return string|null|\Illuminate\Http\JsonResponse Retorna código do cupom ou null
+     */
+    private function validateAndReserveCoupon(Request $request, $customer)
+    {
+        if (!$request->filled('coupon_code')) {
+            return null; // Sem cupom
+        }
+
+        $couponCodeInput = strtoupper(trim($request->coupon_code));
+
+        // 🔒 SEGURANÇA: Usar transação com lock para prevenir race condition
+        try {
+            $coupon = \DB::transaction(function () use ($couponCodeInput, $customer) {
+                // Buscar cupom com LOCK FOR UPDATE (bloqueia até transaction commit)
+                $coupon = \App\Models\Coupon::active()
+                    ->byCode($couponCodeInput)
+                    ->lockForUpdate() // 🔒 Lock pessimista
+                    ->first();
+
+                if (!$coupon) {
+                    throw new \Exception(__('messages.coupon.invalid'));
+                }
+
+                // Verificar limite de uso global
+                if ($coupon->usage_limit && $coupon->usage_count >= $coupon->usage_limit) {
+                    throw new \Exception(__('messages.coupon.exhausted'));
+                }
+
+                // Verificar limite por cliente
+                if ($coupon->usage_per_customer) {
+                    $customerUsageCount = \App\Models\Order::where('customer_id', $customer->id)
+                        ->where('coupon_code', $couponCodeInput)
+                        ->whereIn('payment_status', ['paid', 'pending'])
+                        ->count();
+
+                    if ($customerUsageCount >= $coupon->usage_per_customer) {
+                        throw new \Exception('Você já atingiu o limite de uso deste cupom');
+                    }
+                }
+
+                // ✅ Cupom válido - incrementar uso dentro da transação
+                $coupon->increment('usage_count');
+
+                return $coupon;
+            }, 3); // 3 tentativas em caso de deadlock
+
+            \Log::info('🎟️ Cupom válido reservado', [
+                'code' => $coupon->code,
+                'type' => $coupon->type,
+                'value' => $coupon->value,
+                'usage_count' => $coupon->usage_count,
+            ]);
+
+            return $coupon->code;
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
         }
     }
 

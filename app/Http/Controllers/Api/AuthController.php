@@ -179,6 +179,14 @@ class AuthController extends Controller
 
     /**
      * Solicitar reset de senha
+     *
+     * ⚠️ TEMPORARIAMENTE NÃO IMPLEMENTADO
+     * TODO: Implementar envio de email com token de reset via Laravel Notifications
+     *
+     * Por enquanto, retorna mensagem genérica para não expor
+     * se o email existe ou não no sistema (proteção contra enumeração de usuários)
+     *
+     * @see https://laravel.com/docs/11.x/passwords
      */
     public function forgotPassword(Request $request)
     {
@@ -186,19 +194,10 @@ class AuthController extends Controller
             'email' => 'required|email',
         ]);
 
-        // TODO: Implementar envio de email com token de reset
-        // Por enquanto, apenas confirma que o email existe
-
-        $customer = Customer::where('email', $request->email)->first();
-
-        if (!$customer) {
-            return response()->json([
-                'message' => 'Se o email existir, você receberá instruções para resetar sua senha.',
-            ]);
-        }
-
+        // Retorna sempre sucesso (não expõe se email existe - segurança)
+        // Isso previne ataques de enumeração de usuários
         return response()->json([
-            'message' => 'Email de recuperação enviado com sucesso!',
+            'message' => 'Se o email existir, você receberá instruções para redefinir sua senha.',
         ]);
     }
 }
