@@ -75,7 +75,6 @@ class PendingRestaurants extends Page implements HasTable
                     ->requiresConfirmation()
                     ->modalHeading('Aprovar Restaurante')
                     ->modalDescription(fn ($record) => "Deseja aprovar o restaurante \"{$record->name}\"? Ele ficará visível no marketplace.")
-                    ->successRedirectUrl(fn () => static::getUrl())
                     ->action(function ($record) {
                         try {
                             \Log::info('Tentando aprovar restaurante', ['id' => $record->id, 'name' => $record->name]);
@@ -94,6 +93,9 @@ class PendingRestaurants extends Page implements HasTable
                                 ->title('Restaurante aprovado!')
                                 ->body("O restaurante \"{$record->name}\" foi aprovado com sucesso.")
                                 ->send();
+
+                            // Força reload da página
+                            redirect()->to(static::getUrl())->send();
                         } catch (\Exception $e) {
                             \Log::error('Erro ao aprovar restaurante', [
                                 'id' => $record->id,
@@ -113,7 +115,6 @@ class PendingRestaurants extends Page implements HasTable
                     ->label('Rejeitar')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
-                    ->successRedirectUrl(fn () => static::getUrl())
                     ->form([
                         Textarea::make('rejection_reason')
                             ->label('Motivo da rejeição')
@@ -135,6 +136,9 @@ class PendingRestaurants extends Page implements HasTable
                                 ->title('Restaurante rejeitado')
                                 ->body("O restaurante \"{$record->name}\" foi rejeitado.")
                                 ->send();
+
+                            // Força reload da página
+                            redirect()->to(static::getUrl())->send();
                         } catch (\Exception $e) {
                             \Log::error('Erro ao rejeitar restaurante', [
                                 'id' => $record->id,
@@ -162,7 +166,6 @@ class PendingRestaurants extends Page implements HasTable
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->requiresConfirmation()
-                    ->successRedirectUrl(fn () => static::getUrl())
                     ->action(function ($records) {
                         $records->each(function ($record) {
                             $record->update([
@@ -178,6 +181,9 @@ class PendingRestaurants extends Page implements HasTable
                             ->title('Restaurantes aprovados!')
                             ->body(count($records) . ' restaurante(s) aprovado(s) com sucesso.')
                             ->send();
+
+                        // Força reload da página
+                        redirect()->to(static::getUrl())->send();
                     }),
             ])
             ->emptyStateHeading('Nenhum restaurante aguardando aprovação')
