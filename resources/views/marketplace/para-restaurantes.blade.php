@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Seja Parceiro YumGo | Comissão de 1% a 3% • Teste Grátis por 15 Dias</title>
+    <title>Seja Parceiro {{ $platformSettings->platform_name ?? 'YumGo' }} | Comissão de 1% a 3%</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -22,10 +22,16 @@
     <header class="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-200">
         <div class="container mx-auto px-4">
             <div class="flex items-center justify-between h-16">
-                <a href="/" class="flex items-center space-x-2">
-                    <div class="bg-red-600 text-white px-3 py-2 rounded-lg font-bold text-xl">
-                        YumGo
-                    </div>
+                <a href="/" class="flex items-center">
+                    @if(isset($platformSettings) && $platformSettings->platform_logo && file_exists(public_path('logo.png')))
+                        <img src="{{ asset('logo.png') }}?v={{ filemtime(public_path('logo.png')) }}"
+                             alt="{{ $platformSettings->platform_name }}"
+                             class="h-10 md:h-12 max-w-[180px] object-contain">
+                    @else
+                        <div class="bg-red-600 text-white px-3 py-2 rounded-lg font-bold text-xl">
+                            {{ $platformSettings->platform_name ?? 'YumGo' }}
+                        </div>
+                    @endif
                 </a>
 
                 <nav class="hidden md:flex items-center space-x-6">
@@ -52,7 +58,7 @@
         <!-- Badge Promocional Flutuante -->
         <div class="absolute top-8 right-8 bg-yellow-400 text-gray-900 px-6 py-3 rounded-full font-bold shadow-lg transform rotate-12 float-animation hidden md:block">
             <i class="fas fa-gift mr-2"></i>
-            15 DIAS GRÁTIS!
+            COMECE AGORA!
         </div>
 
         <div class="container mx-auto px-4">
@@ -82,15 +88,15 @@
                             <div class="text-sm text-gray-600">faturamento</div>
                         </div>
                         <div class="bg-white rounded-lg p-4 shadow-md text-center">
-                            <div class="text-3xl font-bold text-blue-600">15 dias</div>
-                            <div class="text-sm text-gray-600">grátis</div>
+                            <div class="text-3xl font-bold text-purple-600">100%</div>
+                            <div class="text-sm text-gray-600">Cashback configurável</div>
                         </div>
                     </div>
 
                     <!-- CTAs -->
                     <div class="flex flex-wrap gap-4">
                         <a href="/cadastro" class="px-8 py-4 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold text-lg shadow-lg hover:shadow-xl transition inline-flex items-center">
-                            Começar Teste Grátis
+                            Começar Agora
                             <i class="fas fa-arrow-right ml-2"></i>
                         </a>
                         <a href="#calculadora" class="px-8 py-4 bg-white border-2 border-red-600 text-red-600 rounded-lg hover:bg-red-50 font-bold text-lg transition inline-flex items-center">
@@ -123,7 +129,7 @@
                                        class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500">
                                 <button type="submit"
                                         class="w-full px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold transition">
-                                    Criar Minha Conta Grátis
+                                    Criar Minha Conta
                                 </button>
                             </form>
 
@@ -433,7 +439,7 @@
 
             <div class="text-center mt-12">
                 <a href="/cadastro" class="inline-block px-8 py-4 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold text-lg shadow-lg">
-                    Começar Agora Grátis
+                    Começar Agora
                 </a>
             </div>
         </div>
@@ -444,7 +450,7 @@
         <div class="container mx-auto px-4">
             <div class="text-center mb-16">
                 <h2 class="text-4xl font-bold mb-4">Escolha o plano ideal para você</h2>
-                <p class="text-xl text-gray-600">Todos com 15 dias de teste grátis!</p>
+                <p class="text-xl text-gray-600">Configure seu pagamento após o cadastro.</p>
             </div>
 
             @if($plans->isEmpty())
@@ -491,7 +497,7 @@
                                 @endif
 
                                 <a href="/cadastro" class="block w-full px-6 py-4 text-center {{ $plan->name === 'Pro' ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-800 hover:bg-gray-900' }} text-white rounded-lg font-bold transition text-lg">
-                                    Começar Teste Grátis
+                                    Começar Agora
                                 </a>
                             </div>
                         </div>
@@ -512,11 +518,11 @@
             <div class="space-y-4">
                 <div class="bg-white rounded-lg shadow-md overflow-hidden">
                     <button @click="open = open === 1 ? null : 1" class="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50">
-                        <span class="font-semibold text-lg">Como funciona o teste grátis?</span>
+                        <span class="font-semibold text-lg">Como funciona a ativação da conta?</span>
                         <i class="fas fa-chevron-down transition-transform" :class="{ 'rotate-180': open === 1 }"></i>
                     </button>
                     <div x-show="open === 1" x-collapse class="px-6 py-4 bg-gray-50">
-                        <p class="text-gray-600">Você tem 15 dias de teste grátis em qualquer plano. Durante esse período, acesso total a todas as funcionalidades. Sem cobranças, sem cartão de crédito, sem pegadinhas!</p>
+                        <p class="text-gray-600">Após criar sua conta, você configura seus dados bancários e método de pagamento no painel administrativo. Uma vez configurado, sua assinatura é ativada e você já pode começar a receber pedidos!</p>
                     </div>
                 </div>
 
@@ -573,7 +579,7 @@
                 Junte-se a centenas de restaurantes que já economizam milhares todos os meses com o YumGo!
             </p>
             <a href="/cadastro" class="inline-block px-10 py-5 bg-white text-red-600 rounded-lg font-bold text-xl hover:bg-gray-100 transition shadow-2xl">
-                Começar Teste Grátis de 15 Dias
+                Começar Agora de 15 Dias
             </a>
 
             <p class="mt-6 text-red-100 text-sm">

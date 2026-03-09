@@ -156,6 +156,10 @@ Route::post('/api/webhooks/pagarme/pix', [\App\Http\Controllers\PagarMeWebhookCo
 Route::post('/api/webhooks/pagarme/card', [\App\Http\Controllers\PagarMeWebhookController::class, 'card'])
     ->name('webhooks.pagarme.card');
 
+// Webhook de assinaturas (planos dos restaurantes)
+Route::post('/api/webhooks/pagarme/subscriptions', [\App\Http\Controllers\PagarMeWebhookController::class, 'subscriptions'])
+    ->name('webhooks.pagarme.subscriptions');
+
 // Teste do webhook (GET)
 Route::get('/api/webhooks/asaas/test', function () {
     return response()->json([
@@ -394,3 +398,7 @@ Route::get('/download/bridge', function () {
     // Fallback: página de releases
     return redirect('https://github.com/orfeubr/yumgo/releases/latest');
 })->name('download.bridge');
+
+// 📥 Download Template de Importação de Produtos
+Route::get('/download/template/products', [\App\Http\Controllers\TemplateController::class, 'products'])
+    ->name('download.template.products');
