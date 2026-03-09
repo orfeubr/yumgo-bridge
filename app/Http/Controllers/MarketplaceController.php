@@ -176,22 +176,31 @@ class MarketplaceController extends Controller
     private function getCashbackPercentage(Tenant $restaurant): ?float
     {
         // 🚀 PERFORMANCE: Cachear por 1 hora para prevenir N+1 queries
-        // Evita múltiplas inicializações de tenancy e queries no marketplace
         $cacheKey = "cashback_percentage:{$restaurant->id}";
 
         return \Cache::remember($cacheKey, 3600, function () use ($restaurant) {
             try {
-                // Inicializa tenancy para acessar o schema do restaurante
-                tenancy()->initialize($restaurant);
+                // 🔒 SEGURANÇA: Query direta no schema sem inicializar tenancy completa
+                // Isso evita problemas com FilesystemBootstrapper em contexto de marketplace
+                $schemaName = 'tenant' . $restaurant->id;
 
-                // Busca as configurações de cashback
-                $settings = \DB::connection('tenant')
-                    ->table('cashback_settings')
-                    ->where('is_active', true)
-                    ->first();
+                // Verificar se schema existe
+                $schemaExists = \DB::select(
+                    "SELECT schema_name FROM information_schema.schemata WHERE schema_name = ?",
+                    [$schemaName]
+                );
 
-                if ($settings && isset($settings->bronze_percentage)) {
-                    return (float) $settings->bronze_percentage;
+                if (empty($schemaExists)) {
+                    return null;
+                }
+
+                // Buscar configurações de cashback diretamente no schema do tenant
+                $settings = \DB::select(
+                    "SELECT bronze_percentage FROM {$schemaName}.cashback_settings WHERE is_active = true LIMIT 1"
+                );
+
+                if (!empty($settings) && isset($settings[0]->bronze_percentage)) {
+                    return (float) $settings[0]->bronze_percentage;
                 }
 
                 return null;
@@ -203,11 +212,6 @@ class MarketplaceController extends Controller
                     'error' => $e->getMessage(),
                 ]);
                 return null;
-
-            } finally {
-                // 🔒 SEGURANÇA: SEMPRE finalizar tenancy, independente de sucesso ou exception
-                // ⚠️ IMPORTANTE: finally DENTRO do Cache::remember() para executar apenas em cache miss
-                tenancy()->end();
             }
         });
     }
