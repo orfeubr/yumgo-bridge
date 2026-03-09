@@ -77,18 +77,42 @@ class PendingRestaurants extends Page implements HasTable
                     ->modalHeading('Aprovar Restaurante')
                     ->modalDescription(fn ($record) => "Deseja aprovar o restaurante \"{$record->name}\"? Ele ficará visível no marketplace.")
                     ->action(function ($record) {
-                        $record->update([
-                            'approval_status' => 'approved',
-                            'approved_at' => now(),
-                            'rejection_reason' => null,
-                            'rejected_at' => null,
+                        \Log::info('=== AÇÃO DE APROVAÇÃO INICIADA ===', [
+                            'record_id' => $record->id,
+                            'record_name' => $record->name,
+                            'status_antes' => $record->approval_status
                         ]);
 
-                        Notification::make()
-                            ->success()
-                            ->title('Restaurante aprovado!')
-                            ->body("O restaurante \"{$record->name}\" foi aprovado com sucesso.")
-                            ->send();
+                        try {
+                            $updated = $record->update([
+                                'approval_status' => 'approved',
+                                'approved_at' => now(),
+                                'rejection_reason' => null,
+                                'rejected_at' => null,
+                            ]);
+
+                            \Log::info('=== UPDATE EXECUTADO ===', [
+                                'success' => $updated,
+                                'status_depois' => $record->fresh()->approval_status
+                            ]);
+
+                            Notification::make()
+                                ->success()
+                                ->title('Restaurante aprovado!')
+                                ->body("O restaurante \"{$record->name}\" foi aprovado com sucesso.")
+                                ->send();
+                        } catch (\Exception $e) {
+                            \Log::error('=== ERRO NA APROVAÇÃO ===', [
+                                'error' => $e->getMessage(),
+                                'trace' => $e->getTraceAsString()
+                            ]);
+
+                            Notification::make()
+                                ->danger()
+                                ->title('Erro!')
+                                ->body($e->getMessage())
+                                ->send();
+                        }
                     }),
 
                 Tables\Actions\Action::make('reject')
