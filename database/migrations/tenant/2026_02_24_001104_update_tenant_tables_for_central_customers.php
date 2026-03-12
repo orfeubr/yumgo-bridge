@@ -30,6 +30,20 @@ return new class extends Migration
     }
 
     /**
+     * Dropa foreign key apenas se existir (com try-catch robusto)
+     */
+    private function dropForeignKeyIfExists(string $table, string $column): void
+    {
+        try {
+            Schema::table($table, function (Blueprint $blueprint) use ($column) {
+                $blueprint->dropForeign([$column]);
+            });
+        } catch (\Exception $e) {
+            // Constraint não existe, ignorar erro
+        }
+    }
+
+    /**
      * Run the migrations.
      *
      * IMPORTANTE: Esta migration REMOVE a tabela customers do schema do tenant
@@ -37,26 +51,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // 1. Dropar foreign keys antigas que apontam para customers local
-        Schema::table('orders', function (Blueprint $table) {
-            $table->dropForeign(['customer_id']);
-        });
-
-        Schema::table('cashback_transactions', function (Blueprint $table) {
-            $table->dropForeign(['customer_id']);
-        });
-
-        Schema::table('reviews', function (Blueprint $table) {
-            $table->dropForeign(['customer_id']);
-        });
-
-        Schema::table('addresses', function (Blueprint $table) {
-            $table->dropForeign(['customer_id']);
-        });
-
-        Schema::table('loyalty_badges', function (Blueprint $table) {
-            $table->dropForeign(['customer_id']);
-        });
+        // 1. Dropar foreign keys antigas que apontam para customers local (se existirem)
+        $this->dropForeignKeyIfExists('orders', 'customer_id');
+        $this->dropForeignKeyIfExists('cashback_transactions', 'customer_id');
+        $this->dropForeignKeyIfExists('reviews', 'customer_id');
+        $this->dropForeignKeyIfExists('addresses', 'customer_id');
+        $this->dropForeignKeyIfExists('loyalty_badges', 'customer_id');
 
         // 2. Dropar tabela customers do tenant (vai ser central)
         Schema::dropIfExists('customers');

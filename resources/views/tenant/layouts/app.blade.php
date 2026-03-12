@@ -211,6 +211,45 @@
         .blur-0 {
             filter: blur(0);
         }
+
+        /* ============================================
+           🔄 YumGo Loading Spinner - Jumping Dots
+           Estilo moderno (Uber Eats/WhatsApp)
+           ============================================ */
+        .yumgo-spinner {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .yumgo-spinner > div {
+            width: 12px;
+            height: 12px;
+            background-color: #EA1D2C;
+            border-radius: 50%;
+            animation: yumgo-bounce 1.4s infinite ease-in-out both;
+            box-shadow: 0 2px 8px rgba(234, 29, 44, 0.3);
+        }
+
+        .yumgo-spinner > div:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .yumgo-spinner > div:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes yumgo-bounce {
+            0%, 80%, 100% {
+                transform: scale(0.8) translateY(0);
+                opacity: 0.7;
+            }
+            40% {
+                transform: scale(1.2) translateY(-12px);
+                opacity: 1;
+            }
+        }
     </style>
 
     @yield('styles')

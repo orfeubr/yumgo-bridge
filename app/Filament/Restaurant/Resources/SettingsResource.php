@@ -463,7 +463,15 @@ Forms\Components\Section::make('Impressão Automática')
                                             ->label('3. Gerar Token')
                                             ->content(function () {
                                                 $user = auth()->user();
-                                                $hasToken = $user->tokens()->where('name', 'bridge-app')->exists();
+                                                $hasToken = false;
+
+                                                // ✅ Try-catch para lidar com tabela personal_access_tokens ausente
+                                                try {
+                                                    $hasToken = $user->tokens()->where('name', 'bridge-app')->exists();
+                                                } catch (\Exception $e) {
+                                                    // Tabela não existe no schema tenant, assume sem token
+                                                    $hasToken = false;
+                                                }
 
                                                 if ($hasToken) {
                                                     return new \Illuminate\Support\HtmlString('

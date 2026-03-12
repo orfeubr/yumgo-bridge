@@ -19,7 +19,7 @@ return [
         '127.0.0.1',
         'localhost',
         'yumgo.com.br',
-        '*.deliverypro.local',
+        '*.yumgo.local',
 
         // AWS Infrastructure
         'ec2-*.compute.amazonaws.com',           // EC2 public domains

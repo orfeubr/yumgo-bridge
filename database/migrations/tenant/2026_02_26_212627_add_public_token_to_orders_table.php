@@ -9,9 +9,17 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('orders', function (Blueprint $table) {
-            $table->string('public_token', 16)->nullable()->unique()->after('order_number');
-            $table->index('public_token');
+            if (!Schema::hasColumn('orders', 'public_token')) {
+                $table->string('public_token', 16)->nullable()->unique()->after('order_number');
+            }
         });
+
+        // Adicionar índice separadamente (se não existir)
+        if (!Schema::hasColumn('orders', 'public_token')) {
+            Schema::table('orders', function (Blueprint $table) {
+                $table->index('public_token');
+            });
+        }
     }
 
     public function down(): void

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spinner Premium YumGo 🎨</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+        }
+
+        .container {
+            background: white;
+            padding: 60px 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        h1 {
+            color: #EA1D2C;
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            color: #666;
+            margin: 0 0 40px 0;
+            font-size: 14px;
+        }
+
+        /* ============================================
+           SPINNER PREMIUM - Jumping Dots com Squeeze
+           ============================================ */
+        .spinner-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 30px;
+            min-height: 80px;
+        }
+
+        .dot {
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #EA1D2C 0%, #DC2626 100%);
+            border-radius: 50%;
+            animation: yumgo-jump 1.2s infinite ease-in-out both;
+        }
+
+        .dot:nth-child(1) { animation-delay: -0.24s; }
+        .dot:nth-child(2) { animation-delay: -0.12s; }
+        .dot:nth-child(3) { animation-delay: 0s; }
+
+        @keyframes yumgo-jump {
+            0% {
+                transform: scale(1, 0.6) translateY(0);
+                opacity: 0.8;
+                filter: drop-shadow(0 1px 2px rgba(234, 29, 44, 0.4));
+            }
+            10% {
+                transform: scale(1.1, 0.9) translateY(-2px);
+                opacity: 0.9;
+                filter: drop-shadow(0 2px 4px rgba(234, 29, 44, 0.3));
+            }
+            40% {
+                transform: scale(0.9, 1.15) translateY(-20px);
+                opacity: 1;
+                filter: drop-shadow(0 8px 12px rgba(234, 29, 44, 0.5));
+            }
+            50% {
+                transform: scale(1, 1) translateY(-22px);
+                opacity: 1;
+                filter: drop-shadow(0 10px 16px rgba(234, 29, 44, 0.6));
+            }
+            70% {
+                transform: scale(0.95, 1.05) translateY(-8px);
+                opacity: 0.95;
+                filter: drop-shadow(0 4px 8px rgba(234, 29, 44, 0.4));
+            }
+            85% {
+                transform: scale(1.05, 0.95) translateY(-1px);
+                opacity: 0.85;
+                filter: drop-shadow(0 2px 4px rgba(234, 29, 44, 0.3));
+            }
+            100% {
+                transform: scale(1, 0.6) translateY(0);
+                opacity: 0.8;
+                filter: drop-shadow(0 1px 2px rgba(234, 29, 44, 0.4));
+            }
+        }
+
+        .loading-text {
+            color: #666;
+            font-size: 18px;
+            font-weight: 500;
+            margin-top: 20px;
+        }
+
+        .features {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #f0f0f0;
+            text-align: left;
+        }
+
+        .features h3 {
+            color: #EA1D2C;
+            font-size: 16px;
+            margin: 0 0 15px 0;
+        }
+
+        .features ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .features li {
+            color: #555;
+            font-size: 14px;
+            line-height: 1.8;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .features li:before {
+            content: "✨";
+            position: absolute;
+            left: 0;
+        }
+
+        .comparison {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            text-align: left;
+        }
+
+        .comparison h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .comparison p {
+            margin: 5px 0;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #EA1D2C;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✨ Spinner Premium</h1>
+        <p class="subtitle">Efeito de squeeze + sombra dinâmica</p>
+
+        <div class="spinner-container">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+        </div>
+
+        <p class="loading-text">Preparando seu cardápio</p>
+
+        <div class="features">
+            <h3>🎨 Efeitos Premium Aplicados:</h3>
+            <ul>
+                <li><strong>Squeeze Effect:</strong> Achata ao tocar o chão, estica ao subir</li>
+                <li><strong>Drop Shadow Dinâmica:</strong> Sombra muda conforme altura</li>
+                <li><strong>Variação de Opacidade:</strong> Mais transparente no chão, opaco no ar</li>
+                <li><strong>Gradiente de Cor:</strong> Vermelho com profundidade</li>
+                <li><strong>Timing Orgânico:</strong> Movimento natural tipo Pixar/Disney</li>
+            </ul>
+        </div>
+
+        <div class="comparison">
+            <h4>🏆 YumGo vs Parker Pizza <span class="badge">MELHOR</span></h4>
+            <p><strong>Parker:</strong> 3 círculos pulsando (estático)</p>
+            <p><strong>YumGo:</strong> 3 bolinhas com física realista + squeeze</p>
+        </div>
+    </div>
+</body>
+</html>

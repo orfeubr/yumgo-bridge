@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spinner Minimalista - YumGo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+        }
+
+        .loading-screen {
+            text-align: center;
+        }
+
+        /* Spinner Minimalista - Estilo Uber Eats/WhatsApp */
+        .spinner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            background-color: #EA1D2C;
+            border-radius: 50%;
+            animation: yumgo-jump 0.6s infinite ease-in-out;
+        }
+
+        .dot:nth-child(1) { animation-delay: 0s; }
+        .dot:nth-child(2) { animation-delay: 0.1s; }
+        .dot:nth-child(3) { animation-delay: 0.2s; }
+
+        @keyframes yumgo-jump {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-12px);
+            }
+        }
+
+        .loading-text {
+            color: #666;
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        /* Info Box */
+        .info {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #f8f9fa;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 13px;
+            color: #666;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .info strong {
+            color: #EA1D2C;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-screen">
+        <div class="spinner">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+        </div>
+        <p class="loading-text">Preparando seu cardápio</p>
+    </div>
+
+    <div class="info">
+        ✨ <strong>Minimalista e clean</strong><br>
+        Estilo Uber Eats, WhatsApp, Instagram
+    </div>
+</body>
+</html>

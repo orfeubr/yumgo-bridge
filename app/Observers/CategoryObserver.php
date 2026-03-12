@@ -5,9 +5,20 @@ namespace App\Observers;
 use App\Models\Category;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class CategoryObserver
 {
+    /**
+     * Limpa cache do tenant quando categorias mudam
+     */
+    private function clearTenantCache(): void
+    {
+        if (tenancy()->initialized) {
+            $tenantId = tenant('id');
+            Cache::forget("tenant_{$tenantId}_common_data");
+        }
+    }
     /**
      * Handle the Category "saving" event.
      * Empurra outras categorias para baixo se necessário
@@ -59,5 +70,21 @@ class CategoryObserver
                 });
             }
         }
+    }
+
+    /**
+     * Handle the Category "saved" event.
+     */
+    public function saved(Category $category): void
+    {
+        $this->clearTenantCache();
+    }
+
+    /**
+     * Handle the Category "deleted" event.
+     */
+    public function deleted(Category $category): void
+    {
+        $this->clearTenantCache();
     }
 }

@@ -12,15 +12,15 @@ class PlatformUserSeeder extends Seeder
     {
         $users = [
             [
-                'name' => 'Admin DeliveryPro',
-                'email' => 'admin@deliverypro.com.br',
+                'name' => 'Admin YumGo',
+                'email' => 'admin@yumgo.com.br',
                 'password' => Hash::make('admin123'),
                 'role' => 'super_admin',
                 'is_active' => true,
             ],
             [
-                'name' => 'Suporte DeliveryPro',
-                'email' => 'suporte@deliverypro.com.br',
+                'name' => 'Suporte YumGo',
+                'email' => 'suporte@yumgo.com.br',
                 'password' => Hash::make('suporte123'),
                 'role' => 'support',
                 'is_active' => true,
@@ -35,7 +35,7 @@ class PlatformUserSeeder extends Seeder
         }
 
         $this->command->info('✅ Usuários da plataforma criados!');
-        $this->command->info('   📧 Email: admin@deliverypro.com.br');
+        $this->command->info('   📧 Email: admin@yumgo.com.br');
         $this->command->info('   🔑 Senha: admin123');
     }
 }

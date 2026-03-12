@@ -2,6 +2,53 @@
 
 ## ❌ REGRAS INVIOLÁVEIS - NUNCA QUEBRAR
 
+### 0. SEMPRE PEDIR AUTORIZAÇÃO ANTES DE DELETAR ⭐⭐⭐
+
+**OPERAÇÕES QUE EXIGEM APROVAÇÃO MANUAL:**
+
+❌ **NUNCA fazer sem perguntar primeiro:**
+- `DELETE FROM tenants`
+- `DROP TABLE`
+- `TRUNCATE TABLE`
+- `DELETE FROM` em tabelas críticas (tenants, plans, users, restaurant_types)
+- Deletar arquivos de migration
+- Deletar arquivos de configuração (.env, config/*.php)
+- Deletar schemas PostgreSQL
+- `git reset --hard` (perda de dados)
+- `git push --force`
+
+✅ **SEMPRE:**
+1. Identificar operação destrutiva
+2. Explicar o que vai acontecer
+3. Mostrar exatamente o que será deletado
+4. Perguntar: "Posso prosseguir?"
+5. Esperar aprovação explícita do usuário
+6. Só então executar
+
+**Exemplo:**
+```
+Você: "Preciso deletar o tenant 'teste'?"
+
+Eu: "⚠️ CONFIRMAÇÃO NECESSÁRIA
+     Vou executar: DELETE FROM tenants WHERE slug = 'teste'
+     Isso vai:
+     - Deletar o tenant permanentemente
+     - Remover schema tenant_teste
+     - Perder TODOS os dados (pedidos, produtos, etc)
+
+     Tem certeza? (Digite 'SIM' para confirmar)"
+
+Você: "SIM"
+
+Eu: [executa]
+```
+
+**Se você NÃO aprovar:**
+- ❌ Eu cancelo a operação
+- ✅ Eu busco alternativa (soft delete, backup, etc)
+
+---
+
 ### 1. Multi-Tenant com Cashback Isolado
 
 **DECISÃO DE NEGÓCIO (01/03/2026):**

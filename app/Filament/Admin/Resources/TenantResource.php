@@ -46,23 +46,7 @@ class TenantResource extends Resource
                         Forms\Components\TextInput::make('slug')
                             ->label('Slug (Subdomínio)')
                             ->required()
-                            ->rules([
-                                'required',
-                                'max:255',
-                                function () {
-                                    return function (string $attribute, $value, \Closure $fail) {
-                                        $exists = \App\Models\Tenant::where('slug', $value)
-                                            ->when(request()->route('record'), function ($query, $record) {
-                                                $query->where('id', '!=', $record);
-                                            })
-                                            ->exists();
-
-                                        if ($exists) {
-                                            $fail('Este slug já está em uso.');
-                                        }
-                                    };
-                                },
-                            ])
+                            ->unique(ignoreRecord: true)
                             ->maxLength(255)
                             ->helperText('Será usado como subdomínio: slug.yumgo.com.br')
                             ->suffixIcon('heroicon-o-link')
@@ -83,24 +67,7 @@ class TenantResource extends Resource
                             ->label('E-mail de Contato')
                             ->email()
                             ->required()
-                            ->rules([
-                                'required',
-                                'email',
-                                'max:255',
-                                function () {
-                                    return function (string $attribute, $value, \Closure $fail) {
-                                        $exists = \App\Models\Tenant::where('email', $value)
-                                            ->when(request()->route('record'), function ($query, $record) {
-                                                $query->where('id', '!=', $record);
-                                            })
-                                            ->exists();
-
-                                        if ($exists) {
-                                            $fail('Este email já está em uso.');
-                                        }
-                                    };
-                                },
-                            ])
+                            ->unique(ignoreRecord: true)
                             ->maxLength(255),
 
                         Forms\Components\TextInput::make('phone')
@@ -143,6 +110,7 @@ class TenantResource extends Resource
                             ->columns(3)
                             ->gridDirection('row')
                             ->columnSpanFull()
+                            ->dehydrated()
                             ->helperText('Selecione os tipos de comida que seu restaurante serve'),
 
                         Forms\Components\FileUpload::make('logo')
@@ -157,6 +125,7 @@ class TenantResource extends Resource
                             ->maxSize(2048)
                             ->directory('tenants/logos')
                             ->visibility('public')
+                            ->dehydrated()
                             ->helperText('Imagem do logo (máx. 2MB, formatos: JPG, PNG)')
                             ->imagePreviewHeight('150')
                             ->columnSpanFull(),

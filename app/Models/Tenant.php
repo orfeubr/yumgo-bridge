@@ -18,6 +18,7 @@ class Tenant extends BaseTenant implements TenantWithDatabase
         'id',
         'name',
         'slug',
+        'restaurant_type_id',
         'email',
         'phone',
         'mobile_phone',
@@ -104,15 +105,78 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     ];
 
     protected $casts = [
-        'pagarme_split_rules' => 'array',
-        'cuisine_types' => 'array',
-        'business_hours' => 'array',
+        'pagarme_split_rules' => 'json',
+        // cuisine_types usa accessor/mutator customizados (ver abaixo)
+        'business_hours' => 'json',
         'accepting_orders' => 'boolean',
         'trial_ends_at' => 'datetime',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
         'stats_updated_at' => 'datetime',
     ];
+
+    /**
+     * Accessor para cuisine_types
+     * Converte JSON do banco para array PHP
+     */
+    public function getCuisineTypesAttribute($value): ?array
+    {
+        if (is_null($value)) {
+            return null;
+        }
+
+        // Se já é array, retornar
+        if (is_array($value)) {
+            return $value;
+        }
+
+        // Decodificar JSON
+        $decoded = json_decode($value, true);
+
+        // Se decodificou corretamente, retornar
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+
+        // Se falhou, retornar array vazio
+        return [];
+    }
+
+    /**
+     * Mutator para cuisine_types
+     * Converte array PHP para JSON no banco
+     */
+    public function setCuisineTypesAttribute($value): void
+    {
+        // Se é null, salvar null
+        if (is_null($value)) {
+            $this->attributes['cuisine_types'] = null;
+            return;
+        }
+
+        // Se já é string JSON, salvar direto
+        if (is_string($value)) {
+            $this->attributes['cuisine_types'] = $value;
+            return;
+        }
+
+        // Se é array, encodar para JSON
+        if (is_array($value)) {
+            $this->attributes['cuisine_types'] = json_encode($value);
+            return;
+        }
+
+        // Fallback: tentar encodar
+        $this->attributes['cuisine_types'] = json_encode($value);
+    }
+
+    /**
+     * Relacionamento: Tenant pertence a um tipo de restaurante
+     */
+    public function restaurantType(): BelongsTo
+    {
+        return $this->belongsTo(RestaurantType::class, 'restaurant_type_id');
+    }
 
     public static function getCustomColumns(): array
     {

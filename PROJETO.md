@@ -1,4 +1,4 @@
-# 🚀 DeliveryPro - Sistema Multi-Tenant de Delivery
+# 🚀 YumGo - Sistema Multi-Tenant de Delivery
 
 ## 📋 Visão Geral
 
@@ -7,7 +7,7 @@ Sistema completo de delivery multi-tenant (melhor que iFood!) com funcionalidade
 
 ## 🎯 Diferenciais Competitivos
 
-| Feature | iFood | **DeliveryPro** |
+| Feature | iFood | **YumGo** |
 |---------|-------|-----------------|
 | Comissão | ~30% 😱 | **1-3%** 🎉 |
 | Cashback Cliente | ❌ | **✅ Até 10%** |

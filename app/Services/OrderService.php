@@ -53,260 +53,309 @@ class OrderService
         \Log::info('🔍 Iniciando createOrder', ['customer_id' => $customer->id]);
 
         return DB::transaction(function () use ($customer, $data) {
-            // 🔧 PROTEÇÃO: Garantir que temos customer do TENANT (não do central)
-            // Se o customer veio do login central, buscar/criar correspondente no tenant
-            $tenantCustomer = Customer::where('email', $customer->email)
-                ->orWhere('phone', $customer->phone)
-                ->first();
+            // 1. Sincronizar customer entre schemas
+            $customer = $this->syncCustomer($customer);
 
-            if (!$tenantCustomer) {
-                // Criar customer no tenant se não existir
-                $tenantCustomer = Customer::create([
-                    'name' => $customer->name,
-                    'email' => $customer->email,
-                    'phone' => $customer->phone,
-                    'cpf' => $customer->cpf ?? null,
-                    'cashback_balance' => 0,
-                    'loyalty_tier' => 'bronze',
-                    'total_orders' => 0,
-                    'total_spent' => 0,
-                    'is_active' => true,
-                ]);
-
-                \Log::info('✨ Customer criado no tenant', [
-                    'central_id' => $customer->id,
-                    'tenant_id' => $tenantCustomer->id,
-                    'name' => $tenantCustomer->name,
-                ]);
-            }
-
-            // Usar customer do tenant daqui pra frente
-            $customer = $tenantCustomer;
-
-            // Enriquecer items com dados dos produtos
+            // 2. Enriquecer items e calcular subtotal
             $enrichedItems = $this->enrichItems($data['items']);
-
-            // Calcula subtotal
             $subtotal = $this->calculateSubtotal($enrichedItems);
 
-            // 🎟️ PROCESSAR CUPOM DE DESCONTO
-            $deliveryFee = $data['delivery_fee'] ?? 0;
-            $couponDiscount = 0;
-            $couponCode = null;
+            // 3. Processar cupom de desconto
+            $couponResult = $this->processCouponDiscount(
+                $data['coupon_code'] ?? null,
+                $subtotal,
+                $data['delivery_fee'] ?? 0
+            );
 
-            if (!empty($data['coupon_code'])) {
-                $coupon = \App\Models\Coupon::active()
-                    ->byCode($data['coupon_code'])
-                    ->first();
+            // 4. Aplicar cashback
+            $cashbackUsed = $this->applyCashback(
+                $customer,
+                $data['cashback_used'] ?? 0,
+                $subtotal + ($data['delivery_fee'] ?? 0) - $couponResult['discount']
+            );
 
-                if ($coupon) {
-                    $orderSubtotal = $subtotal + $deliveryFee;
+            // 5. Calcular totais do pedido
+            $orderTotals = $this->calculateOrderTotals(
+                $subtotal,
+                $data['delivery_fee'] ?? 0,
+                $couponResult['discount'],
+                $cashbackUsed
+            );
 
-                    // Verificar valor mínimo
-                    if (!$coupon->min_order_value || $orderSubtotal >= $coupon->min_order_value) {
-                        // Calcular desconto
-                        if ($coupon->type === 'percentage') {
-                            $couponDiscount = ($orderSubtotal * $coupon->value) / 100;
-                        } else {
-                            $couponDiscount = $coupon->value;
-                        }
+            // 6. Preparar dados do pedido
+            $orderData = $this->buildOrderData($customer, $data, $orderTotals, $couponResult['code'], $cashbackUsed);
 
-                        // Limita desconto ao total do pedido
-                        $couponDiscount = min($couponDiscount, $orderSubtotal);
-                        $couponCode = $coupon->code;
-
-                        \Log::info('🎟️ Cupom aplicado', [
-                            'code' => $couponCode,
-                            'type' => $coupon->type,
-                            'value' => $coupon->value,
-                            'discount' => $couponDiscount,
-                        ]);
-                    } else {
-                        \Log::warning('⚠️ Cupom não atinge valor mínimo', [
-                            'code' => $data['coupon_code'],
-                            'min_required' => $coupon->min_order_value,
-                            'order_total' => $orderSubtotal,
-                        ]);
-                    }
-                }
-            }
-
-            // Calcula total ANTES do cashback (subtotal + entrega - cupom)
-            $discount = $couponDiscount;
-            $totalBeforeCashback = $subtotal + $deliveryFee - $discount;
-
-            // Cashback usado (limita ao total para não ficar negativo)
-            $cashbackUsed = $data['cashback_used'] ?? 0;
-            if ($cashbackUsed > 0) {
-                // 🎯 Limita cashback ao total do pedido (não pode ficar negativo)
-                $cashbackUsed = min($cashbackUsed, $totalBeforeCashback);
-
-                if (!$this->cashbackService->useCashback($customer, $cashbackUsed)) {
-                    throw new \Exception('Saldo de cashback insuficiente');
-                }
-
-                \Log::info('💰 Cashback aplicado', [
-                    'solicitado' => $data['cashback_used'],
-                    'aplicado' => $cashbackUsed,
-                    'total_antes' => $totalBeforeCashback,
-                ]);
-            }
-
-            // Calcula total final
-            $total = $totalBeforeCashback - $cashbackUsed;
-
-            // PROTEÇÃO: Total não pode ficar negativo (lançar exceção)
-            if ($total < 0) {
-                throw new \Exception('Cashback superior ao total do pedido');
-            }
-
-            // Define expiração do pedido (final do dia)
-            $expiresAt = now()->endOfDay();
-
-            // Processar delivery_address (converter array para JSON se necessário)
-            $deliveryAddress = $data['delivery_address'] ?? null;
-            if (is_array($deliveryAddress)) {
-                $deliveryAddress = json_encode($deliveryAddress, JSON_UNESCAPED_UNICODE);
-            }
-
-            // Cria pedido
-            $order = Order::create([
-                'order_number' => $this->generateOrderNumber(),
-                'customer_id' => $customer->id,
-                'subtotal' => $subtotal,
-                'delivery_fee' => $deliveryFee,
-                'discount' => $discount,
-                'coupon_code' => $couponCode, // ⭐ Código do cupom
-                'cashback_used' => $cashbackUsed,
-                'total' => $total,
-                'status' => 'pending',
-                'payment_status' => 'pending',
-                'payment_method' => $data['payment_method'] ?? null,
-                'delivery_type' => $data['delivery_type'] ?? 'delivery',
-                'delivery_address' => $deliveryAddress,
-                'delivery_city' => $data['delivery_city'] ?? null,
-                'delivery_neighborhood' => $data['delivery_neighborhood'] ?? null,
-                'customer_notes' => $data['notes'] ?? null,
-                'cashback_earned' => 0,
-                'cashback_percentage' => 0,
-                'expires_at' => $expiresAt,
-            ]);
-
+            // 7. Criar pedido
+            $order = Order::create($orderData);
             \Log::info('✅ Pedido criado', ['order_id' => $order->id, 'order_number' => $order->order_number]);
 
-            // Cria itens do pedido
+            // 8. Criar itens do pedido
             foreach ($enrichedItems as $itemData) {
                 $this->createOrderItem($order, $itemData);
             }
-
             \Log::info('✅ Items criados');
 
-            // 🎟️ Incrementar contador de uso do cupom
-            // ⚠️ ATENÇÃO: Incremento agora é feito no OrderController com lockForUpdate()
-            // para prevenir race condition. NÃO incrementar aqui para evitar duplicação.
-            if ($couponCode) {
-                \Log::info('🎟️ Cupom aplicado (contador já incrementado no Controller)', ['code' => $couponCode]);
-            }
-
-            // ⭐ PAGAMENTO: Criar cobrança apenas para PIX (cartão será processado na página de pagamento)
+            // 9. Criar pagamento PIX (se aplicável)
             if ($data['payment_method'] === 'pix') {
-                try {
-                    // PROTEÇÃO: Garantir que customer tem relação carregada
-                    $order->load('customer');
-
-                    // Determinar qual gateway usar (Pagar.me por padrão)
-                    $tenant = tenant();
-                    $gateway = $tenant->payment_gateway ?? 'pagarme';
-
-                    \Log::info('💳 Criando pagamento PIX', [
-                        'gateway' => $gateway,
-                        'method' => $data['payment_method'],
-                        'tenant_id' => $tenant->id,
-                    ]);
-
-                    // Criar pagamento no Pagar.me
-                    $payment = $this->pagarmeService->createPayment($order, [
-                        'payment_method' => $data['payment_method']
-                    ]);
-
-                    // Se for PIX, buscar QR Code (segunda chamada necessária no Pagar.me)
-                    $pixQrCode = null;
-                    $pixCopyPaste = null;
-                    $pixExpiresAt = null;
-
-                    if ($data['payment_method'] === 'pix' && isset($payment['id'])) {
-                        // Pagar.me precisa de segunda chamada para obter QR Code
-                        $qrCodeData = $this->pagarmeService->getPixQrCode($payment['id']);
-                        if ($qrCodeData && isset($qrCodeData['encodedImage'])) {
-                            $pixQrCode = $qrCodeData['encodedImage'];
-                            $pixCopyPaste = $qrCodeData['payload'] ?? null;
-                            $pixExpiresAt = isset($qrCodeData['expirationDate'])
-                                ? Carbon::parse($qrCodeData['expirationDate'])
-                                : null;
-                        }
-
-                        \Log::info('✅ QR Code PIX obtido', [
-                            'gateway' => $gateway,
-                            'payment_id' => $payment['id'],
-                            'has_image' => !empty($pixQrCode),
-                            'has_payload' => !empty($pixCopyPaste),
-                        ]);
-                    }
-
-                    $paymentRecord = \App\Models\Payment::create([
-                        'order_id' => $order->id,
-                        'gateway' => $gateway,
-                        'method' => $data['payment_method'],
-                        'transaction_id' => $payment['id'],
-                        'amount' => $order->total,
-                        'fee' => 0,
-                        'net_amount' => $order->total,
-                        'status' => 'pending',
-                        'pix_qrcode' => $pixQrCode,
-                        'pix_copy_paste' => $pixCopyPaste,
-                        // Pagar.me não usa payment_url como Asaas
-                    ]);
-
-                    \Log::info('✅ Payment criado', [
-                        'payment_id' => $paymentRecord->id,
-                        'has_qrcode' => !empty($paymentRecord->pix_qrcode),
-                        'has_code' => !empty($paymentRecord->pix_copy_paste),
-                    ]);
-
-                    \Log::info('✅ Pagamento criado', ['gateway' => $gateway]);
-                } catch (\Exception $e) {
-                    \Log::error('❌ Erro ao criar pagamento (PEDIDO CRIADO, pagamento pendente)', [
-                        'gateway' => $gateway ?? 'unknown',
-                        'error' => $e->getMessage(),
-                        'order_id' => $order->id,
-                        'payment_method' => $data['payment_method'],
-                    ]);
-
-                    // FALLBACK: Criar registro de pagamento pendente mesmo com erro no gateway
-                    // O pedido já foi criado, apenas marca pagamento como pendente
-                    \App\Models\Payment::create([
-                        'order_id' => $order->id,
-                        'gateway' => $gateway ?? 'pagarme',
-                        'method' => $data['payment_method'],
-                        'transaction_id' => 'PENDING_' . $order->id,
-                        'amount' => $order->total,
-                        'fee' => 0,
-                        'net_amount' => $order->total,
-                        'status' => 'pending',
-                        'metadata' => json_encode(['gateway_error' => $e->getMessage()]),
-                    ]);
-
-                    \Log::warning('⚠️ Pagamento criado em modo FALLBACK (manual)', [
-                        'order_id' => $order->id,
-                    ]);
-
-                    // NÃO lançar exceção - pedido foi criado com sucesso
-                    // throw $e;
-                }
+                $this->createPaymentForPix($order, $data['payment_method']);
             }
 
             return $order;
         });
+    }
+
+    /**
+     * Sincroniza customer entre schema central e tenant
+     */
+    private function syncCustomer(Customer $customer): Customer
+    {
+        $tenantCustomer = Customer::where('email', $customer->email)
+            ->orWhere('phone', $customer->phone)
+            ->first();
+
+        if (!$tenantCustomer) {
+            $tenantCustomer = Customer::create([
+                'name' => $customer->name,
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+                'cpf' => $customer->cpf ?? null,
+                'cashback_balance' => 0,
+                'loyalty_tier' => 'bronze',
+                'total_orders' => 0,
+                'total_spent' => 0,
+                'is_active' => true,
+            ]);
+
+            \Log::info('✨ Customer criado no tenant', [
+                'central_id' => $customer->id,
+                'tenant_id' => $tenantCustomer->id,
+            ]);
+        }
+
+        return $tenantCustomer;
+    }
+
+    /**
+     * Processa cupom de desconto e retorna dados do cupom
+     */
+    private function processCouponDiscount(?string $couponCode, float $subtotal, float $deliveryFee): array
+    {
+        if (empty($couponCode)) {
+            return ['code' => null, 'discount' => 0];
+        }
+
+        $coupon = \App\Models\Coupon::active()->byCode($couponCode)->first();
+
+        if (!$coupon) {
+            return ['code' => null, 'discount' => 0];
+        }
+
+        $orderSubtotal = $subtotal + $deliveryFee;
+
+        // Verificar valor mínimo
+        if ($coupon->min_order_value && $orderSubtotal < $coupon->min_order_value) {
+            \Log::warning('⚠️ Cupom não atinge valor mínimo', [
+                'code' => $couponCode,
+                'min_required' => $coupon->min_order_value,
+                'order_total' => $orderSubtotal,
+            ]);
+            return ['code' => null, 'discount' => 0];
+        }
+
+        // Calcular desconto
+        $discount = $coupon->type === 'percentage'
+            ? ($orderSubtotal * $coupon->value) / 100
+            : $coupon->value;
+
+        // Limitar desconto ao total do pedido
+        $discount = min($discount, $orderSubtotal);
+
+        \Log::info('🎟️ Cupom aplicado', [
+            'code' => $coupon->code,
+            'type' => $coupon->type,
+            'value' => $coupon->value,
+            'discount' => $discount,
+        ]);
+
+        return ['code' => $coupon->code, 'discount' => $discount];
+    }
+
+    /**
+     * Aplica cashback e debita do saldo do cliente
+     */
+    private function applyCashback(Customer $customer, float $requestedAmount, float $totalBeforeCashback): float
+    {
+        if ($requestedAmount <= 0) {
+            return 0;
+        }
+
+        // Limitar cashback ao total do pedido
+        $cashbackUsed = min($requestedAmount, $totalBeforeCashback);
+
+        if (!$this->cashbackService->useCashback($customer, $cashbackUsed)) {
+            throw new \Exception('Saldo de cashback insuficiente');
+        }
+
+        \Log::info('💰 Cashback aplicado', [
+            'solicitado' => $requestedAmount,
+            'aplicado' => $cashbackUsed,
+            'total_antes' => $totalBeforeCashback,
+        ]);
+
+        return $cashbackUsed;
+    }
+
+    /**
+     * Calcula totais do pedido
+     */
+    private function calculateOrderTotals(float $subtotal, float $deliveryFee, float $discount, float $cashbackUsed): array
+    {
+        $totalBeforeCashback = $subtotal + $deliveryFee - $discount;
+        $total = $totalBeforeCashback - $cashbackUsed;
+
+        if ($total < 0) {
+            throw new \Exception('Cashback superior ao total do pedido');
+        }
+
+        return [
+            'subtotal' => $subtotal,
+            'delivery_fee' => $deliveryFee,
+            'discount' => $discount,
+            'cashback_used' => $cashbackUsed,
+            'total' => $total,
+        ];
+    }
+
+    /**
+     * Prepara array de dados para criação do pedido
+     */
+    private function buildOrderData(Customer $customer, array $data, array $totals, ?string $couponCode, float $cashbackUsed): array
+    {
+        $deliveryAddress = $data['delivery_address'] ?? null;
+        if (is_array($deliveryAddress)) {
+            $deliveryAddress = json_encode($deliveryAddress, JSON_UNESCAPED_UNICODE);
+        }
+
+        return [
+            'order_number' => $this->generateOrderNumber(),
+            'customer_id' => $customer->id,
+            'subtotal' => $totals['subtotal'],
+            'delivery_fee' => $totals['delivery_fee'],
+            'discount' => $totals['discount'],
+            'coupon_code' => $couponCode,
+            'cashback_used' => $cashbackUsed,
+            'total' => $totals['total'],
+            'status' => 'pending',
+            'payment_status' => 'pending',
+            'payment_method' => $data['payment_method'] ?? null,
+            'delivery_type' => $data['delivery_type'] ?? 'delivery',
+            'delivery_address' => $deliveryAddress,
+            'delivery_city' => $data['delivery_city'] ?? null,
+            'delivery_neighborhood' => $data['delivery_neighborhood'] ?? null,
+            'customer_notes' => $data['notes'] ?? null,
+            'cashback_earned' => 0,
+            'cashback_percentage' => 0,
+            'expires_at' => now()->endOfDay(),
+        ];
+    }
+
+    /**
+     * Cria pagamento PIX via Pagar.me
+     */
+    private function createPaymentForPix(Order $order, string $paymentMethod): void
+    {
+        $tenant = tenant();
+        $gateway = $tenant->payment_gateway ?? 'pagarme';
+
+        try {
+            $order->load('customer');
+
+            \Log::info('💳 Criando pagamento PIX', [
+                'gateway' => $gateway,
+                'order_id' => $order->id,
+            ]);
+
+            // Criar pagamento no gateway
+            $payment = $this->pagarmeService->createPayment($order, [
+                'payment_method' => $paymentMethod
+            ]);
+
+            // Obter QR Code do PIX
+            $pixData = $this->getPixQrCode($payment['id'] ?? null, $gateway);
+
+            // Criar registro de pagamento
+            \App\Models\Payment::create([
+                'order_id' => $order->id,
+                'gateway' => $gateway,
+                'method' => $paymentMethod,
+                'transaction_id' => $payment['id'],
+                'amount' => $order->total,
+                'fee' => 0,
+                'net_amount' => $order->total,
+                'status' => 'pending',
+                'pix_qrcode' => $pixData['qrcode'],
+                'pix_copy_paste' => $pixData['copy_paste'],
+            ]);
+
+            \Log::info('✅ Pagamento PIX criado', [
+                'order_id' => $order->id,
+                'has_qrcode' => !empty($pixData['qrcode']),
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('❌ Erro ao criar pagamento PIX', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            // Fallback: criar registro pendente
+            \App\Models\Payment::create([
+                'order_id' => $order->id,
+                'gateway' => $gateway,
+                'method' => $paymentMethod,
+                'transaction_id' => 'PENDING_' . $order->id,
+                'amount' => $order->total,
+                'fee' => 0,
+                'net_amount' => $order->total,
+                'status' => 'pending',
+                'metadata' => json_encode(['gateway_error' => $e->getMessage()]),
+            ]);
+
+            \Log::warning('⚠️ Pagamento criado em modo FALLBACK', ['order_id' => $order->id]);
+        }
+    }
+
+    /**
+     * Obtém dados do QR Code PIX
+     */
+    private function getPixQrCode(?string $paymentId, string $gateway): array
+    {
+        if (!$paymentId) {
+            return ['qrcode' => null, 'copy_paste' => null];
+        }
+
+        try {
+            $qrCodeData = $this->pagarmeService->getPixQrCode($paymentId);
+
+            if ($qrCodeData && isset($qrCodeData['encodedImage'])) {
+                \Log::info('✅ QR Code PIX obtido', [
+                    'payment_id' => $paymentId,
+                    'has_image' => true,
+                ]);
+
+                return [
+                    'qrcode' => $qrCodeData['encodedImage'],
+                    'copy_paste' => $qrCodeData['payload'] ?? null,
+                ];
+            }
+        } catch (\Exception $e) {
+            \Log::warning('⚠️ Erro ao obter QR Code PIX', [
+                'payment_id' => $paymentId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return ['qrcode' => null, 'copy_paste' => null];
     }
 
     /**

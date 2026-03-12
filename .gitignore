@@ -29,3 +29,7 @@ electron-bridge/node_modules/
 electron-bridge/package-lock.json
 public/downloads/*.exe
 public/downloads/*.dmg
+
+# Arquivos de ambiente com senhas específicas
+.env.migration
+.env.readonly

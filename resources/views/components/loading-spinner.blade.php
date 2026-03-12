@@ -1,32 +1,31 @@
 {{--
-    Loading Spinner YumGo
-    Uso: <x-loading-spinner size="md" />
-    Tamanhos: sm, md, lg, xl
+    Loading Spinner YumGo - Jumping Dots
+    Estilo moderno (Uber Eats/WhatsApp)
 --}}
 
-@props(['size' => 'md'])
-
-@php
-$sizes = [
-    'sm' => 'w-4 h-4',
-    'md' => 'w-8 h-8',
-    'lg' => 'w-12 h-12',
-    'xl' => 'w-16 h-16',
-];
-$sizeClass = $sizes[$size] ?? $sizes['md'];
-@endphp
-
 <div class="inline-flex items-center justify-center">
-    <div class="relative {{ $sizeClass }}">
-        {{-- Círculo externo (pulsante) --}}
-        <div class="absolute inset-0 border-4 border-red-100 rounded-full animate-pulse"></div>
-
-        {{-- Círculo rotativo --}}
-        <div class="absolute inset-0 border-4 border-red-600 rounded-full border-t-transparent animate-spin"></div>
-
-        {{-- Ponto central --}}
-        <div class="absolute inset-0 flex items-center justify-center">
-            <div class="w-2 h-2 bg-red-600 rounded-full animate-ping"></div>
-        </div>
+    <div style="display: inline-flex; gap: 8px; align-items: center; justify-content: center;">
+        <div style="width: 12px; height: 12px; background-color: #EA1D2C; border-radius: 50%; animation: yumgo-bounce-1 1.4s infinite ease-in-out both; box-shadow: 0 2px 8px rgba(234, 29, 44, 0.3);"></div>
+        <div style="width: 12px; height: 12px; background-color: #EA1D2C; border-radius: 50%; animation: yumgo-bounce-2 1.4s infinite ease-in-out both; box-shadow: 0 2px 8px rgba(234, 29, 44, 0.3);"></div>
+        <div style="width: 12px; height: 12px; background-color: #EA1D2C; border-radius: 50%; animation: yumgo-bounce-3 1.4s infinite ease-in-out both; box-shadow: 0 2px 8px rgba(234, 29, 44, 0.3);"></div>
     </div>
 </div>
+
+<style>
+@keyframes yumgo-bounce-1 {
+    0%, 80%, 100% { transform: scale(0.8) translateY(0); opacity: 0.7; }
+    40% { transform: scale(1.2) translateY(-12px); opacity: 1; }
+}
+@keyframes yumgo-bounce-2 {
+    0%, 80%, 100% { transform: scale(0.8) translateY(0); opacity: 0.7; }
+    40% { transform: scale(1.2) translateY(-12px); opacity: 1; }
+}
+@keyframes yumgo-bounce-3 {
+    0%, 80%, 100% { transform: scale(0.8) translateY(0); opacity: 0.7; }
+    40% { transform: scale(1.2) translateY(-12px); opacity: 1; }
+}
+/* Delays */
+div[style*="yumgo-bounce-1"] { animation-delay: -0.32s !important; }
+div[style*="yumgo-bounce-2"] { animation-delay: -0.16s !important; }
+div[style*="yumgo-bounce-3"] { animation-delay: 0s !important; }
+</style>

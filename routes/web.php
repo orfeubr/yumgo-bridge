@@ -78,9 +78,9 @@ Route::get('/restaurantes', function () {
     return redirect('/');
 })->name('restaurants.list');
 
-Route::get('/test-deliverypro', function () {
+Route::get('/test-yumgo', function () {
     return response()->json([
-        'project' => 'DeliveryPro',
+        'project' => 'YumGo',
         'app_name' => config('app.name'),
         'path' => base_path(),
         'database' => config('database.default'),
@@ -236,42 +236,12 @@ Route::post('/test-painel-login', function (Illuminate\Http\Request $request) {
     return back()->withErrors(['email' => 'Credenciais inválidas']);
 });
 
-// PWA Manifest dinâmico (usa logo do restaurante)
-Route::get('/manifest.json', function () {
-    $settings = \App\Models\Settings::first();
-    $tenant = tenant();
-
-    $logoUrl = $settings && $settings->logo
-        ? route('stancl.tenancy.asset', ['path' => $settings->logo])
-        : asset('favicon.ico');
-
-    $manifest = [
-        'name' => $settings->restaurant_name ?? $tenant->name ?? config('app.name'),
-        'short_name' => $settings->restaurant_name ?? $tenant->name ?? config('app.name'),
-        'description' => 'Peça delivery online',
-        'start_url' => '/',
-        'display' => 'standalone',
-        'background_color' => '#ffffff',
-        'theme_color' => '#EA1D2C',
-        'orientation' => 'portrait',
-        'icons' => [
-            [
-                'src' => $logoUrl,
-                'sizes' => '192x192',
-                'type' => 'image/png',
-                'purpose' => 'any maskable'
-            ],
-            [
-                'src' => $logoUrl,
-                'sizes' => '512x512',
-                'type' => 'image/png',
-                'purpose' => 'any maskable'
-            ]
-        ]
-    ];
-
-    return response()->json($manifest);
-});
+// 📱 PWA Dinâmico por Tenant (manifest + ícones)
+Route::middleware([\App\Http\Middleware\InitializeTenancyByDomainOrSkip::class])
+    ->group(function () {
+        Route::get('/manifest.json', [\App\Http\Controllers\PWAController::class, 'manifest']);
+        Route::get('/pwa-icon/{size}', [\App\Http\Controllers\PWAController::class, 'icon'])->where('size', '192|512');
+    });
 
 // Service Worker
 Route::get('/sw.js', function () {

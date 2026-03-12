@@ -157,6 +157,121 @@
                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition"
                                    placeholder="(11) 99999-9999">
                         </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                CNPJ do Restaurante <span class="text-red-600">*</span>
+                            </label>
+                            <input type="text" name="cnpj" value="{{ old('cnpj') }}"
+                                   required
+                                   id="cnpj"
+                                   maxlength="18"
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition"
+                                   placeholder="00.000.000/0000-00">
+                            <p class="mt-2 text-xs text-gray-500">Digite o CNPJ do seu estabelecimento</p>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                CEP <span class="text-red-600">*</span>
+                            </label>
+                            <input type="text" name="cep" value="{{ old('cep') }}"
+                                   required
+                                   id="cep"
+                                   maxlength="9"
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition"
+                                   placeholder="00000-000">
+                            <p class="mt-2 text-xs text-gray-500">Digite o CEP e preencheremos o endereço automaticamente</p>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Endereço (Rua/Avenida) <span class="text-red-600">*</span>
+                            </label>
+                            <input type="text" name="street" value="{{ old('street') }}"
+                                   required
+                                   id="street"
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition"
+                                   placeholder="Ex: Rua das Flores">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Número <span class="text-red-600">*</span>
+                            </label>
+                            <input type="text" name="number" value="{{ old('number') }}"
+                                   required
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition"
+                                   placeholder="Ex: 123">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Complemento
+                            </label>
+                            <input type="text" name="complement" value="{{ old('complement') }}"
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition"
+                                   placeholder="Ex: Sala 10, Loja 2">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Bairro <span class="text-red-600">*</span>
+                            </label>
+                            <input type="text" name="neighborhood" value="{{ old('neighborhood') }}"
+                                   required
+                                   id="neighborhood"
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition"
+                                   placeholder="Ex: Centro">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Cidade <span class="text-red-600">*</span>
+                            </label>
+                            <input type="text" name="city" value="{{ old('city') }}"
+                                   required
+                                   id="city"
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition"
+                                   placeholder="Ex: São Paulo">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                Estado <span class="text-red-600">*</span>
+                            </label>
+                            <select name="state" required id="state"
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition">
+                                <option value="">Selecione...</option>
+                                <option value="AC" {{ old('state') == 'AC' ? 'selected' : '' }}>Acre</option>
+                                <option value="AL" {{ old('state') == 'AL' ? 'selected' : '' }}>Alagoas</option>
+                                <option value="AP" {{ old('state') == 'AP' ? 'selected' : '' }}>Amapá</option>
+                                <option value="AM" {{ old('state') == 'AM' ? 'selected' : '' }}>Amazonas</option>
+                                <option value="BA" {{ old('state') == 'BA' ? 'selected' : '' }}>Bahia</option>
+                                <option value="CE" {{ old('state') == 'CE' ? 'selected' : '' }}>Ceará</option>
+                                <option value="DF" {{ old('state') == 'DF' ? 'selected' : '' }}>Distrito Federal</option>
+                                <option value="ES" {{ old('state') == 'ES' ? 'selected' : '' }}>Espírito Santo</option>
+                                <option value="GO" {{ old('state') == 'GO' ? 'selected' : '' }}>Goiás</option>
+                                <option value="MA" {{ old('state') == 'MA' ? 'selected' : '' }}>Maranhão</option>
+                                <option value="MT" {{ old('state') == 'MT' ? 'selected' : '' }}>Mato Grosso</option>
+                                <option value="MS" {{ old('state') == 'MS' ? 'selected' : '' }}>Mato Grosso do Sul</option>
+                                <option value="MG" {{ old('state') == 'MG' ? 'selected' : '' }}>Minas Gerais</option>
+                                <option value="PA" {{ old('state') == 'PA' ? 'selected' : '' }}>Pará</option>
+                                <option value="PB" {{ old('state') == 'PB' ? 'selected' : '' }}>Paraíba</option>
+                                <option value="PR" {{ old('state') == 'PR' ? 'selected' : '' }}>Paraná</option>
+                                <option value="PE" {{ old('state') == 'PE' ? 'selected' : '' }}>Pernambuco</option>
+                                <option value="PI" {{ old('state') == 'PI' ? 'selected' : '' }}>Piauí</option>
+                                <option value="RJ" {{ old('state') == 'RJ' ? 'selected' : '' }}>Rio de Janeiro</option>
+                                <option value="RN" {{ old('state') == 'RN' ? 'selected' : '' }}>Rio Grande do Norte</option>
+                                <option value="RS" {{ old('state') == 'RS' ? 'selected' : '' }}>Rio Grande do Sul</option>
+                                <option value="RO" {{ old('state') == 'RO' ? 'selected' : '' }}>Rondônia</option>
+                                <option value="RR" {{ old('state') == 'RR' ? 'selected' : '' }}>Roraima</option>
+                                <option value="SC" {{ old('state') == 'SC' ? 'selected' : '' }}>Santa Catarina</option>
+                                <option value="SP" {{ old('state') == 'SP' ? 'selected' : '' }}>São Paulo</option>
+                                <option value="SE" {{ old('state') == 'SE' ? 'selected' : '' }}>Sergipe</option>
+                                <option value="TO" {{ old('state') == 'TO' ? 'selected' : '' }}>Tocantins</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -485,6 +600,84 @@
 
         slugInput?.addEventListener('input', function() {
             manualSlug = true;
+        });
+
+        // ========== MÁSCARAS CNPJ E CEP ==========
+
+        // Máscara CNPJ: 00.000.000/0000-00
+        const cnpjInput = document.getElementById('cnpj');
+        cnpjInput?.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length <= 14) {
+                value = value.replace(/^(\d{2})(\d)/, '$1.$2');
+                value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+                value = value.replace(/\.(\d{3})(\d)/, '.$1/$2');
+                value = value.replace(/(\d{4})(\d)/, '$1-$2');
+                e.target.value = value;
+            }
+        });
+
+        // Máscara CEP: 00000-000
+        const cepInput = document.getElementById('cep');
+        cepInput?.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length <= 8) {
+                value = value.replace(/^(\d{5})(\d)/, '$1-$2');
+                e.target.value = value;
+            }
+        });
+
+        // ========== BUSCA AUTOMÁTICA DE CEP (ViaCEP) ==========
+
+        cepInput?.addEventListener('blur', async function() {
+            const cep = this.value.replace(/\D/g, '');
+
+            // Validar CEP (8 dígitos)
+            if (cep.length !== 8) {
+                return;
+            }
+
+            // Mostrar loading nos campos
+            const streetInput = document.getElementById('street');
+            const neighborhoodInput = document.getElementById('neighborhood');
+            const cityInput = document.getElementById('city');
+            const stateInput = document.getElementById('state');
+
+            streetInput.value = 'Buscando...';
+            neighborhoodInput.value = 'Buscando...';
+            cityInput.value = 'Buscando...';
+
+            try {
+                // Buscar CEP na API ViaCEP
+                const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                const data = await response.json();
+
+                if (data.erro) {
+                    alert('CEP não encontrado! Verifique e tente novamente.');
+                    streetInput.value = '';
+                    neighborhoodInput.value = '';
+                    cityInput.value = '';
+                    return;
+                }
+
+                // Preencher campos automaticamente
+                streetInput.value = data.logradouro || '';
+                neighborhoodInput.value = data.bairro || '';
+                cityInput.value = data.localidade || '';
+                stateInput.value = data.uf || '';
+
+                // Focar no campo número
+                document.querySelector('[name="number"]')?.focus();
+
+                console.log('✅ CEP encontrado:', data);
+
+            } catch (error) {
+                console.error('❌ Erro ao buscar CEP:', error);
+                alert('Erro ao buscar CEP. Preencha manualmente.');
+                streetInput.value = '';
+                neighborhoodInput.value = '';
+                cityInput.value = '';
+            }
         });
     </script>
 </body>

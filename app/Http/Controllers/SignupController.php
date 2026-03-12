@@ -45,6 +45,16 @@ class SignupController extends Controller
             'restaurant_phone' => 'required|string|max:20',
             'restaurant_slug' => 'required|string|max:255|unique:tenants,slug|alpha_dash',
 
+            // Endereço e CNPJ
+            'cnpj' => 'required|string|min:14|max:18',
+            'cep' => 'required|string|min:8|max:9',
+            'street' => 'required|string|max:255',
+            'number' => 'required|string|max:20',
+            'complement' => 'nullable|string|max:100',
+            'neighborhood' => 'required|string|max:100',
+            'city' => 'required|string|max:100',
+            'state' => 'required|string|size:2',
+
             // Dados do responsável
             'owner_name' => 'required|string|max:255',
             'owner_email' => 'required|email|unique:platform_users,email',
@@ -68,6 +78,15 @@ class SignupController extends Controller
             'restaurant_slug.unique' => 'Este nome de URL já está em uso.',
             'restaurant_slug.alpha_dash' => 'A URL só pode conter letras, números, hífens e underscores.',
             'owner_password.confirmed' => 'As senhas não conferem.',
+            'cnpj.required' => 'O CNPJ é obrigatório.',
+            'cnpj.min' => 'Digite um CNPJ válido.',
+            'cep.required' => 'O CEP é obrigatório.',
+            'cep.min' => 'Digite um CEP válido.',
+            'street.required' => 'O endereço é obrigatório.',
+            'number.required' => 'O número é obrigatório.',
+            'neighborhood.required' => 'O bairro é obrigatório.',
+            'city.required' => 'A cidade é obrigatória.',
+            'state.required' => 'O estado é obrigatório.',
         ]);
 
         if ($validator->fails()) {
@@ -98,6 +117,18 @@ class SignupController extends Controller
                     'status' => 'trial',
                     'approval_status' => 'pending_approval',
                     'payment_gateway' => 'pagarme',
+
+                    // Endereço e CNPJ
+                    'cnpj' => preg_replace('/\D/', '', $request->cnpj), // Remove formatação
+                    'cep' => preg_replace('/\D/', '', $request->cep),
+                    'street' => $request->street,
+                    'number' => $request->number,
+                    'complement' => $request->complement,
+                    'neighborhood' => $request->neighborhood,
+                    'city' => $request->city,
+                    'state' => $request->state,
+
+                    // Dados bancários (opcional no cadastro inicial)
                     'bank_code' => $request->bank_code,
                     'bank_agency' => $request->bank_agency,
                     'bank_account' => $request->bank_account,

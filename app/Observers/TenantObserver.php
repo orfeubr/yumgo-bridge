@@ -246,6 +246,135 @@ class TenantObserver
                 Log::error("❌ Erro ao atualizar domínio: " . $e->getMessage());
             }
         }
+
+        // Se o plano mudou, sincronizar assinatura automaticamente
+        if ($tenant->isDirty('plan_id')) {
+            $this->syncSubscription($tenant);
+        }
+
+        // Se a logo mudou, sincronizar com settings do tenant
+        if ($tenant->isDirty('logo')) {
+            $this->syncLogoToSettings($tenant);
+        }
+    }
+
+    /**
+     * Sincroniza a logo do tenant para o settings.
+     *
+     * ARQUITETURA PROFISSIONAL (Storage Central):
+     * - Arquivo fica em: /storage/app/public/tenants/logos/xxx.png (storage ÚNICO)
+     * - Apenas o PATH é sincronizado entre tenants.logo → settings.logo
+     * - Não copia arquivos (mantém storage centralizado)
+     *
+     * Vantagens:
+     * - Um único storage para backup
+     * - Fácil migração futura para S3/CDN
+     * - Performance melhor
+     */
+    protected function syncLogoToSettings(Tenant $tenant): void
+    {
+        try {
+            // Inicializar contexto do tenant
+            tenancy()->initialize($tenant);
+
+            // Buscar settings
+            $settings = \App\Models\Settings::first();
+
+            if ($settings) {
+                // Sincronizar apenas o PATH (não copia arquivo físico)
+                $settings->update([
+                    'logo' => $tenant->logo,
+                ]);
+
+                Log::info("✅ Logo path sincronizado", [
+                    'tenant_id' => $tenant->id,
+                    'tenant_name' => $tenant->name,
+                    'logo_path' => $tenant->logo,
+                    'storage' => 'central',
+                ]);
+            } else {
+                Log::warning("⚠️ Settings não encontrado para tenant {$tenant->name}");
+            }
+
+            // Finalizar contexto
+            tenancy()->end();
+
+        } catch (\Exception $e) {
+            Log::error("❌ Erro ao sincronizar logo: " . $e->getMessage());
+            tenancy()->end();
+        }
+    }
+
+    /**
+     * Sincroniza a assinatura quando o plano do tenant é alterado.
+     *
+     * Quando o administrador altera o plano no painel central (TenantResource),
+     * esta função garante que a assinatura na tabela subscriptions seja
+     * atualizada automaticamente para refletir a mudança.
+     */
+    protected function syncSubscription(Tenant $tenant): void
+    {
+        try {
+            // Se não tem plano configurado, não fazer nada
+            if (!$tenant->plan_id) {
+                Log::info("ℹ️ Tenant {$tenant->name} sem plano configurado, pulando sincronização de assinatura");
+                return;
+            }
+
+            $plan = $tenant->plan;
+            if (!$plan) {
+                Log::warning("⚠️ Plano ID {$tenant->plan_id} não encontrado para tenant {$tenant->name}");
+                return;
+            }
+
+            // Buscar assinatura ativa existente
+            $activeSubscription = \App\Models\Subscription::where('tenant_id', $tenant->id)
+                ->whereIn('status', ['active', 'trialing'])
+                ->first();
+
+            if ($activeSubscription) {
+                // Atualizar assinatura existente
+                $oldPlanId = $activeSubscription->plan_id;
+                $activeSubscription->update([
+                    'plan_id' => $plan->id,
+                    'amount' => $plan->price_monthly,
+                ]);
+
+                Log::info("✅ Assinatura atualizada automaticamente", [
+                    'tenant_id' => $tenant->id,
+                    'tenant_name' => $tenant->name,
+                    'subscription_id' => $activeSubscription->id,
+                    'old_plan_id' => $oldPlanId,
+                    'new_plan_id' => $plan->id,
+                    'new_plan_name' => $plan->name,
+                    'new_amount' => $plan->price_monthly,
+                ]);
+            } else {
+                // Criar nova assinatura
+                $subscription = \App\Models\Subscription::create([
+                    'tenant_id' => $tenant->id,
+                    'plan_id' => $plan->id,
+                    'status' => 'active',
+                    'amount' => $plan->price_monthly,
+                    'starts_at' => now(),
+                    'ends_at' => null,
+                    'trial_ends_at' => $plan->trial_period_days > 0 ? now()->addDays($plan->trial_period_days) : null,
+                    'next_billing_date' => now()->addMonth(),
+                ]);
+
+                Log::info("✅ Assinatura criada automaticamente", [
+                    'tenant_id' => $tenant->id,
+                    'tenant_name' => $tenant->name,
+                    'subscription_id' => $subscription->id,
+                    'plan_id' => $plan->id,
+                    'plan_name' => $plan->name,
+                    'amount' => $plan->price_monthly,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error("❌ Erro ao sincronizar assinatura para tenant {$tenant->id}: " . $e->getMessage());
+            // Não bloqueia a atualização do tenant se falhar
+        }
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Tenant;
 use App\Models\Plan;
+use App\Models\PlatformSetting;
 use Illuminate\Http\Request;
 
 class MarketplaceController extends Controller
@@ -63,8 +64,8 @@ class MarketplaceController extends Controller
             'search' => $request->search ?? '',
             'hasLocation' => $clientLat && $clientLon,
             'platformSettings' => (object)[
-                'platform_name' => config('app.name', 'YumGo'),
-                'platform_logo' => null,
+                'platform_name' => PlatformSetting::get('platform_name', config('app.name', 'YumGo')),
+                'platform_logo' => PlatformSetting::get('logo'),
             ],
         ]);
     }

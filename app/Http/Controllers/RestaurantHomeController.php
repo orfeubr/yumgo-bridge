@@ -239,6 +239,7 @@ class RestaurantHomeController extends Controller
             'minimumOrderValue' => $minimumOrderValue,
             'todayProductIds' => $todayProductIds ?? [],
             'settings' => $settings,
+            'tenant' => $tenant, // ✅ Passando tenant para a view
         ]);
     }
 }

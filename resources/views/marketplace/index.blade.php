@@ -49,8 +49,8 @@
             <div class="flex items-center justify-between h-16">
                 <!-- Logo -->
                 <a href="/" class="flex items-center">
-                    @if(isset($platformSettings) && $platformSettings->platform_logo && file_exists(public_path('logo.png')))
-                        <img src="{{ asset('logo.png') }}?v={{ filemtime(public_path('logo.png')) }}"
+                    @if(isset($platformSettings) && $platformSettings->platform_logo)
+                        <img src="{{ url('storage/' . $platformSettings->platform_logo) }}"
                              alt="{{ $platformSettings->platform_name }}"
                              class="h-16 md:h-20 max-w-[280px] object-contain">
                     @else

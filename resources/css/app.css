@@ -9,3 +9,34 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* ============================================
+   YumGo Loading Spinner (Estilo iFood)
+   ============================================ */
+
+.yumgo-spinner {
+    display: inline-block;
+    position: relative;
+}
+
+.yumgo-spinner:after {
+    content: " ";
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 6px solid #EA1D2C;
+    border-color: #EA1D2C transparent #EA1D2C transparent;
+    animation: yumgo-dual-ring 1.2s linear infinite;
+    box-shadow: 0 4px 6px -1px rgba(234, 29, 44, 0.1),
+                0 2px 4px -1px rgba(234, 29, 44, 0.06);
+}
+
+@keyframes yumgo-dual-ring {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}

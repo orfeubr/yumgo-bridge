@@ -182,20 +182,29 @@ class ManageSettings extends EditRecord
 
         // Verificar se é uma solicitação de geração de token
         if (request()->has('generateToken')) {
-            // Revogar tokens existentes do bridge primeiro
-            $user->tokens()->where('name', 'bridge-app')->delete();
+            try {
+                // Revogar tokens existentes do bridge primeiro
+                $user->tokens()->where('name', 'bridge-app')->delete();
 
-            // Criar novo token com validade de 1 ano
-            $token = $user->createToken('bridge-app', ['*'], now()->addYear())->plainTextToken;
+                // Criar novo token com validade de 1 ano
+                $token = $user->createToken('bridge-app', ['*'], now()->addYear())->plainTextToken;
 
-            // Mostrar notificação com o token (só será exibido uma vez)
-            Notification::make()
-                ->title('🔑 Token Gerado com Sucesso!')
-                ->success()
-                ->body("**IMPORTANTE:** Copie este token AGORA (ele só será exibido uma vez):\n\n`{$token}`")
-                ->persistent()
-                ->duration(null) // Não fecha automaticamente
-                ->send();
+                // Mostrar notificação com o token (só será exibido uma vez)
+                Notification::make()
+                    ->title('🔑 Token Gerado com Sucesso!')
+                    ->success()
+                    ->body("**IMPORTANTE:** Copie este token AGORA (ele só será exibido uma vez):\n\n`{$token}`")
+                    ->persistent()
+                    ->duration(null) // Não fecha automaticamente
+                    ->send();
+            } catch (\Exception $e) {
+                // ❌ Tabela personal_access_tokens não existe no schema tenant
+                Notification::make()
+                    ->title('❌ Erro ao Gerar Token')
+                    ->danger()
+                    ->body('A tabela de tokens não está configurada neste restaurante. Entre em contato com o suporte.')
+                    ->send();
+            }
 
             // Redirecionar para remover o parâmetro da URL (usando JS)
             $this->js("window.history.replaceState({}, '', window.location.pathname)");
@@ -204,15 +213,24 @@ class ManageSettings extends EditRecord
 
         // Verificar se é uma solicitação de revogação de token
         if (request()->has('revokeToken')) {
-            $deletedCount = $user->tokens()->where('name', 'bridge-app')->delete();
+            try {
+                $deletedCount = $user->tokens()->where('name', 'bridge-app')->delete();
 
-            Notification::make()
-                ->title('🗑️ Token Revogado')
-                ->success()
-                ->body($deletedCount > 0
-                    ? 'O token do YumGo Bridge foi revogado com sucesso. O aplicativo não poderá mais se conectar.'
-                    : 'Nenhum token ativo foi encontrado.')
-                ->send();
+                Notification::make()
+                    ->title('🗑️ Token Revogado')
+                    ->success()
+                    ->body($deletedCount > 0
+                        ? 'O token do YumGo Bridge foi revogado com sucesso. O aplicativo não poderá mais se conectar.'
+                        : 'Nenhum token ativo foi encontrado.')
+                    ->send();
+            } catch (\Exception $e) {
+                // ❌ Tabela personal_access_tokens não existe no schema tenant
+                Notification::make()
+                    ->title('⚠️ Nenhum Token Encontrado')
+                    ->warning()
+                    ->body('Não há tokens ativos para revogar.')
+                    ->send();
+            }
 
             // Redirecionar para remover o parâmetro da URL (usando JS)
             $this->js("window.history.replaceState({}, '', window.location.pathname)");

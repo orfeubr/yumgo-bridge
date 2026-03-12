@@ -11,15 +11,15 @@ class AdminUserSeeder extends Seeder
     public function run(): void
     {
         User::updateOrCreate(
-            ['email' => 'admin@deliverypro.com.br'],
+            ['email' => 'admin@yumgo.com.br'],
             [
-                'name' => 'Admin DeliveryPro',
-                'email' => 'admin@deliverypro.com.br',
+                'name' => 'Admin YumGo',
+                'email' => 'admin@yumgo.com.br',
                 'password' => Hash::make('admin123'),
                 'email_verified_at' => now(),
             ]
         );
-        
-        echo "✅ Admin user criado: admin@deliverypro.com.br / admin123\n";
+
+        echo "✅ Admin user criado: admin@yumgo.com.br / admin123\n";
     }
 }

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Spinner YumGo</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: #f5f5f5;
+            font-family: Arial, sans-serif;
+            gap: 40px;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        h1 {
+            color: #EA1D2C;
+            margin-bottom: 30px;
+        }
+
+        /* ============================================
+           🔄 NOVO SPINNER - Jumping Dots
+           ============================================ */
+        .yumgo-spinner {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .yumgo-spinner > div {
+            width: 12px;
+            height: 12px;
+            background-color: #EA1D2C;
+            border-radius: 50%;
+            animation: yumgo-bounce 1.4s infinite ease-in-out both;
+            box-shadow: 0 2px 8px rgba(234, 29, 44, 0.3);
+        }
+
+        .yumgo-spinner > div:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .yumgo-spinner > div:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes yumgo-bounce {
+            0%, 80%, 100% {
+                transform: scale(0.8) translateY(0);
+                opacity: 0.7;
+            }
+            40% {
+                transform: scale(1.2) translateY(-12px);
+                opacity: 1;
+            }
+        }
+
+        .description {
+            margin-top: 30px;
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .description strong {
+            color: #EA1D2C;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✨ Novo Spinner YumGo</h1>
+
+        <div class="yumgo-spinner">
+            <div></div>
+            <div></div>
+            <div></div>
+        </div>
+
+        <div class="description">
+            <strong>Você deve ver:</strong><br>
+            3 bolinhas vermelhas pulando pra cima e pra baixo<br>
+            (estilo Uber Eats / WhatsApp)
+        </div>
+    </div>
+
+    <div class="container">
+        <h3>Se você vê 3 bolinhas pulando = ✅ Funcionando!</h3>
+        <h3>Se você vê um círculo girando = ❌ Cache do navegador</h3>
+    </div>
+</body>
+</html>

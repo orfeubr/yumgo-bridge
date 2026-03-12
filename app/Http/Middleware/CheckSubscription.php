@@ -46,30 +46,40 @@ class CheckSubscription
 
         // Se não tem assinatura ativa, bloquear acesso
         if (!$subscription) {
-            // Se for requisição JSON (API), retornar 402
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'message' => 'Assinatura inativa. Entre em contato com o suporte.',
-                    'error' => 'subscription_required',
-                ], 402);
+            // Permitir acesso à página de gerenciar assinatura
+            if (!$request->routeIs('filament.restaurant.pages.manage-subscription')) {
+                // Se for requisição JSON (API), retornar 402
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'message' => 'Assinatura inativa. Entre em contato com o suporte.',
+                        'error' => 'subscription_required',
+                    ], 402);
+                }
+
+                // Se for web, redirecionar para página de assinatura vencida
+                return redirect()->route('filament.restaurant.pages.manage-subscription')
+                    ->with('error', 'Sua assinatura está inativa. Renove para continuar usando o sistema.');
             }
 
-            // Se for web, redirecionar para página de assinatura vencida
-            return redirect()->route('filament.restaurant.pages.manage-subscription')
-                ->with('error', 'Sua assinatura está inativa. Renove para continuar usando o sistema.');
+            return $next($request);
         }
 
         // Se assinatura está vencida (past_due), bloquear
         if ($subscription->status === 'past_due') {
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'message' => 'Pagamento em atraso. Regularize para continuar.',
-                    'error' => 'payment_overdue',
-                ], 402);
+            // Permitir acesso à página de gerenciar assinatura
+            if (!$request->routeIs('filament.restaurant.pages.manage-subscription')) {
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'message' => 'Pagamento em atraso. Regularize para continuar.',
+                        'error' => 'payment_overdue',
+                    ], 402);
+                }
+
+                return redirect()->route('filament.restaurant.pages.manage-subscription')
+                    ->with('error', 'Pagamento em atraso. Regularize sua assinatura para continuar.');
             }
 
-            return redirect()->route('filament.restaurant.pages.manage-subscription')
-                ->with('error', 'Pagamento em atraso. Regularize sua assinatura para continuar.');
+            return $next($request);
         }
 
         // Adicionar subscription no request para uso posterior

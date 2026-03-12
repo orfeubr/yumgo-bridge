@@ -97,9 +97,9 @@ class CashbackController extends Controller
         // Calcular cashback
         $willEarn = ($orderTotal * $percentage) / 100;
 
-        // Verificar se é aniversário do cliente
+        // Verificar se é aniversário do cliente (apenas se customer existir)
         $isBirthday = false;
-        if ($settings->birthday_bonus_enabled && $customer->birth_date) {
+        if ($customer && $settings->birthday_bonus_enabled && $customer->birth_date) {
             $today = now()->format('m-d');
             $birthDay = $customer->birth_date->format('m-d');
             $isBirthday = ($today === $birthDay);

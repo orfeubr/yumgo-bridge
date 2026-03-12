@@ -1,4 +1,4 @@
-# 🚀 Guia de Instalação - DeliveryPro
+# 🚀 Guia de Instalação - YumGo
 
 ## Requisitos
 

@@ -15,7 +15,7 @@
     <meta name="theme-color" content="#EA1D2C">
     <link rel="manifest" href="/manifest.json">
     @if($settings && $settings->logo)
-    <link rel="apple-touch-icon" href="{{ route('stancl.tenancy.asset', ['path' => $settings->logo]) }}">
+    <link rel="apple-touch-icon" href="{{ url('storage/' . $settings->logo) }}">
     @endif
 
     <!-- 🔥 OAuth Auto-Login - EXECUTA PRIMEIRO! -->
@@ -118,6 +118,16 @@
         @keyframes loading {
             0% { background-position: 200% 0; }
             100% { background-position: -200% 0; }
+        }
+
+        /* Animação Minimalista - Estilo Uber Eats/WhatsApp */
+        @keyframes yumgo-jump {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-12px);
+            }
         }
 
         /* Header fixo no topo */
@@ -244,38 +254,75 @@
 </head>
 <body class="bg-gray-50 min-h-screen" x-data="restaurantApp()">
 
-    <!-- 🔄 Loading Screen Animado -->
+    <!-- 🔄 Loading Screen - Jumping Dots (Estilo Moderno) -->
     <div x-show="pageLoading" x-cloak x-transition.opacity class="fixed inset-0 bg-white z-[99999] flex items-center justify-center">
         <div class="text-center">
-            <!-- Animação de Moto de Delivery -->
-            <div class="relative w-32 h-32 mx-auto mb-6">
-                <!-- Moto animada -->
-                <div class="absolute inset-0 flex items-center justify-center">
-                    <svg class="w-24 h-24 text-red-500 animate-bounce" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 2L14 8H18L14.5 11L16 16L12 13L8 16L9.5 11L6 8H10L12 2Z"/>
-                        <circle cx="8" cy="18" r="2" class="animate-spin" style="transform-origin: center;"/>
-                        <circle cx="16" cy="18" r="2" class="animate-spin" style="transform-origin: center;"/>
+            <!-- 3 Bolinhas Pulando (Minimalista) -->
+            <div class="flex items-center justify-center gap-2 mb-6">
+                <div class="w-3 h-3 bg-red-500 rounded-full" style="animation: yumgo-jump 0.6s infinite ease-in-out; animation-delay: 0s;"></div>
+                <div class="w-3 h-3 bg-red-500 rounded-full" style="animation: yumgo-jump 0.6s infinite ease-in-out; animation-delay: 0.1s;"></div>
+                <div class="w-3 h-3 bg-red-500 rounded-full" style="animation: yumgo-jump 0.6s infinite ease-in-out; animation-delay: 0.2s;"></div>
+            </div>
+
+            <!-- Texto -->
+            <h3 class="text-xl font-semibold text-gray-600">Preparando seu cardápio</h3>
+        </div>
+    </div>
+
+    <!-- 📱 PWA Install Banner (Aparece após 3 segundos) -->
+    <div x-show="showPWABanner"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-4"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 translate-y-4"
+         class="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:max-w-sm z-[9999] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+
+        <!-- Conteúdo -->
+        <div class="p-5">
+            <div class="flex items-start gap-4">
+                <!-- Ícone do App -->
+                <div class="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                     </svg>
                 </div>
 
-                <!-- Prato com comida girando -->
-                <div class="absolute inset-0 flex items-center justify-center">
-                    <div class="w-20 h-20 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center shadow-lg animate-pulse">
-                        <span class="text-4xl animate-spin" style="animation-duration: 2s;">🍽️</span>
+                <!-- Texto -->
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-base font-bold text-gray-900 mb-1">
+                        📱 Instalar YumGo
+                    </h3>
+                    <p class="text-sm text-gray-600 mb-3">
+                        Acesso rápido, notificações e pedidos offline!
+                    </p>
+
+                    <!-- Botões -->
+                    <div class="flex gap-2">
+                        <button @click="installPWA()"
+                                class="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold text-sm rounded-lg transition-smooth">
+                            Instalar Agora
+                        </button>
+                        <button @click="dismissPWABanner()"
+                                class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium text-sm rounded-lg transition-smooth">
+                            Agora não
+                        </button>
                     </div>
                 </div>
-            </div>
 
-            <!-- Texto com pontos animados -->
-            <div class="space-y-2">
-                <h3 class="text-2xl font-bold text-gray-800">Preparando seu cardápio</h3>
-                <div class="flex items-center justify-center gap-1">
-                    <div class="w-2 h-2 bg-red-500 rounded-full animate-bounce" style="animation-delay: 0s;"></div>
-                    <div class="w-2 h-2 bg-red-500 rounded-full animate-bounce" style="animation-delay: 0.2s;"></div>
-                    <div class="w-2 h-2 bg-red-500 rounded-full animate-bounce" style="animation-delay: 0.4s;"></div>
-                </div>
+                <!-- Botão Fechar -->
+                <button @click="dismissPWABanner()"
+                        class="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-smooth">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
             </div>
         </div>
+
+        <!-- Barra de Cor -->
+        <div class="h-1 bg-gradient-to-r from-red-500 to-red-600"></div>
     </div>
 
     <!-- Header -->
@@ -285,7 +332,7 @@
             <div class="flex justify-between items-center mb-3">
                 <div class="flex items-center gap-4">
                     @if($settings?->logo)
-                    <img src="{{ route('stancl.tenancy.asset', ['path' => $settings->logo]) }}" class="h-20 w-20 md:h-24 md:w-24 rounded-2xl object-cover shadow-lg ring-2 ring-gray-100">
+                    <img src="{{ url('storage/' . $settings->logo) }}" class="h-20 w-20 md:h-24 md:w-24 rounded-2xl object-cover shadow-lg ring-2 ring-gray-100">
                     @else
                     <div class="h-20 w-20 md:h-24 md:w-24 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center text-4xl shadow-lg">🍽️</div>
                     @endif
@@ -1515,6 +1562,9 @@
     function restaurantApp(){
         return{
             pageLoading:true,
+            // PWA Install Banner
+            showPWABanner: false,
+            deferredPWAPrompt: null,
             cart:[],
             showCart:false,
             suggestedProductsForCart: [],
@@ -1635,6 +1685,57 @@
 
                 // Finalizar loading
                 setTimeout(() => { this.pageLoading = false; }, 300);
+
+                // 📱 PWA Install Prompt
+                this.initPWA();
+            },
+
+            // PWA Methods
+            initPWA() {
+                // Capturar evento de instalação
+                window.addEventListener('beforeinstallprompt', (e) => {
+                    e.preventDefault();
+                    this.deferredPWAPrompt = e;
+
+                    // Mostrar banner após 3 segundos (se não instalou ainda)
+                    const pwaInstalled = localStorage.getItem('pwa_installed');
+                    const pwaDismissed = localStorage.getItem('pwa_dismissed');
+
+                    if (!pwaInstalled && !pwaDismissed) {
+                        setTimeout(() => {
+                            this.showPWABanner = true;
+                        }, 3000);
+                    }
+                });
+
+                // Detectar se já foi instalado
+                window.addEventListener('appinstalled', () => {
+                    localStorage.setItem('pwa_installed', 'true');
+                    this.showPWABanner = false;
+                    this.showNotification('App instalado com sucesso! 🎉', 'success');
+                });
+            },
+
+            async installPWA() {
+                if (!this.deferredPWAPrompt) return;
+
+                this.deferredPWAPrompt.prompt();
+                const { outcome } = await this.deferredPWAPrompt.userChoice;
+
+                if (outcome === 'accepted') {
+                    localStorage.setItem('pwa_installed', 'true');
+                    this.showNotification('Instalando app...', 'success');
+                } else {
+                    localStorage.setItem('pwa_dismissed', 'true');
+                }
+
+                this.deferredPWAPrompt = null;
+                this.showPWABanner = false;
+            },
+
+            dismissPWABanner() {
+                this.showPWABanner = false;
+                localStorage.setItem('pwa_dismissed', 'true');
             },
 
             async loadSuggestedProducts() {
@@ -2298,7 +2399,7 @@
             <div class="flex items-center justify-between gap-4">
                 <div class="flex items-center gap-3 flex-1">
                     @if($settings && $settings->logo)
-                    <img src="{{ route('stancl.tenancy.asset', ['path' => $settings->logo]) }}" alt="Logo" class="w-12 h-12 rounded-lg object-cover">
+                    <img src="{{ url('storage/' . $settings->logo) }}" alt="Logo" class="w-12 h-12 rounded-lg object-cover">
                     @endif
                     <div>
                         <p class="font-bold text-gray-900">Instalar {{ $settings->restaurant_name ?? tenant('name') }}</p>
