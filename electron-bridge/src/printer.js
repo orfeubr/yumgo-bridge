@@ -3,6 +3,9 @@ const USB = require('escpos-usb');
 const Network = require('escpos-network');
 const log = require('electron-log');
 const fs = require('fs');
+const { exec } = require('child_process'); // Impressão nativa via comandos do SO
+const os = require('os');
+const path = require('path');
 
 class ThermalPrinter {
     constructor() {
@@ -48,7 +51,7 @@ class ThermalPrinter {
     }
 
     /**
-     * Imprimir pedido (v1.7.0 - suporte a múltiplas cópias)
+     * Imprimir pedido (v2.1.0 - suporte a impressoras do sistema)
      */
     async printOrder(orderData, location) {
         const printerObj = this.printers[location];
@@ -58,21 +61,16 @@ class ThermalPrinter {
         }
 
         const { config } = printerObj;
-
-        // VALIDAÇÃO: Impressoras do sistema ainda não suportadas para impressão
-        if (config.type === 'system') {
-            throw new Error(
-                `❌ Impressão em "${config.printerName}" ainda não suportada.\n\n` +
-                `Impressoras do sistema (Canon, PDF, etc) requerem impressão nativa.\n` +
-                `Use uma impressora térmica USB ou de Rede para pedidos.\n\n` +
-                `🔧 Em breve: suporte para impressoras do sistema!`
-            );
-        }
-
         const copies = config.copies || 1;
 
         log.info(`Imprimindo ${copies} cópia(s) do pedido #${orderData.order_number} em ${location}`);
 
+        // v2.1.0: Suporte a impressoras do sistema (Windows/macOS/Linux)
+        if (config.type === 'system') {
+            return this.printSystemPrinter(orderData, location, copies);
+        }
+
+        // Impressoras térmicas USB/Network (comportamento original)
         return new Promise((resolve, reject) => {
             const { device, printer } = printerObj;
 
@@ -84,7 +82,7 @@ class ThermalPrinter {
                 }
 
                 try {
-                    // Imprimir múltiplas cópias (v1.7.0)
+                    // Imprimir múltiplas cópias
                     for (let i = 0; i < copies; i++) {
                         this.printReceipt(printer, orderData, location, i + 1, copies);
                     }
@@ -104,7 +102,229 @@ class ThermalPrinter {
     }
 
     /**
-     * Gerar recibo formatado (v1.7.0 - configurações avançadas)
+     * Imprimir em impressora do sistema (Windows/macOS/Linux) - v2.1.0
+     * Usa comandos nativos do SO (sem dependências node-gyp)
+     */
+    async printSystemPrinter(orderData, location, copies) {
+        const printerObj = this.printers[location];
+        const { config } = printerObj;
+        const printerName = config.printerName;
+
+        return new Promise((resolve, reject) => {
+            try {
+                // Gerar texto formatado do pedido
+                const receiptText = this.generateTextReceipt(orderData, location);
+
+                // Criar arquivo temporário com o texto
+                const tempDir = os.tmpdir();
+                const tempFile = path.join(tempDir, `yumgo-${orderData.order_number}-${Date.now()}.txt`);
+
+                fs.writeFileSync(tempFile, receiptText, 'utf8');
+                log.info(`Arquivo temporário criado: ${tempFile}`);
+
+                // Comando de impressão baseado no SO
+                let printCommand;
+
+                if (process.platform === 'win32') {
+                    // Windows: usar PRINT comando
+                    printCommand = `print /D:"${printerName}" "${tempFile}"`;
+                } else if (process.platform === 'darwin') {
+                    // macOS: usar lp
+                    printCommand = `lp -d "${printerName}" "${tempFile}"`;
+                } else {
+                    // Linux: usar lp ou lpr
+                    printCommand = `lp -d "${printerName}" "${tempFile}"`;
+                }
+
+                // Imprimir múltiplas cópias
+                let printsCompleted = 0;
+
+                for (let i = 0; i < copies; i++) {
+                    exec(printCommand, (error, stdout, stderr) => {
+                        if (error) {
+                            log.error(`Erro ao imprimir em "${printerName}":`, error);
+                            log.error(`stderr: ${stderr}`);
+                            reject(error);
+                            return;
+                        }
+
+                        printsCompleted++;
+                        log.info(`Cópia ${printsCompleted}/${copies} do pedido #${orderData.order_number} enviada para "${printerName}"`);
+
+                        // Quando todas as cópias forem impressas
+                        if (printsCompleted === copies) {
+                            // Aguardar 2 segundos antes de deletar (dar tempo da impressora processar)
+                            setTimeout(() => {
+                                try {
+                                    fs.unlinkSync(tempFile);
+                                    log.info(`Arquivo temporário removido: ${tempFile}`);
+                                } catch (unlinkError) {
+                                    log.warn(`Não foi possível remover arquivo temporário: ${unlinkError.message}`);
+                                }
+                            }, 2000);
+
+                            log.info(`✅ ${copies} cópia(s) do pedido #${orderData.order_number} impressa(s) em "${printerName}"`);
+                            resolve();
+                        }
+                    });
+                }
+
+            } catch (error) {
+                log.error(`Erro ao gerar impressão para "${printerName}":`, error);
+                reject(error);
+            }
+        });
+    }
+
+    /**
+     * Gerar recibo formatado em texto puro (para impressoras do sistema) - v2.1.0
+     */
+    generateTextReceipt(order, location) {
+        const config = this.printers[location]?.config || {};
+        const paperWidth = config.paperWidth || 80;
+        const charsPerLine = paperWidth === 58 ? 32 : 48;
+
+        let text = '';
+
+        // Cabeçalho
+        text += this.centerText('NOVO PEDIDO', charsPerLine) + '\n';
+        text += '\n';
+
+        // Tipo de impressão
+        const title = this.getLocationTitle(location).replace(/=/g, '');
+        text += this.centerText(title, charsPerLine) + '\n';
+        text += this.line(charsPerLine, '-') + '\n';
+        text += '\n';
+
+        // Número do pedido
+        text += `PEDIDO #${order.order_number}\n`;
+        text += '\n';
+
+        // Data/Hora
+        const date = new Date(order.created_at);
+        text += `Data: ${date.toLocaleDateString('pt-BR')} ${date.toLocaleTimeString('pt-BR')}\n`;
+
+        // Tipo de entrega
+        const deliveryType = order.delivery.method === 'delivery' ? 'DELIVERY' : 'RETIRADA';
+        text += `Tipo: ${deliveryType}\n`;
+        text += this.line(charsPerLine, '-') + '\n';
+
+        // Cliente
+        text += 'CLIENTE:\n';
+        text += `${order.customer.name}\n`;
+        if (order.customer.phone) {
+            text += `Tel: ${order.customer.phone}\n`;
+        }
+
+        // Endereço (se delivery)
+        if (order.delivery.method === 'delivery' && order.delivery.address) {
+            text += '\n';
+            text += 'ENDERECO:\n';
+            text += `${order.delivery.address}\n`;
+            if (order.delivery.neighborhood) {
+                text += `Bairro: ${order.delivery.neighborhood}\n`;
+            }
+            if (order.delivery.reference) {
+                text += `Ref: ${order.delivery.reference}\n`;
+            }
+        }
+
+        text += this.line(charsPerLine, '-') + '\n';
+
+        // Itens do pedido
+        text += 'ITENS:\n';
+        text += '\n';
+
+        order.items.forEach(item => {
+            // Filtrar por localização se necessário
+            if (location !== 'counter') {
+                const itemLocation = item.print_location || 'kitchen';
+                if (itemLocation !== location && itemLocation !== 'both') {
+                    return;
+                }
+            }
+
+            // Nome do produto
+            text += `${item.quantity}x ${item.name.toUpperCase()}\n`;
+
+            // Variações
+            if (item.variations && Object.keys(item.variations).length > 0) {
+                Object.entries(item.variations).forEach(([key, value]) => {
+                    text += `  - ${key}: ${value}\n`;
+                });
+            }
+
+            // Adicionais
+            if (item.addons && item.addons.length > 0) {
+                item.addons.forEach(addon => {
+                    const addonName = typeof addon === 'object' ? addon.name : addon;
+                    text += `  + ${addonName}\n`;
+                });
+            }
+
+            // Observações
+            if (item.notes) {
+                text += `  OBS: ${item.notes}\n`;
+            }
+
+            text += '\n';
+        });
+
+        text += this.line(charsPerLine, '-') + '\n';
+
+        // Observações gerais
+        if (order.notes) {
+            text += 'OBSERVACOES GERAIS:\n';
+            text += `${order.notes}\n`;
+            text += this.line(charsPerLine, '-') + '\n';
+        }
+
+        // Totais (apenas balcão)
+        if (location === 'counter') {
+            text += this.formatLine('Subtotal:', `R$ ${order.totals.subtotal.toFixed(2)}`, charsPerLine) + '\n';
+
+            if (order.totals.delivery_fee > 0) {
+                text += this.formatLine('Taxa Entrega:', `R$ ${order.totals.delivery_fee.toFixed(2)}`, charsPerLine) + '\n';
+            }
+
+            if (order.totals.discount > 0) {
+                text += this.formatLine('Desconto:', `- R$ ${order.totals.discount.toFixed(2)}`, charsPerLine) + '\n';
+            }
+
+            text += this.line(charsPerLine, '-') + '\n';
+            text += this.formatLine('TOTAL:', `R$ ${order.totals.total.toFixed(2)}`, charsPerLine) + '\n';
+            text += '\n';
+
+            // Forma de pagamento
+            const paymentMethod = this.getPaymentMethodName(order.payment.method);
+            text += this.formatLine('Pagamento:', paymentMethod, charsPerLine) + '\n';
+
+            if (order.payment.status === 'paid') {
+                text += 'Status: PAGO\n';
+            }
+        }
+
+        // Rodapé
+        text += '\n';
+        text += this.centerText(this.line(charsPerLine, '='), charsPerLine) + '\n';
+        text += this.centerText(new Date().toLocaleString('pt-BR'), charsPerLine) + '\n';
+        text += this.centerText('Impresso via YumGo Bridge', charsPerLine) + '\n';
+        text += this.centerText(this.line(charsPerLine, '='), charsPerLine) + '\n';
+        text += '\n\n\n';
+
+        return text;
+    }
+
+    /**
+     * Centralizar texto
+     */
+    centerText(text, width) {
+        const spaces = Math.floor((width - text.length) / 2);
+        return ' '.repeat(Math.max(0, spaces)) + text;
+    }
+
+    /**
+     * Gerar recibo formatado ESC/POS (v1.7.0 - configurações avançadas)
      */
     printReceipt(printer, order, location, copyNumber = 1, totalCopies = 1) {
         const config = this.printers[location].config;

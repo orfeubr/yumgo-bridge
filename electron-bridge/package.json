@@ -1,7 +1,7 @@
 {
   "name": "yumgo-bridge",
   "productName": "YumGo Bridge",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "App local para impressão automática de pedidos YumGo",
   "main": "src/main.js",
   "author": "YumGo",
@@ -28,7 +28,7 @@
     "electron-store": "^8.2.0",
     "electron-updater": "^6.1.7",
     "escpos": "^3.0.0-alpha.6",
-    "escpos-network": "^3.0.0-alpha.1",
+    "escpos-network": "^3.0.0-alpha.5",
     "escpos-usb": "^3.0.0-alpha.4",
     "laravel-echo": "^1.16.1",
     "pusher-js": "^8.4.0-rc2",
