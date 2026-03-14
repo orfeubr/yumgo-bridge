@@ -126,8 +126,8 @@ class ThermalPrinter {
                 let printCommand;
 
                 if (process.platform === 'win32') {
-                    // Windows: usar PRINT comando
-                    printCommand = `print /D:"${printerName}" "${tempFile}"`;
+                    // Windows: usar PowerShell Out-Printer (mais confiável que PRINT)
+                    printCommand = `powershell.exe -Command "Out-Printer -Name '${printerName}' -InputObject (Get-Content -Path '${tempFile}' -Raw)"`;
                 } else if (process.platform === 'darwin') {
                     // macOS: usar lp
                     printCommand = `lp -d "${printerName}" "${tempFile}"`;
