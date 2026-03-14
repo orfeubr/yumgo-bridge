@@ -324,7 +324,6 @@ class ThermalPrinter {
         // Rodapé profissional
         text += '\n';
         text += this.line(charsPerLine, '=') + '\n';
-        text += this.centerText(new Date().toLocaleString('pt-BR'), charsPerLine) + '\n';
         text += this.centerText('Impresso via YumGo Bridge', charsPerLine) + '\n';
         text += this.line(charsPerLine, '=') + '\n';
         text += '\n\n\n';
