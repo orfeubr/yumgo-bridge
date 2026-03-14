@@ -182,7 +182,18 @@ class ThermalPrinter {
     generateTextReceipt(order, location) {
         const config = this.printers[location]?.config || {};
         const paperWidth = config.paperWidth || 80;
-        const charsPerLine = paperWidth === 58 ? 32 : 48;
+
+        // Cálculo dinâmico de caracteres por linha
+        // 58mm ~= 42 chars | 80mm ~= 48 chars | Outros tamanhos proporcionais
+        let charsPerLine;
+        if (paperWidth <= 58) {
+            charsPerLine = 42; // 58mm - aproveita melhor o papel
+        } else if (paperWidth <= 80) {
+            charsPerLine = 48; // 80mm padrão
+        } else {
+            // Para tamanhos maiores (ex: 110mm), calcular proporcionalmente
+            charsPerLine = Math.floor(paperWidth * 0.6); // ~60% da largura em chars
+        }
 
         let text = '';
 
