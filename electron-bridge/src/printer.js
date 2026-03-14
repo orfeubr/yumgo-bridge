@@ -184,10 +184,10 @@ class ThermalPrinter {
         const paperWidth = config.paperWidth || 80;
 
         // Cálculo dinâmico de caracteres por linha
-        // 58mm ~= 42 chars | 80mm ~= 48 chars | Outros tamanhos proporcionais
+        // 58mm ~= 48 chars | 80mm ~= 48 chars | Outros tamanhos proporcionais
         let charsPerLine;
         if (paperWidth <= 58) {
-            charsPerLine = 42; // 58mm - aproveita melhor o papel
+            charsPerLine = 48; // 58mm - largura máxima (fonte pequena)
         } else if (paperWidth <= 80) {
             charsPerLine = 48; // 80mm padrão
         } else {
