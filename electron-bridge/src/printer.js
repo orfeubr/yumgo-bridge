@@ -197,55 +197,53 @@ class ThermalPrinter {
 
         let text = '';
 
-        // Cabeçalho
-        text += this.centerText('NOVO PEDIDO', charsPerLine) + '\n';
+        // ═══ CABEÇALHO PROFISSIONAL ═══
+        text += this.line(charsPerLine, '=') + '\n';
+
+        const title = this.getLocationTitle(location).replace(/=/g, '').trim();
+        text += this.centerText(`** NOVO PEDIDO - ${title} **`, charsPerLine) + '\n';
+
+        text += this.line(charsPerLine, '=') + '\n';
         text += '\n';
 
-        // Tipo de impressão
-        const title = this.getLocationTitle(location).replace(/=/g, '');
-        text += this.centerText(title, charsPerLine) + '\n';
-        text += this.line(charsPerLine, '-') + '\n';
-        text += '\n';
-
-        // Número do pedido
-        text += `PEDIDO #${order.order_number}\n`;
-        text += '\n';
-
-        // Data/Hora
+        // Número do pedido + Data/Hora (mesma linha se couber)
         const date = new Date(order.created_at);
-        text += `Data: ${date.toLocaleDateString('pt-BR')} ${date.toLocaleTimeString('pt-BR')}\n`;
+        const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const dateStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 
-        // Tipo de entrega
-        const deliveryType = order.delivery.method === 'delivery' ? 'DELIVERY' : 'RETIRADA';
-        text += `Tipo: ${deliveryType}\n`;
-        text += this.line(charsPerLine, '-') + '\n';
+        text += this.formatLine(`PEDIDO #${order.order_number}`, `${timeStr} - ${dateStr}`, charsPerLine) + '\n';
+        text += '\n';
 
-        // Cliente
-        text += 'CLIENTE:\n';
-        text += `${order.customer.name}\n`;
+        // Cliente + Telefone
+        text += `Cliente: ${order.customer.name}\n`;
         if (order.customer.phone) {
             text += `Tel: ${order.customer.phone}\n`;
         }
 
+        // Tipo de entrega
+        const deliveryType = order.delivery.method === 'delivery' ? 'DELIVERY' : 'RETIRADA';
+        text += '\n';
+        text += `${deliveryType}`;
+        if (order.delivery.neighborhood) {
+            text += ` - Bairro: ${order.delivery.neighborhood}`;
+        }
+        text += '\n';
+
         // Endereço (se delivery)
         if (order.delivery.method === 'delivery' && order.delivery.address) {
-            text += '\n';
-            text += 'ENDERECO:\n';
-            text += `${order.delivery.address}\n`;
-            if (order.delivery.neighborhood) {
-                text += `Bairro: ${order.delivery.neighborhood}\n`;
-            }
+            text += `End: ${order.delivery.address}\n`;
             if (order.delivery.reference) {
                 text += `Ref: ${order.delivery.reference}\n`;
             }
         }
 
+        text += '\n';
         text += this.line(charsPerLine, '-') + '\n';
-
-        // Itens do pedido
-        text += 'ITENS:\n';
+        text += this.centerText('** ITENS **', charsPerLine) + '\n';
+        text += this.line(charsPerLine, '-') + '\n';
         text += '\n';
 
+        // Itens do pedido
         order.items.forEach(item => {
             // Filtrar por localização se necessário
             if (location !== 'counter') {
@@ -255,13 +253,21 @@ class ThermalPrinter {
                 }
             }
 
-            // Nome do produto
-            text += `${item.quantity}x ${item.name.toUpperCase()}\n`;
+            // Nome do produto com quantidade
+            const itemName = `${item.quantity}x ${item.name.toUpperCase()}`;
+
+            // Preço do item (se houver)
+            if (location === 'counter' && item.price) {
+                const itemTotal = (item.quantity * item.price).toFixed(2);
+                text += this.formatLine(itemName, `R$ ${itemTotal}`, charsPerLine) + '\n';
+            } else {
+                text += `${itemName}\n`;
+            }
 
             // Variações
             if (item.variations && Object.keys(item.variations).length > 0) {
                 Object.entries(item.variations).forEach(([key, value]) => {
-                    text += `  - ${key}: ${value}\n`;
+                    text += `   - ${key}: ${value}\n`;
                 });
             }
 
@@ -269,29 +275,28 @@ class ThermalPrinter {
             if (item.addons && item.addons.length > 0) {
                 item.addons.forEach(addon => {
                     const addonName = typeof addon === 'object' ? addon.name : addon;
-                    text += `  + ${addonName}\n`;
+                    text += `   + ${addonName}\n`;
                 });
             }
 
-            // Observações
+            // Observações (destacado)
             if (item.notes) {
-                text += `  OBS: ${item.notes}\n`;
+                text += `   >> OBS: ${item.notes}\n`;
             }
 
             text += '\n';
         });
 
-        text += this.line(charsPerLine, '-') + '\n';
-
-        // Observações gerais
+        // Observações gerais (se houver)
         if (order.notes) {
-            text += 'OBSERVACOES GERAIS:\n';
-            text += `${order.notes}\n`;
             text += this.line(charsPerLine, '-') + '\n';
+            text += '** OBSERVACOES GERAIS **\n';
+            text += `${order.notes}\n`;
         }
 
         // Totais (apenas balcão)
         if (location === 'counter') {
+            text += this.line(charsPerLine, '-') + '\n';
             text += this.formatLine('Subtotal:', `R$ ${order.totals.subtotal.toFixed(2)}`, charsPerLine) + '\n';
 
             if (order.totals.delivery_fee > 0) {
@@ -302,25 +307,26 @@ class ThermalPrinter {
                 text += this.formatLine('Desconto:', `- R$ ${order.totals.discount.toFixed(2)}`, charsPerLine) + '\n';
             }
 
-            text += this.line(charsPerLine, '-') + '\n';
-            text += this.formatLine('TOTAL:', `R$ ${order.totals.total.toFixed(2)}`, charsPerLine) + '\n';
-            text += '\n';
+            text += this.line(charsPerLine, '=') + '\n';
+            text += this.formatLine('** TOTAL **', `R$ ${order.totals.total.toFixed(2)}`, charsPerLine) + '\n';
+            text += this.line(charsPerLine, '=') + '\n';
 
             // Forma de pagamento
             const paymentMethod = this.getPaymentMethodName(order.payment.method);
-            text += this.formatLine('Pagamento:', paymentMethod, charsPerLine) + '\n';
+            text += `PAGAMENTO: ${paymentMethod}`;
 
             if (order.payment.status === 'paid') {
-                text += 'Status: PAGO\n';
+                text += ' - PAGO ✓';
             }
+            text += '\n';
         }
 
-        // Rodapé
+        // Rodapé profissional
         text += '\n';
-        text += this.centerText(this.line(charsPerLine, '='), charsPerLine) + '\n';
+        text += this.line(charsPerLine, '=') + '\n';
         text += this.centerText(new Date().toLocaleString('pt-BR'), charsPerLine) + '\n';
         text += this.centerText('Impresso via YumGo Bridge', charsPerLine) + '\n';
-        text += this.centerText(this.line(charsPerLine, '='), charsPerLine) + '\n';
+        text += this.line(charsPerLine, '=') + '\n';
         text += '\n\n\n';
 
         return text;
