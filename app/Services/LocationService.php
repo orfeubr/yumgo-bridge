@@ -202,7 +202,7 @@ class LocationService
                 'city' => $city,
                 'name' => $neighborhood,
             ], [
-                'enabled' => false,
+                'is_active' => false,
                 'delivery_fee' => 5.00, // Valor padrão
                 'delivery_time' => 30,   // Tempo padrão
             ]);

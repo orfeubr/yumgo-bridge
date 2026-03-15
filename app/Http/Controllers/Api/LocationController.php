@@ -38,7 +38,7 @@ class LocationController extends Controller
      */
     public function getEnabledCities()
     {
-        $cities = Neighborhood::where('enabled', true)
+        $cities = Neighborhood::where('is_active', true)
             ->select('city')
             ->distinct()
             ->orderBy('city')
@@ -111,7 +111,7 @@ class LocationController extends Controller
         if ($address['neighborhood'] && $address['city']) {
             $neighborhoodData = Neighborhood::where('city', $address['city'])
                 ->where('name', $address['neighborhood'])
-                ->where('enabled', true)
+                ->where('is_active', true)
                 ->first();
 
             if ($neighborhoodData) {

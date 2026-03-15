@@ -33,3 +33,4 @@ public/downloads/*.dmg
 # Arquivos de ambiente com senhas específicas
 .env.migration
 .env.readonly
+.backup

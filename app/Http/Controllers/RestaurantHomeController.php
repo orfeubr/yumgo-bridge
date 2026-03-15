@@ -186,7 +186,7 @@ class RestaurantHomeController extends Controller
 
         // Zonas de entrega (bairros habilitados com taxas)
         try {
-            $deliveryZones = \App\Models\Neighborhood::where('enabled', true)
+            $deliveryZones = \App\Models\Neighborhood::where('is_active', true)
                 ->orderBy('city')
                 ->orderBy('name')
                 ->get()

@@ -47,7 +47,7 @@ class NeighborhoodResource extends Resource
                             ->required()
                             ->helperText('Digite o nome do bairro (ex: Centro, Jardim Bela Vista)'),
 
-                        Forms\Components\Toggle::make('enabled')
+                        Forms\Components\Toggle::make('is_active')
                             ->label('Ativo (Você atende este bairro?)')
                             ->default(false)
                             ->helperText('Marque para disponibilizar este bairro para delivery'),
@@ -90,7 +90,7 @@ class NeighborhoodResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\ToggleColumn::make('enabled')
+                Tables\Columns\ToggleColumn::make('is_active')
                     ->label('Ativo')
                     ->onColor('success')
                     ->offColor('danger')
@@ -133,7 +133,7 @@ class NeighborhoodResource extends Resource
                     ->sortable(),
             ])
             ->filters([
-                Tables\Filters\TernaryFilter::make('enabled')
+                Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Status')
                     ->placeholder('Todos')
                     ->trueLabel('Apenas Ativos')
@@ -151,7 +151,7 @@ class NeighborhoodResource extends Resource
                         ->icon('heroicon-o-check-circle')
                         ->color('success')
                         ->action(function ($records) {
-                            $records->each(fn ($record) => $record->update(['enabled' => true]));
+                            $records->each(fn ($record) => $record->update(['is_active' => true]));
                             Notification::make()
                                 ->success()
                                 ->title('Bairros ativados!')
@@ -162,7 +162,7 @@ class NeighborhoodResource extends Resource
                         ->icon('heroicon-o-x-circle')
                         ->color('danger')
                         ->action(function ($records) {
-                            $records->each(fn ($record) => $record->update(['enabled' => false]));
+                            $records->each(fn ($record) => $record->update(['is_active' => false]));
                             Notification::make()
                                 ->success()
                                 ->title('Bairros desativados!')
@@ -185,7 +185,7 @@ class NeighborhoodResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        return static::getModel()::where('enabled', true)->count();
+        return static::getModel()::where('is_active', true)->count();
     }
 
     public static function getNavigationBadgeColor(): ?string

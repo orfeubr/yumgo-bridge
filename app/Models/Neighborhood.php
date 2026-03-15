@@ -9,7 +9,7 @@ class Neighborhood extends Model
     protected $fillable = [
         'city',
         'name',
-        'enabled',
+        'is_active',
         'delivery_fee',
         'delivery_time',
         'minimum_order',
@@ -17,7 +17,7 @@ class Neighborhood extends Model
     ];
 
     protected $casts = [
-        'enabled' => 'boolean',
+        'is_active' => 'boolean',
         'delivery_fee' => 'decimal:2',
         'minimum_order' => 'decimal:2',
     ];
@@ -25,9 +25,9 @@ class Neighborhood extends Model
     /**
      * Apenas bairros habilitados para delivery
      */
-    public static function enabled()
+    public static function is_active()
     {
-        return static::where('enabled', true)
+        return static::where('is_active', true)
             ->orderBy('order')
             ->orderBy('name');
     }
@@ -45,10 +45,10 @@ class Neighborhood extends Model
     /**
      * Bairros habilitados de uma cidade
      */
-    public static function enabledByCity(string $city)
+    public static function is_activeByCity(string $city)
     {
         return static::where('city', $city)
-            ->where('enabled', true)
+            ->where('is_active', true)
             ->orderBy('order')
             ->orderBy('name');
     }
@@ -60,7 +60,7 @@ class Neighborhood extends Model
     {
         $record = static::where('city', $city)
             ->where('name', $neighborhood)
-            ->where('enabled', true)
+            ->where('is_active', true)
             ->first();
 
         return $record ? (float) $record->delivery_fee : null;

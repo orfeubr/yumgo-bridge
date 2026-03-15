@@ -11,9 +11,9 @@ class NeighborhoodStatsWidget extends BaseWidget
     protected function getStats(): array
     {
         $total = Neighborhood::count();
-        $enabled = Neighborhood::where('enabled', true)->count();
+        $enabled = Neighborhood::where('is_active', true)->count();
         $disabled = $total - $enabled;
-        $avgFee = Neighborhood::where('enabled', true)->avg('delivery_fee') ?? 0;
+        $avgFee = Neighborhood::where('is_active', true)->avg('delivery_fee') ?? 0;
 
         return [
             Stat::make('Total de Bairros', $total)
