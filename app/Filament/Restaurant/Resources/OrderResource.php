@@ -101,30 +101,70 @@ class OrderResource extends Resource
                                             Forms\Components\TextInput::make('address')->label('Rua')->required(),
                                             Forms\Components\TextInput::make('number')->label('Nº')->required(),
                                             Forms\Components\TextInput::make('complement')->label('Compl.'),
-                                            Forms\Components\TextInput::make('neighborhood')->label('Bairro')->required(),
-                                            Forms\Components\TextInput::make('city')->label('Cidade')->required(),
                                             Forms\Components\TextInput::make('zipcode')->label('CEP')->mask('99999-999'),
+
+                                            Forms\Components\Select::make('city')
+                                                ->label('Cidade')
+                                                ->options(function () {
+                                                    return \App\Models\Neighborhood::where('is_active', true)
+                                                        ->select('city')
+                                                        ->distinct()
+                                                        ->orderBy('city')
+                                                        ->pluck('city', 'city');
+                                                })
+                                                ->searchable()
+                                                ->required()
+                                                ->live()
+                                                ->afterStateUpdated(function ($state, callable $set) {
+                                                    // Limpa o bairro ao trocar de cidade
+                                                    $set('neighborhood', null);
+                                                }),
+
+                                            Forms\Components\Select::make('neighborhood')
+                                                ->label('Bairro')
+                                                ->options(function (callable $get) {
+                                                    $city = $get('city');
+                                                    if (!$city) {
+                                                        return [];
+                                                    }
+                                                    return \App\Models\Neighborhood::where('is_active', true)
+                                                        ->where('city', $city)
+                                                        ->orderBy('name')
+                                                        ->pluck('name', 'name');
+                                                })
+                                                ->searchable()
+                                                ->required()
+                                                ->disabled(fn (callable $get) => !$get('city'))
+                                                ->helperText('Primeiro selecione a cidade'),
                                         ]),
                                     ])
                                     ->fillForm(fn (Forms\Get $get) => \App\Models\Customer::find($get('customer_id'))?->only(['address', 'number', 'complement', 'neighborhood', 'city', 'zipcode']) ?? [])
                                     ->action(function (array $data, Forms\Get $get, callable $set) {
                                         $customer = \App\Models\Customer::find($get('customer_id'));
                                         $customer->update($data);
-                                        
+
                                         $address = $data['address'] . ', ' . $data['number'];
                                         if ($data['complement']) $address .= ' - ' . $data['complement'];
                                         if ($data['neighborhood']) $address .= ' - ' . $data['neighborhood'];
                                         if ($data['city']) $address .= ' - ' . $data['city'];
-                                        
+
                                         $set('delivery_address', $address);
+                                        $set('delivery_city', $data['city']);
                                         $set('delivery_neighborhood', $data['neighborhood']);
-                                        
+
                                         // Atualiza taxa de entrega
-                                        $neighborhood = \App\Models\Neighborhood::where('name', $data['neighborhood'])
+                                        $neighborhood = \App\Models\Neighborhood::where('city', $data['city'])
+                                            ->where('name', $data['neighborhood'])
                                             ->where('is_active', true)
                                             ->first();
                                         if ($neighborhood) {
                                             $set('delivery_fee', $neighborhood->delivery_fee);
+
+                                            \Filament\Notifications\Notification::make()
+                                                ->success()
+                                                ->title('✅ Endereço atualizado')
+                                                ->body('Taxa: R$ ' . number_format($neighborhood->delivery_fee, 2, ',', '.'))
+                                                ->send();
                                         }
                                         
                                         \Filament\Notifications\Notification::make()->success()->title('✅ Salvo!')->send();
