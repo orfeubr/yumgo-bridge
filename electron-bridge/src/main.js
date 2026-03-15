@@ -272,8 +272,8 @@ function updateTrayStatus(connected) {
 
 function connectWebSocket(restaurantId, token) {
     // Desconectar se já houver conexão
-    if (echo) {
-        echo.disconnect();
+    if (echo && echo.pusher) {
+        echo.pusher.disconnect();
         echo = null;
     }
 
