@@ -323,6 +323,22 @@
             <button class="btn btn-secondary hidden" id="disconnectBtn" onclick="disconnect()" style="margin-top: 10px;">
                 Desconectar
             </button>
+
+            <div class="divider"></div>
+
+            <!-- Autostart (Iniciar com Windows) -->
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input
+                        type="checkbox"
+                        id="autostartCheckbox"
+                        onchange="toggleAutostart()"
+                        style="width: auto; margin: 0; cursor: pointer;"
+                    >
+                    <span>🚀 Iniciar automaticamente com o Windows</span>
+                </label>
+                <div class="help-text">O YumGo Bridge será aberto ao ligar o computador</div>
+            </div>
         </div>
 
         <!-- Configuração de Impressoras -->

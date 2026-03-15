@@ -72,10 +72,143 @@ function disconnect() {
     }
 }
 
-// Restaurar configuração salva
+// ===== AUTOSTART =====
+
+async function toggleAutostart() {
+    const checkbox = document.getElementById('autostartCheckbox');
+    const isEnabled = checkbox.checked;
+
+    try {
+        console.log(`🚀 Alterando autostart para: ${isEnabled}`);
+        await ipcRenderer.invoke('set-autostart', isEnabled);
+
+        const message = isEnabled
+            ? '✅ YumGo Bridge vai iniciar automaticamente com o Windows!'
+            : '❌ Autostart desabilitado';
+
+        console.log(message);
+
+        // Feedback visual sutil (sem alert chato)
+        const originalText = checkbox.nextElementSibling.textContent;
+        checkbox.nextElementSibling.textContent = isEnabled ? '✅ Habilitado!' : '❌ Desabilitado';
+        setTimeout(() => {
+            checkbox.nextElementSibling.textContent = originalText;
+        }, 2000);
+
+    } catch (error) {
+        console.error('❌ Erro ao alterar autostart:', error);
+        alert('Erro ao alterar autostart: ' + error.message);
+        // Reverter checkbox em caso de erro
+        checkbox.checked = !isEnabled;
+    }
+}
+
+// Restaurar configuração salva (credenciais)
 ipcRenderer.on('restore-config', (event, config) => {
     restaurantIdInput.value = config.restaurantId || '';
     tokenInput.value = config.token || '';
+});
+
+// Restaurar configurações de impressora
+ipcRenderer.on('restore-printers', (event, printers) => {
+    console.log('📦 Restaurando configurações de impressora:', printers);
+
+    // Restaurar cada impressora configurada
+    ['kitchen', 'bar', 'counter'].forEach(location => {
+        const config = printers[location];
+        if (!config) return;
+
+        console.log(`✅ Restaurando ${location}:`, config);
+
+        // Restaurar tipo (usb/network/system)
+        const typeSelect = document.getElementById(`${location}Type`);
+        if (typeSelect) {
+            typeSelect.value = config.type || '';
+
+            // Trigger change para gerar os campos
+            updatePrinterFields(location);
+
+            // Aguardar campos serem criados
+            setTimeout(() => {
+                // Restaurar campos específicos baseado no tipo
+                if (config.type === 'usb' || config.type === 'system') {
+                    // Restaurar nome da impressora (se system printer)
+                    if (config.printerName) {
+                        const printerNameInput = document.getElementById(`${location}PrinterName`);
+                        if (printerNameInput) {
+                            printerNameInput.value = config.printerName;
+                        }
+                    }
+
+                    // Restaurar vendor/product ID (se USB direto)
+                    if (config.vendorId) {
+                        const vendorInput = document.getElementById(`${location}VendorId`);
+                        if (vendorInput) vendorInput.value = config.vendorId;
+                    }
+                    if (config.productId) {
+                        const productInput = document.getElementById(`${location}ProductId`);
+                        if (productInput) productInput.value = config.productId;
+                    }
+
+                    // Restaurar configurações avançadas
+                    if (config.copies) {
+                        const copiesSelect = document.getElementById(`${location}Copies`);
+                        if (copiesSelect) copiesSelect.value = config.copies;
+                    }
+                    if (config.paperWidth) {
+                        const paperWidthSelect = document.getElementById(`${location}PaperWidth`);
+                        if (paperWidthSelect) paperWidthSelect.value = config.paperWidth;
+                    }
+                    if (config.fontSize) {
+                        const fontSizeSelect = document.getElementById(`${location}FontSize`);
+                        if (fontSizeSelect) fontSizeSelect.value = config.fontSize;
+                    }
+                    if (config.removeAccents !== undefined) {
+                        const removeAccentsCheckbox = document.getElementById(`${location}RemoveAccents`);
+                        if (removeAccentsCheckbox) removeAccentsCheckbox.checked = config.removeAccents;
+                    }
+                    if (config.printLogo !== undefined) {
+                        const printLogoCheckbox = document.getElementById(`${location}PrintLogo`);
+                        if (printLogoCheckbox) {
+                            printLogoCheckbox.checked = config.printLogo;
+                            // Mostrar campo de logo se habilitado
+                            const logoPathDiv = document.getElementById(`${location}LogoPathDiv`);
+                            if (logoPathDiv) logoPathDiv.style.display = config.printLogo ? 'block' : 'none';
+                        }
+                    }
+                    if (config.logoPath) {
+                        const logoPathInput = document.getElementById(`${location}LogoPath`);
+                        if (logoPathInput) logoPathInput.value = config.logoPath;
+                    }
+
+                } else if (config.type === 'network') {
+                    // Restaurar IP e porta
+                    const ipInput = document.getElementById(`${location}Ip`);
+                    const portInput = document.getElementById(`${location}Port`);
+                    if (ipInput) ipInput.value = config.ip || '';
+                    if (portInput) portInput.value = config.port || 9100;
+                }
+
+                // Atualizar status visual
+                const statusSpan = document.getElementById(`${location}Status`);
+                if (statusSpan) {
+                    statusSpan.textContent = 'Configurada ✅';
+                    statusSpan.className = 'printer-status configured';
+                }
+
+                console.log(`✅ ${location} restaurado com sucesso`);
+            }, 300);
+        }
+    });
+});
+
+// Restaurar status de autostart
+ipcRenderer.on('autostart-status', (event, isEnabled) => {
+    const checkbox = document.getElementById('autostartCheckbox');
+    if (checkbox) {
+        checkbox.checked = isEnabled;
+        console.log(`🚀 Autostart: ${isEnabled ? 'HABILITADO' : 'DESABILITADO'}`);
+    }
 });
 
 // Status de conexão

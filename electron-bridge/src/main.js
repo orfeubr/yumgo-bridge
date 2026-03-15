@@ -3,6 +3,7 @@ const path = require('path');
 const Store = require('electron-store');
 const log = require('electron-log');
 const { autoUpdater } = require('electron-updater');
+const AutoLaunch = require('auto-launch');
 
 // FIX: Pusher precisa estar disponível globalmente para Laravel Echo
 global.Pusher = require('pusher-js');
@@ -14,6 +15,12 @@ const ThermalPrinter = require('./printer');
 // Configuração
 const store = new Store();
 const isDev = process.argv.includes('--dev');
+
+// Auto-launch (Iniciar com Windows)
+const autoLauncher = new AutoLaunch({
+    name: 'YumGo Bridge',
+    path: app.getPath('exe'),
+});
 
 // Configurar electron-updater
 autoUpdater.logger = log;
@@ -171,6 +178,17 @@ function createWindow() {
             connectWebSocket(config.restaurantId, config.token);
         }, 1000);
     }
+
+    // Restaurar configurações de impressora
+    const printers = store.get('printers', {});
+    mainWindow.webContents.send('restore-printers', printers);
+
+    // Restaurar status de autostart
+    autoLauncher.isEnabled().then((isEnabled) => {
+        mainWindow.webContents.send('autostart-status', isEnabled);
+    }).catch((err) => {
+        log.error('Erro ao verificar autostart:', err);
+    });
 }
 
 function createTray() {
@@ -215,16 +233,40 @@ function createTray() {
 }
 
 function updateTrayStatus(connected) {
-    if (!tray || !trayMenu) return;
+    if (!tray) return;
 
-    // FIX: Usar trayMenu armazenado ao invés de getContextMenu()
-    const statusItem = trayMenu.getMenuItemById('status');
+    // FIX v2.2.1: Recriar menu inteiro ao invés de só mudar label
+    const newMenu = Menu.buildFromTemplate([
+        {
+            label: 'Abrir YumGo Bridge',
+            click: () => {
+                mainWindow.show();
+            }
+        },
+        {
+            label: connected ? 'Status: ✅ Conectado' : 'Status: ⚠️ Desconectado',
+            enabled: false
+        },
+        { type: 'separator' },
+        {
+            label: '🔄 Verificar Atualizações',
+            click: () => {
+                checkForUpdates();
+            }
+        },
+        {
+            label: 'Sair',
+            click: () => {
+                app.isQuitting = true;
+                app.quit();
+            }
+        }
+    ]);
 
-    if (statusItem) {
-        statusItem.label = connected
-            ? 'Status: ✅ Conectado'
-            : 'Status: ⚠️ Desconectado';
-    }
+    tray.setContextMenu(newMenu);
+    trayMenu = newMenu; // Atualizar referência
+
+    log.info(`Tray status atualizado: ${connected ? 'Conectado' : 'Desconectado'}`);
 }
 
 // ===== WEBSOCKET COM LARAVEL ECHO =====
@@ -799,6 +841,37 @@ ipcMain.on('clear-config', () => {
     store.clear();
     app.relaunch();
     app.exit();
+});
+
+// ===== AUTOSTART (Iniciar com Windows) =====
+
+// Get autostart status
+ipcMain.handle('get-autostart', async () => {
+    try {
+        const isEnabled = await autoLauncher.isEnabled();
+        log.info(`Autostart status: ${isEnabled}`);
+        return isEnabled;
+    } catch (error) {
+        log.error('Erro ao verificar autostart:', error);
+        return false;
+    }
+});
+
+// Set autostart
+ipcMain.handle('set-autostart', async (event, enable) => {
+    try {
+        if (enable) {
+            await autoLauncher.enable();
+            log.info('Autostart habilitado');
+        } else {
+            await autoLauncher.disable();
+            log.info('Autostart desabilitado');
+        }
+        return true;
+    } catch (error) {
+        log.error('Erro ao configurar autostart:', error);
+        throw error;
+    }
 });
 
 // ===== APP LIFECYCLE =====

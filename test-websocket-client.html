@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste WebSocket - YumGo Bridge</title>
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #fff; }
+        .log { background: #2d2d2d; padding: 10px; margin: 5px 0; border-left: 3px solid #4CAF50; }
+        .error { border-color: #f44336; }
+        .success { border-color: #4CAF50; }
+        .info { border-color: #2196F3; }
+        #status { font-size: 20px; margin-bottom: 20px; }
+        button { padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer; margin: 5px; }
+        button:hover { background: #45a049; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste de Conexão WebSocket - YumGo Bridge</h1>
+    <div id="status">⏳ Iniciando...</div>
+    <button onclick="connectWebSocket()">🔌 Conectar</button>
+    <button onclick="clearLogs()">🗑️ Limpar Logs</button>
+    <hr>
+    <div id="logs"></div>
+
+    <script>
+        let pusher = null;
+        let channel = null;
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = `log ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.insertBefore(entry, logDiv.firstChild);
+        }
+
+        function updateStatus(message, color = '#2196F3') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.style.color = color;
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        function connectWebSocket() {
+            log('🔵 Iniciando conexão WebSocket...', 'info');
+
+            // Configuração (mesma do bridge)
+            const config = {
+                key: 't9pg2dslmpl5y1cp6rrf',
+                wsHost: window.location.hostname, // Usar mesmo host
+                wsPort: 8081,
+                forceTLS: false,
+                encrypted: false,
+                disableStats: true,
+                cluster: 'mt1',
+                enabledTransports: ['ws', 'wss']
+            };
+
+            log(`📡 Config: wsHost=${config.wsHost}, wsPort=${config.wsPort}`, 'info');
+
+            try {
+                pusher = new Pusher(config.key, config);
+
+                // Eventos de conexão
+                pusher.connection.bind('state_change', (states) => {
+                    log(`📊 Estado: ${states.previous} → ${states.current}`, 'info');
+
+                    if (states.current === 'connected') {
+                        updateStatus('✅ CONECTADO!', '#4CAF50');
+                        log('✅ Conexão estabelecida com sucesso!', 'success');
+                        subscribeToChannel();
+                    } else if (states.current === 'connecting') {
+                        updateStatus('⏳ Conectando...', '#FFA500');
+                    } else if (states.current === 'disconnected') {
+                        updateStatus('❌ Desconectado', '#f44336');
+                    } else if (states.current === 'failed') {
+                        updateStatus('❌ FALHA na conexão!', '#f44336');
+                        log('❌ Falha ao conectar. Verifique se Reverb está rodando.', 'error');
+                    }
+                });
+
+                pusher.connection.bind('error', (error) => {
+                    log(`❌ ERRO: ${JSON.stringify(error)}`, 'error');
+                });
+
+                pusher.connection.bind('connected', () => {
+                    log(`✅ Socket ID: ${pusher.connection.socket_id}`, 'success');
+                });
+
+            } catch (error) {
+                log(`❌ ERRO ao criar Pusher: ${error.message}`, 'error');
+                updateStatus('❌ ERRO', '#f44336');
+            }
+        }
+
+        function subscribeToChannel() {
+            const restaurantId = 'marmitariadagi';
+            const channelName = `restaurant.${restaurantId}`;
+
+            log(`📡 Inscrevendo no canal: ${channelName}`, 'info');
+
+            try {
+                channel = pusher.subscribe(channelName);
+
+                channel.bind('pusher:subscription_succeeded', () => {
+                    log(`✅ Inscrito no canal ${channelName} com sucesso!`, 'success');
+                    log('🎧 Aguardando eventos ".order.created"...', 'info');
+                });
+
+                channel.bind('pusher:subscription_error', (error) => {
+                    log(`❌ Erro ao inscrever no canal: ${JSON.stringify(error)}`, 'error');
+                });
+
+                // Escutar evento de pedido
+                channel.bind('order.created', (data) => {
+                    log(`🔔 NOVO PEDIDO RECEBIDO! #${data.order_number}`, 'success');
+                    log(`   Cliente: ${data.customer.name}`, 'success');
+                    log(`   Total: R$ ${data.totals.total.toFixed(2)}`, 'success');
+                    log(`   Items: ${data.items.length}`, 'success');
+                    console.log('Dados completos do pedido:', data);
+                });
+
+            } catch (error) {
+                log(`❌ ERRO ao inscrever: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-conectar ao carregar a página
+        window.addEventListener('load', () => {
+            log('✅ Página carregada. Clique em "Conectar" para testar.', 'info');
+        });
+    </script>
+</body>
+</html>
