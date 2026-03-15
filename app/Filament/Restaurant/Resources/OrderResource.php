@@ -153,8 +153,15 @@ class OrderResource extends Resource
                             ->columnSpan(2)
                             ->helperText('Preenche automaticamente ao selecionar cliente'),
                         
-                        Forms\Components\TextInput::make('delivery_neighborhood')
+                        Forms\Components\Select::make('delivery_neighborhood')
                             ->label('Bairro')
+                            ->options(function () {
+                                return \App\Models\Neighborhood::where('is_active', true)
+                                    ->orderBy('name')
+                                    ->pluck('name', 'name');
+                            })
+                            ->searchable()
+                            ->required()
                             ->live()
                             ->afterStateUpdated(function ($state, callable $set) {
                                 if ($state) {
@@ -165,13 +172,14 @@ class OrderResource extends Resource
                                         $set('delivery_fee', $neighborhood->delivery_fee);
 
                                         \Filament\Notifications\Notification::make()
-                                            ->info()
-                                            ->title('Taxa de entrega atualizada')
-                                            ->body('R$ ' . number_format($neighborhood->delivery_fee, 2, ',', '.'))
+                                            ->success()
+                                            ->title('✅ Taxa atualizada')
+                                            ->body('R$ ' . number_format($neighborhood->delivery_fee, 2, ',', '.') . ' - ' . $neighborhood->delivery_time . ' min')
                                             ->send();
                                     }
                                 }
-                            }),
+                            })
+                            ->helperText('Selecione o bairro de entrega'),
                         
                         Forms\Components\Select::make('delivery_type')
                             ->label('Tipo de Entrega')
