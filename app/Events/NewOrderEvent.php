@@ -33,8 +33,8 @@ class NewOrderEvent implements ShouldBroadcast
      */
     public function broadcastAs(): string
     {
-        // IMPORTANTE: Bridge escuta evento ".order.created"
-        return 'order.created';
+        // IMPORTANTE: Laravel Echo espera evento com ponto na frente
+        return '.order.created';
     }
 
     /**

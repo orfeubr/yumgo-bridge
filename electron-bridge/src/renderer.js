@@ -1,842 +1,756 @@
+// YumGo Bridge v3.0 - Renderer Process (Interface)
+
 const { ipcRenderer } = require('electron');
 
-// ===== ELEMENTOS DO DOM =====
-const statusIndicator = document.getElementById('statusIndicator');
-const configCard = document.getElementById('configCard');
-const printersCard = document.getElementById('printersCard');
-const ordersCard = document.getElementById('ordersCard');
-const ordersList = document.getElementById('ordersList');
-const connectBtn = document.getElementById('connectBtn');
-const disconnectBtn = document.getElementById('disconnectBtn');
-const restaurantIdInput = document.getElementById('restaurantId');
-const tokenInput = document.getElementById('token');
-const notificationSound = document.getElementById('notificationSound');
+// ===== STATE =====
+let currentTab = 'home';
+let logs = [];
+let orderHistory = [];
+let printerConfigs = {
+    kitchen: null,
+    bar: null,
+    counter: null
+};
 
-// ===== CONEXÃO =====
+// ===== INITIALIZATION =====
+document.addEventListener('DOMContentLoaded', () => {
+    initTabs();
+    initPrinterConfigs();
+    initEventListeners();
+    loadAppVersion();
+    loadSystemInfo();
 
-async function pasteRestaurantId() {
-    try {
-        const text = await navigator.clipboard.readText();
-        restaurantIdInput.value = text.trim();
-        alert('ID do restaurante colado com sucesso!');
-    } catch (err) {
-        alert('Erro ao colar: ' + err.message + '\n\nTente usar Ctrl+V manualmente.');
+    addLog('info', 'YumGo Bridge v3.0 iniciado');
+});
+
+// ===== TABS NAVIGATION =====
+function initTabs() {
+    const tabItems = document.querySelectorAll('.tab-item');
+
+    tabItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const tabName = item.getAttribute('data-tab');
+            switchTab(tabName);
+        });
+    });
+}
+
+function switchTab(tabName) {
+    // Atualizar sidebar
+    document.querySelectorAll('.tab-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+    // Atualizar conteúdo
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+
+    currentTab = tabName;
+    addLog('info', `Navegou para aba: ${tabName}`);
+}
+
+// ===== PRINTER CONFIGURATION =====
+function initPrinterConfigs() {
+    createPrinterConfig('kitchen', 'Cozinha');
+    createPrinterConfig('bar', 'Bar');
+    createPrinterConfig('counter', 'Balcão');
+}
+
+function createPrinterConfig(location, label) {
+    const container = document.getElementById('printers-container');
+
+    const html = `
+        <div class="card printer-card" id="${location}-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">🖨️ ${label}</h2>
+                <span id="${location}StatusBadge" class="status-badge" style="display: none;">✅ Configurada</span>
+            </div>
+
+            <!-- Tipo de impressora -->
+            <div class="form-group">
+                <label>Tipo de Impressora</label>
+                <select id="${location}Type" onchange="updatePrinterFields('${location}')">
+                    <option value="">Selecione</option>
+                    <option value="system">🖨️ Sistema (Recomendado)</option>
+                    <option value="usb">🔌 USB Direta</option>
+                    <option value="network">🌐 Rede (IP)</option>
+                </select>
+            </div>
+
+            <!-- Campos dinâmicos -->
+            <div id="${location}Fields"></div>
+
+            <!-- Configurações Avançadas -->
+            <div class="advanced-config" id="${location}Advanced" style="display:none;">
+                <h3>⚙️ Configurações Avançadas</h3>
+
+                <!-- Caracteres por linha -->
+                <div class="form-group">
+                    <label>📏 Caracteres por linha</label>
+                    <input
+                        type="range"
+                        id="${location}CharsPerLine"
+                        min="32"
+                        max="48"
+                        value="48"
+                        oninput="updateCharsLabel('${location}')"
+                        style="width: 100%;"
+                    >
+                    <div style="text-align: center; margin-top: 8px;">
+                        <strong id="${location}CharsLabel" style="font-size: 24px; color: var(--primary);">48</strong>
+                        <span style="color: var(--text-secondary);"> caracteres</span>
+                    </div>
+                    <small>
+                        💡 <strong>32-38:</strong> Papel 58mm (compacto)<br>
+                        💡 <strong>42-48:</strong> Papel 80mm (padrão)
+                    </small>
+                </div>
+
+                <!-- Espaçamento -->
+                <div class="form-group">
+                    <label>📐 Espaçamento</label>
+                    <select id="${location}Spacing">
+                        <option value="compact">Compacto (mais conteúdo)</option>
+                        <option value="normal" selected>Normal (recomendado)</option>
+                        <option value="spacious">Espaçado (melhor leitura)</option>
+                    </select>
+                </div>
+
+                <!-- Cópias -->
+                <div class="form-group">
+                    <label>📋 Número de cópias</label>
+                    <select id="${location}Copies">
+                        <option value="1">1 via</option>
+                        <option value="2" selected>2 vias</option>
+                        <option value="3">3 vias</option>
+                        <option value="4">4 vias</option>
+                    </select>
+                </div>
+
+                <!-- Tamanho da fonte -->
+                <div class="form-group">
+                    <label>🔤 Tamanho da fonte</label>
+                    <select id="${location}FontSize">
+                        <option value="small">Pequeno</option>
+                        <option value="normal" selected>Normal</option>
+                        <option value="large">Grande</option>
+                    </select>
+                </div>
+
+                <!-- Remover acentos -->
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="${location}RemoveAccents">
+                        <span>✂️ Remover acentos (impressoras antigas)</span>
+                    </label>
+                </div>
+
+                <!-- Logo -->
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="${location}PrintLogo">
+                        <span>🖼️ Imprimir logo do restaurante</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Botões -->
+            <button class="btn btn-primary" onclick="savePrinter('${location}')">
+                Salvar Configuração
+            </button>
+            <button class="btn btn-secondary" onclick="testPrinter('${location}')">
+                Testar Impressão
+            </button>
+        </div>
+    `;
+
+    container.insertAdjacentHTML('beforeend', html);
+}
+
+function updateCharsLabel(location) {
+    const slider = document.getElementById(`${location}CharsPerLine`);
+    const label = document.getElementById(`${location}CharsLabel`);
+    if (slider && label) {
+        label.textContent = slider.value;
     }
 }
 
-async function pasteToken() {
+function updatePrinterFields(location) {
+    const type = document.getElementById(`${location}Type`).value;
+    const fields = document.getElementById(`${location}Fields`);
+    const advanced = document.getElementById(`${location}Advanced`);
+
+    if (!type) {
+        fields.innerHTML = '';
+        advanced.style.display = 'none';
+        return;
+    }
+
+    // Mostrar config avançada
+    advanced.style.display = 'block';
+
+    // Campos específicos por tipo
+    if (type === 'system') {
+        fields.innerHTML = `
+            <div class="form-group">
+                <label>Impressora do Sistema</label>
+                <button class="btn btn-primary" onclick="findSystemPrinters('${location}')">
+                    🖨️ Detectar Impressoras Instaladas
+                </button>
+                <select id="${location}PrinterName" style="margin-top: 8px;">
+                    <option value="">Aguardando detecção...</option>
+                </select>
+                <small>Funciona com qualquer impressora instalada no Windows</small>
+            </div>
+        `;
+    } else if (type === 'usb') {
+        fields.innerHTML = `
+            <div class="form-group">
+                <label>Impressora USB</label>
+                <button class="btn btn-primary" onclick="findUSBPrinters('${location}')">
+                    🔌 Buscar Impressoras USB
+                </button>
+                <select id="${location}USBSelect" style="margin-top: 8px;">
+                    <option value="">Aguardando detecção...</option>
+                </select>
+                <input type="hidden" id="${location}VendorId">
+                <input type="hidden" id="${location}ProductId">
+                <small>Apenas para impressoras térmicas conectadas via USB</small>
+            </div>
+        `;
+    } else if (type === 'network') {
+        fields.innerHTML = `
+            <div class="form-group">
+                <label>Endereço IP</label>
+                <input type="text" id="${location}Ip" placeholder="192.168.1.100">
+                <small>IP da impressora na rede local</small>
+            </div>
+            <div class="form-group">
+                <label>Porta</label>
+                <input type="number" id="${location}Port" value="9100">
+                <small>Porta padrão: 9100</small>
+            </div>
+        `;
+    }
+}
+
+async function findSystemPrinters(location) {
+    addLog('info', `Buscando impressoras do sistema para ${location}...`);
+
     try {
-        const text = await navigator.clipboard.readText();
-        tokenInput.value = text.trim();
-        alert('Token colado com sucesso!');
-    } catch (err) {
-        alert('Erro ao colar: ' + err.message + '\n\nTente usar Ctrl+V manualmente.');
+        const printers = await ipcRenderer.invoke('find-system-printers');
+        const select = document.getElementById(`${location}PrinterName`);
+
+        if (!printers || printers.length === 0) {
+            select.innerHTML = '<option value="">Nenhuma impressora encontrada</option>';
+            addLog('warn', 'Nenhuma impressora do sistema encontrada');
+            return;
+        }
+
+        select.innerHTML = '<option value="">Selecione uma impressora</option>';
+        printers.forEach(printer => {
+            const option = document.createElement('option');
+            option.value = printer.name;
+            option.textContent = printer.label || printer.name;
+            select.appendChild(option);
+        });
+
+        addLog('info', `${printers.length} impressora(s) encontrada(s)`);
+    } catch (error) {
+        addLog('error', `Erro ao buscar impressoras: ${error.message}`);
+    }
+}
+
+async function findUSBPrinters(location) {
+    addLog('info', `Buscando impressoras USB para ${location}...`);
+
+    try {
+        const printers = await ipcRenderer.invoke('find-usb-printers');
+        const select = document.getElementById(`${location}USBSelect`);
+
+        if (!printers || printers.length === 0) {
+            select.innerHTML = '<option value="">Nenhuma impressora USB encontrada</option>';
+            addLog('warn', 'Nenhuma impressora USB encontrada');
+            return;
+        }
+
+        select.innerHTML = '<option value="">Selecione uma impressora</option>';
+        printers.forEach(printer => {
+            const option = document.createElement('option');
+            option.value = JSON.stringify({ vendorId: printer.vendorId, productId: printer.productId });
+            option.textContent = printer.displayName;
+            select.appendChild(option);
+
+            // Listener para preencher campos ocultos
+            select.addEventListener('change', (e) => {
+                if (e.target.value) {
+                    const { vendorId, productId } = JSON.parse(e.target.value);
+                    document.getElementById(`${location}VendorId`).value = vendorId;
+                    document.getElementById(`${location}ProductId`).value = productId;
+                }
+            });
+        });
+
+        addLog('info', `${printers.length} impressora(s) USB encontrada(s)`);
+    } catch (error) {
+        addLog('error', `Erro ao buscar impressoras USB: ${error.message}`);
+    }
+}
+
+async function savePrinter(location) {
+    const typeEl = document.getElementById(`${location}Type`);
+    if (!typeEl || !typeEl.value) {
+        alert('Selecione o tipo de impressora primeiro');
+        return;
+    }
+
+    const config = {
+        type: typeEl.value,
+        charsPerLine: parseInt(document.getElementById(`${location}CharsPerLine`).value),
+        spacing: document.getElementById(`${location}Spacing`).value,
+        copies: parseInt(document.getElementById(`${location}Copies`).value),
+        fontSize: document.getElementById(`${location}FontSize`).value,
+        removeAccents: document.getElementById(`${location}RemoveAccents`).checked,
+        printLogo: document.getElementById(`${location}PrintLogo`).checked,
+    };
+
+    // Campos específicos
+    if (config.type === 'system') {
+        const nameEl = document.getElementById(`${location}PrinterName`);
+        if (!nameEl || !nameEl.value) {
+            alert('Selecione uma impressora do sistema');
+            return;
+        }
+        config.printerName = nameEl.value;
+    } else if (config.type === 'usb') {
+        config.vendorId = document.getElementById(`${location}VendorId`).value;
+        config.productId = document.getElementById(`${location}ProductId`).value;
+        if (!config.vendorId || !config.productId) {
+            alert('Selecione uma impressora USB');
+            return;
+        }
+    } else if (config.type === 'network') {
+        config.ip = document.getElementById(`${location}Ip`).value;
+        config.port = parseInt(document.getElementById(`${location}Port`).value);
+        if (!config.ip) {
+            alert('Preencha o endereço IP');
+            return;
+        }
+    }
+
+    try {
+        await ipcRenderer.invoke('save-printer', location, config);
+        printerConfigs[location] = config;
+        addLog('info', `✅ Impressora ${location} salva: ${config.charsPerLine} chars/linha, ${config.spacing} spacing`);
+        alert(`✅ Impressora ${location} configurada com sucesso!`);
+        updatePrinterStatusBadge(location);  // Atualiza badge
+        updateHomeStatus();
+    } catch (error) {
+        addLog('error', `Erro ao salvar ${location}: ${error.message}`);
+        alert(`❌ Erro ao salvar: ${error.message}`);
+    }
+}
+
+// Atualiza badge de status da impressora
+function updatePrinterStatusBadge(location) {
+    const badge = document.getElementById(`${location}StatusBadge`);
+    if (badge) {
+        if (printerConfigs[location] !== null) {
+            badge.style.display = 'inline-block';  // Mostra "✅ Configurada"
+        } else {
+            badge.style.display = 'none';  // Esconde
+        }
+    }
+}
+
+async function testPrinter(location) {
+    addLog('info', `Testando impressão em ${location}...`);
+
+    try {
+        await ipcRenderer.invoke('test-print', location);
+        addLog('info', `✅ Teste de impressão enviado para ${location}`);
+        alert(`✅ Teste de impressão enviado!\nVerifique se imprimiu na impressora ${location}.`);
+    } catch (error) {
+        addLog('error', `Erro ao testar ${location}: ${error.message}`);
+        alert(`❌ Erro: ${error.message}`);
+    }
+}
+
+// ===== CONNECTION =====
+function initEventListeners() {
+    // Conexão
+    document.getElementById('connectBtn')?.addEventListener('click', connect);
+    document.getElementById('disconnectBtn')?.addEventListener('click', disconnect);
+    document.getElementById('toggleToken')?.addEventListener('click', toggleTokenVisibility);
+
+    // Autostart
+    document.getElementById('autostartCheckbox')?.addEventListener('change', toggleAutostart);
+
+    // Preferências
+    document.getElementById('soundEnabledCheckbox')?.addEventListener('change', savePreferences);
+    document.getElementById('notificationsEnabledCheckbox')?.addEventListener('change', savePreferences);
+
+    // Testes
+    document.getElementById('testWebSocketBtn')?.addEventListener('click', testWebSocket);
+    document.getElementById('testPrintBtn')?.addEventListener('click', testPrintAll);
+
+    // Histórico
+    document.getElementById('clearHistoryBtn')?.addEventListener('click', clearHistory);
+
+    // Logs
+    document.getElementById('clearLogsBtn')?.addEventListener('click', clearLogs);
+    document.getElementById('exportLogsBtn')?.addEventListener('click', exportLogs);
+
+    // Filtros de log
+    document.querySelectorAll('.btn-filter').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            filterLogs(e.target.getAttribute('data-level'));
+        });
+    });
+
+    // Botões da window
+    document.getElementById('minimizeBtn')?.addEventListener('click', () => {
+        ipcRenderer.send('minimize-window');
+    });
+
+    document.getElementById('closeBtn')?.addEventListener('click', () => {
+        ipcRenderer.send('close-window');
+    });
+}
+
+async function connect() {
+    const restaurantId = document.getElementById('restaurantId').value.trim();
+    const token = document.getElementById('token').value.trim();
+
+    if (!restaurantId || !token) {
+        alert('Preencha o ID do restaurante e o token');
+        return;
+    }
+
+    addLog('info', `Conectando ao restaurante ${restaurantId}...`);
+
+    try {
+        await ipcRenderer.invoke('connect', { restaurantId, token });
+        addLog('info', 'Conexão iniciada');
+    } catch (error) {
+        addLog('error', `Erro ao conectar: ${error.message}`);
+    }
+}
+
+async function disconnect() {
+    if (confirm('Desconectar do servidor?')) {
+        await ipcRenderer.invoke('disconnect');
+        addLog('info', 'Desconectado');
     }
 }
 
 function toggleTokenVisibility() {
-    const type = tokenInput.getAttribute('type');
-    if (type === 'password') {
-        tokenInput.setAttribute('type', 'text');
+    const input = document.getElementById('token');
+    const btn = document.getElementById('toggleToken');
+    if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '🙈';
     } else {
-        tokenInput.setAttribute('type', 'password');
+        input.type = 'password';
+        btn.textContent = '👁️';
     }
 }
-
-function connect() {
-    console.log('🔵 Função connect() chamada');
-
-    const restaurantId = restaurantIdInput.value.trim();
-    const token = tokenInput.value.trim();
-
-    console.log('Restaurant ID:', restaurantId ? 'OK' : 'VAZIO');
-    console.log('Token:', token ? 'OK (length: ' + token.length + ')' : 'VAZIO');
-
-    if (!restaurantId || !token) {
-        console.log('❌ Campos vazios - mostrando alerta');
-        alert('Por favor, preencha todos os campos');
-        return;
-    }
-
-    console.log('✅ Enviando credenciais para main process...');
-    ipcRenderer.send('connect', { restaurantId, token });
-
-    connectBtn.disabled = true;
-    connectBtn.textContent = 'Conectando...';
-    console.log('✅ Botão atualizado para "Conectando..."');
-}
-
-function disconnect() {
-    if (confirm('Deseja realmente desconectar?')) {
-        ipcRenderer.send('disconnect');
-    }
-}
-
-// ===== AUTOSTART =====
 
 async function toggleAutostart() {
     const checkbox = document.getElementById('autostartCheckbox');
-    const isEnabled = checkbox.checked;
+    const enabled = checkbox.checked;
 
     try {
-        console.log(`🚀 Alterando autostart para: ${isEnabled}`);
-        await ipcRenderer.invoke('set-autostart', isEnabled);
-
-        const message = isEnabled
-            ? '✅ YumGo Bridge vai iniciar automaticamente com o Windows!'
-            : '❌ Autostart desabilitado';
-
-        console.log(message);
-
-        // Feedback visual sutil (sem alert chato)
-        const originalText = checkbox.nextElementSibling.textContent;
-        checkbox.nextElementSibling.textContent = isEnabled ? '✅ Habilitado!' : '❌ Desabilitado';
-        setTimeout(() => {
-            checkbox.nextElementSibling.textContent = originalText;
-        }, 2000);
-
+        await ipcRenderer.invoke('set-autostart', enabled);
+        addLog('info', `Autostart ${enabled ? 'habilitado' : 'desabilitado'}`);
+        updateHomeStatus();
     } catch (error) {
-        console.error('❌ Erro ao alterar autostart:', error);
-        alert('Erro ao alterar autostart: ' + error.message);
-        // Reverter checkbox em caso de erro
-        checkbox.checked = !isEnabled;
+        addLog('error', `Erro ao alterar autostart: ${error.message}`);
+        checkbox.checked = !enabled;
     }
 }
 
-// Restaurar configuração salva (credenciais)
-ipcRenderer.on('restore-config', (event, config) => {
-    restaurantIdInput.value = config.restaurantId || '';
-    tokenInput.value = config.token || '';
-});
-
-// Restaurar configurações de impressora
-ipcRenderer.on('restore-printers', (event, printers) => {
-    console.log('📦 Restaurando configurações de impressora:', printers);
-
-    // Restaurar cada impressora configurada
-    ['kitchen', 'bar', 'counter'].forEach(location => {
-        const config = printers[location];
-        if (!config) return;
-
-        console.log(`✅ Restaurando ${location}:`, config);
-
-        // Restaurar tipo (usb/network/system)
-        const typeSelect = document.getElementById(`${location}Type`);
-        if (typeSelect) {
-            typeSelect.value = config.type || '';
-
-            // Trigger change para gerar os campos
-            updatePrinterFields(location);
-
-            // Aguardar campos serem criados
-            setTimeout(() => {
-                // Restaurar campos específicos baseado no tipo
-                if (config.type === 'usb' || config.type === 'system') {
-                    // Restaurar nome da impressora (se system printer)
-                    if (config.printerName) {
-                        const printerNameInput = document.getElementById(`${location}PrinterName`);
-                        if (printerNameInput) {
-                            printerNameInput.value = config.printerName;
-                        }
-                    }
-
-                    // Restaurar vendor/product ID (se USB direto)
-                    if (config.vendorId) {
-                        const vendorInput = document.getElementById(`${location}VendorId`);
-                        if (vendorInput) vendorInput.value = config.vendorId;
-                    }
-                    if (config.productId) {
-                        const productInput = document.getElementById(`${location}ProductId`);
-                        if (productInput) productInput.value = config.productId;
-                    }
-
-                    // Restaurar configurações avançadas
-                    if (config.copies) {
-                        const copiesSelect = document.getElementById(`${location}Copies`);
-                        if (copiesSelect) copiesSelect.value = config.copies;
-                    }
-                    if (config.paperWidth) {
-                        const paperWidthSelect = document.getElementById(`${location}PaperWidth`);
-                        if (paperWidthSelect) paperWidthSelect.value = config.paperWidth;
-                    }
-                    if (config.fontSize) {
-                        const fontSizeSelect = document.getElementById(`${location}FontSize`);
-                        if (fontSizeSelect) fontSizeSelect.value = config.fontSize;
-                    }
-                    if (config.removeAccents !== undefined) {
-                        const removeAccentsCheckbox = document.getElementById(`${location}RemoveAccents`);
-                        if (removeAccentsCheckbox) removeAccentsCheckbox.checked = config.removeAccents;
-                    }
-                    if (config.printLogo !== undefined) {
-                        const printLogoCheckbox = document.getElementById(`${location}PrintLogo`);
-                        if (printLogoCheckbox) {
-                            printLogoCheckbox.checked = config.printLogo;
-                            // Mostrar campo de logo se habilitado
-                            const logoPathDiv = document.getElementById(`${location}LogoPathDiv`);
-                            if (logoPathDiv) logoPathDiv.style.display = config.printLogo ? 'block' : 'none';
-                        }
-                    }
-                    if (config.logoPath) {
-                        const logoPathInput = document.getElementById(`${location}LogoPath`);
-                        if (logoPathInput) logoPathInput.value = config.logoPath;
-                    }
-
-                } else if (config.type === 'network') {
-                    // Restaurar IP e porta
-                    const ipInput = document.getElementById(`${location}Ip`);
-                    const portInput = document.getElementById(`${location}Port`);
-                    if (ipInput) ipInput.value = config.ip || '';
-                    if (portInput) portInput.value = config.port || 9100;
-                }
-
-                // Atualizar status visual
-                const statusSpan = document.getElementById(`${location}Status`);
-                if (statusSpan) {
-                    statusSpan.textContent = 'Configurada ✅';
-                    statusSpan.className = 'printer-status configured';
-                }
-
-                console.log(`✅ ${location} restaurado com sucesso`);
-            }, 300);
-        }
-    });
-});
-
-// Restaurar status de autostart
-ipcRenderer.on('autostart-status', (event, isEnabled) => {
-    const checkbox = document.getElementById('autostartCheckbox');
-    if (checkbox) {
-        checkbox.checked = isEnabled;
-        console.log(`🚀 Autostart: ${isEnabled ? 'HABILITADO' : 'DESABILITADO'}`);
-    }
-});
-
-// Status de conexão
-ipcRenderer.on('status', (event, status) => {
-    const dot = statusIndicator.querySelector('.status-dot');
-    const text = statusIndicator.querySelector('span:last-child');
-
-    dot.className = 'status-dot';
-    connectBtn.disabled = false;
-
-    switch(status) {
-        case 'connected':
-            dot.classList.add('connected');
-            text.textContent = 'Conectado ✅';
-            connectBtn.classList.add('hidden');
-            disconnectBtn.classList.remove('hidden');
-            printersCard.classList.remove('hidden');
-            ordersCard.classList.remove('hidden');
-            break;
-
-        case 'disconnected':
-            dot.classList.add('disconnected');
-            text.textContent = 'Desconectado';
-            connectBtn.classList.remove('hidden');
-            connectBtn.textContent = 'Conectar';
-            disconnectBtn.classList.add('hidden');
-            break;
-
-        case 'reconnecting':
-            dot.classList.add('reconnecting');
-            text.textContent = 'Reconectando...';
-            break;
-
-        case 'error':
-            dot.classList.add('disconnected');
-            text.textContent = 'Erro de conexão - Verifique as credenciais';
-            connectBtn.textContent = 'Tentar novamente';
-            // Removido alert infinito - mensagem está no status
-            break;
-    }
-});
-
-// ===== IMPRESSORAS =====
-
-function updatePrinterFields(location) {
-    const type = document.getElementById(`${location}Type`).value;
-    const fieldsDiv = document.getElementById(`${location}Fields`);
-
-    if (!type) {
-        fieldsDiv.innerHTML = '';
-        return;
-    }
-
-    if (type === 'usb') {
-        fieldsDiv.innerHTML = `
-            <div class="form-group">
-                <label>Impressora</label>
-                <select id="${location}PrinterSelect" onchange="selectPrinter('${location}')" style="width: 100%; padding: 8px; margin-bottom: 10px;">
-                    <option value="">Selecione uma impressora abaixo</option>
-                </select>
-            </div>
-
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button class="btn btn-primary" onclick="findSystemPrinters('${location}')" style="flex: 1; min-width: 200px;">
-                    🖨️ Detectar Impressoras do Sistema
-                </button>
-                <button class="btn btn-secondary" onclick="findUSBPrinters('${location}')" style="flex: 1; min-width: 200px;">
-                    🔌 Buscar USB (Avançado)
-                </button>
-            </div>
-
-            <!-- Campos técnicos escondidos (preenchidos automaticamente) -->
-            <input type="hidden" id="${location}VendorId">
-            <input type="hidden" id="${location}ProductId">
-            <input type="hidden" id="${location}PrinterName">
-
-            <div style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px; font-size: 12px; color: #1565c0;">
-                <strong>⭐ RECOMENDADO:</strong> Use "Detectar Impressoras do Sistema" para ver TODAS as impressoras instaladas
-                (USB, Rede, PDF, etc). Funciona mesmo se a impressora não estiver conectada no momento.
-            </div>
-
-            <div style="margin-top: 10px; padding: 10px; background: #fff3e0; border-left: 4px solid #ff9800; border-radius: 4px; font-size: 11px; color: #e65100;">
-                <strong>🔧 Modo Avançado:</strong> "Buscar USB" detecta apenas impressoras USB conectadas AGORA.
-                Use somente se "Detectar Sistema" não encontrar sua impressora térmica.
-            </div>
-
-            <!-- ==================== CONFIGURAÇÕES AVANÇADAS v1.7.0 ==================== -->
-            <div style="margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 6px;">
-                <h4 style="margin-top: 0; margin-bottom: 15px; color: #333; font-size: 14px;">⚙️ Configurações Avançadas</h4>
-
-                <!-- Número de cópias -->
-                <div class="form-group">
-                    <label>📋 Número de cópias</label>
-                    <select id="${location}Copies" style="width: 100%; padding: 8px;">
-                        <option value="1">1 via</option>
-                        <option value="2" selected>2 vias</option>
-                        <option value="3">3 vias</option>
-                        <option value="4">4 vias</option>
-                    </select>
-                    <small style="color: #666;">Ex: 1 para cozinha, 1 para entregador</small>
-                </div>
-
-                <!-- Largura do papel -->
-                <div class="form-group">
-                    <label>📏 Largura do papel</label>
-                    <select id="${location}PaperWidth" style="width: 100%; padding: 8px;">
-                        <option value="58">58mm (compacto)</option>
-                        <option value="80" selected>80mm (padrão)</option>
-                    </select>
-                    <small style="color: #666;">Verifique a largura da bobina de papel</small>
-                </div>
-
-                <!-- Tamanho da fonte -->
-                <div class="form-group">
-                    <label>🔤 Tamanho da fonte</label>
-                    <select id="${location}FontSize" style="width: 100%; padding: 8px;">
-                        <option value="small">Pequeno (mais conteúdo)</option>
-                        <option value="normal" selected>Normal (recomendado)</option>
-                        <option value="large">Grande (melhor legibilidade)</option>
-                    </select>
-                </div>
-
-                <!-- Imprimir logo -->
-                <div class="form-group">
-                    <label>🖼️ Imprimir logo do restaurante</label>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="${location}PrintLogo" style="width: auto; margin: 0;">
-                        <label for="${location}PrintLogo" style="margin: 0; font-weight: normal;">Sim, imprimir logo no topo do cupom</label>
-                    </div>
-                    <div id="${location}LogoPathDiv" style="margin-top: 10px; display: none;">
-                        <input type="text" id="${location}LogoPath" placeholder="Caminho da imagem (PNG/JPG)" style="width: 100%; padding: 8px;" readonly>
-                        <button class="btn btn-secondary" onclick="selectLogo('${location}')" style="margin-top: 5px; font-size: 12px;">
-                            📁 Selecionar Logo
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Remover acentos -->
-                <div class="form-group">
-                    <label>✂️ Remover acentos</label>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="${location}RemoveAccents" style="width: auto; margin: 0;">
-                        <label for="${location}RemoveAccents" style="margin: 0; font-weight: normal;">Sim (para impressoras antigas sem suporte UTF-8)</label>
-                    </div>
-                    <small style="color: #666;">Ex: "São Paulo" vira "Sao Paulo"</small>
-                </div>
-            </div>
-        `;
-
-        // Event listener para mostrar/ocultar seleção de logo
-        setTimeout(() => {
-            const printLogoCheckbox = document.getElementById(`${location}PrintLogo`);
-            const logoPathDiv = document.getElementById(`${location}LogoPathDiv`);
-
-            if (printLogoCheckbox && logoPathDiv) {
-                printLogoCheckbox.addEventListener('change', function() {
-                    logoPathDiv.style.display = this.checked ? 'block' : 'none';
-                });
-            }
-        }, 100);
-
-    } else if (type === 'network') {
-        fieldsDiv.innerHTML = `
-            <div class="form-group">
-                <label>Endereço IP</label>
-                <input type="text" id="${location}Ip" placeholder="Ex: 192.168.1.100">
-            </div>
-            <div class="form-group">
-                <label>Porta</label>
-                <input type="number" id="${location}Port" value="9100" placeholder="9100">
-            </div>
-
-            <!-- ==================== CONFIGURAÇÕES AVANÇADAS v1.7.0 ==================== -->
-            <div style="margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 6px;">
-                <h4 style="margin-top: 0; margin-bottom: 15px; color: #333; font-size: 14px;">⚙️ Configurações Avançadas</h4>
-
-                <!-- Número de cópias -->
-                <div class="form-group">
-                    <label>📋 Número de cópias</label>
-                    <select id="${location}Copies" style="width: 100%; padding: 8px;">
-                        <option value="1">1 via</option>
-                        <option value="2" selected>2 vias</option>
-                        <option value="3">3 vias</option>
-                        <option value="4">4 vias</option>
-                    </select>
-                    <small style="color: #666;">Ex: 1 para cozinha, 1 para entregador</small>
-                </div>
-
-                <!-- Largura do papel -->
-                <div class="form-group">
-                    <label>📏 Largura do papel</label>
-                    <select id="${location}PaperWidth" style="width: 100%; padding: 8px;">
-                        <option value="58">58mm (compacto)</option>
-                        <option value="80" selected>80mm (padrão)</option>
-                    </select>
-                    <small style="color: #666;">Verifique a largura da bobina de papel</small>
-                </div>
-
-                <!-- Tamanho da fonte -->
-                <div class="form-group">
-                    <label>🔤 Tamanho da fonte</label>
-                    <select id="${location}FontSize" style="width: 100%; padding: 8px;">
-                        <option value="small">Pequeno (mais conteúdo)</option>
-                        <option value="normal" selected>Normal (recomendado)</option>
-                        <option value="large">Grande (melhor legibilidade)</option>
-                    </select>
-                </div>
-
-                <!-- Imprimir logo -->
-                <div class="form-group">
-                    <label>🖼️ Imprimir logo do restaurante</label>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="${location}PrintLogo" style="width: auto; margin: 0;">
-                        <label for="${location}PrintLogo" style="margin: 0; font-weight: normal;">Sim, imprimir logo no topo do cupom</label>
-                    </div>
-                    <div id="${location}LogoPathDiv" style="margin-top: 10px; display: none;">
-                        <input type="text" id="${location}LogoPath" placeholder="Caminho da imagem (PNG/JPG)" style="width: 100%; padding: 8px;" readonly>
-                        <button class="btn btn-secondary" onclick="selectLogo('${location}')" style="margin-top: 5px; font-size: 12px;">
-                            📁 Selecionar Logo
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Remover acentos -->
-                <div class="form-group">
-                    <label>✂️ Remover acentos</label>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="${location}RemoveAccents" style="width: auto; margin: 0;">
-                        <label for="${location}RemoveAccents" style="margin: 0; font-weight: normal;">Sim (para impressoras antigas sem suporte UTF-8)</label>
-                    </div>
-                    <small style="color: #666;">Ex: "São Paulo" vira "Sao Paulo"</small>
-                </div>
-            </div>
-        `;
-
-        // Event listener para mostrar/ocultar seleção de logo
-        setTimeout(() => {
-            const printLogoCheckbox = document.getElementById(`${location}PrintLogo`);
-            const logoPathDiv = document.getElementById(`${location}LogoPathDiv`);
-
-            if (printLogoCheckbox && logoPathDiv) {
-                printLogoCheckbox.addEventListener('change', function() {
-                    logoPathDiv.style.display = this.checked ? 'block' : 'none';
-                });
-            }
-        }, 100);
-    }
-}
-
-// Armazena lista de impressoras encontradas por localização
-const foundPrinters = {};
-
-// NOVO: Detectar TODAS impressoras instaladas no sistema (v1.9.3+)
-// Inclui USB, Rede, Virtuais (Print to PDF), etc
-async function findSystemPrinters(location) {
-    try {
-        console.log('🔍 Buscando impressoras do sistema...');
-        const printers = await ipcRenderer.invoke('find-system-printers');
-        console.log('✅ Impressoras retornadas:', printers);
-
-        const select = document.getElementById(`${location}PrinterSelect`);
-
-        if (printers.length === 0) {
-            console.error('❌ Nenhuma impressora encontrada!');
-            alert('❌ Nenhuma impressora encontrada no sistema.\n\n' +
-                  'Verifique se há impressoras instaladas:\n' +
-                  '• Windows: Configurações → Impressoras\n' +
-                  '• macOS: Preferências → Impressoras\n' +
-                  '• Linux: Settings → Printers');
-            return;
-        }
-
-        // Armazena lista para uso posterior
-        foundPrinters[location] = printers.map(p => ({
-            ...p,
-            // Marca como impressora do sistema (não USB)
-            isSystemPrinter: true
-        }));
-
-        // Limpa e preenche o select
-        select.innerHTML = '<option value="">Selecione uma impressora</option>';
-
-        printers.forEach((printer, index) => {
-            const option = document.createElement('option');
-            option.value = index;
-            // Usa o label formatado com emoji
-            option.textContent = printer.label;
-            select.appendChild(option);
-        });
-
-        // Mensagem de sucesso
-        const defaultPrinter = printers.find(p => p.isDefault);
-        let successMsg = `✅ ${printers.length} impressora(s) encontrada(s)!\n\n`;
-
-        if (defaultPrinter) {
-            successMsg += `⭐ Impressora padrão: ${defaultPrinter.displayName}\n\n`;
-        }
-
-        successMsg += 'Selecione uma impressora na lista acima.';
-        alert(successMsg);
-
-    } catch (error) {
-        console.error('Erro ao buscar impressoras do sistema:', error);
-        alert('Erro ao buscar impressoras: ' + error.message);
-    }
-}
-
-// Detectar impressoras USB (método original - ainda funciona)
-async function findUSBPrinters(location) {
-    try {
-        const printers = await ipcRenderer.invoke('find-usb-printers');
-        const select = document.getElementById(`${location}PrinterSelect`);
-
-        if (printers.length === 0) {
-            alert('❌ Nenhuma impressora USB encontrada.\n\n' +
-                  'Certifique-se de que:\n' +
-                  '• A impressora está conectada via USB\n' +
-                  '• A impressora está ligada\n' +
-                  '• Os drivers estão instalados\n\n' +
-                  '💡 Dica: Experimente o botão "Detectar Impressoras do Sistema"');
-            return;
-        }
-
-        // Armazena lista para uso posterior
-        foundPrinters[location] = printers.map(p => ({
-            ...p,
-            isSystemPrinter: false // Marca como USB
-        }));
-
-        // Limpa e preenche o select
-        select.innerHTML = '<option value="">Selecione uma impressora</option>';
-
-        printers.forEach((printer, index) => {
-            const option = document.createElement('option');
-            option.value = index;
-            option.textContent = `📄 ${printer.displayName}`;
-            select.appendChild(option);
-        });
-
-        // Mensagem de sucesso
-        alert(`✅ ${printers.length} impressora(s) USB encontrada(s)!\n\n` +
-              'Selecione uma impressora na lista acima.');
-
-    } catch (error) {
-        alert('Erro ao buscar impressoras: ' + error.message);
-    }
-}
-
-// Função chamada quando o usuário seleciona uma impressora
-function selectPrinter(location) {
-    const select = document.getElementById(`${location}PrinterSelect`);
-    const selectedIndex = select.value;
-
-    if (!selectedIndex || selectedIndex === '') {
-        return;
-    }
-
-    const printer = foundPrinters[location][parseInt(selectedIndex)];
-
-    if (!printer) {
-        return;
-    }
-
-    // Verifica se é impressora do sistema ou USB
-    if (printer.isSystemPrinter) {
-        // Impressora do sistema: usa nome
-        document.getElementById(`${location}PrinterName`).value = printer.name;
-        document.getElementById(`${location}VendorId`).value = '';
-        document.getElementById(`${location}ProductId`).value = '';
-
-        console.log(`✅ Impressora do sistema selecionada: ${printer.displayName}`);
-        console.log(`   Nome: ${printer.name}`);
-        console.log(`   Status: ${printer.statusText}`);
-
-    } else {
-        // Impressora USB: usa vendor/product ID
-        document.getElementById(`${location}VendorId`).value = `0x${printer.vendorId.toString(16).padStart(4, '0')}`;
-        document.getElementById(`${location}ProductId`).value = `0x${printer.productId.toString(16).padStart(4, '0')}`;
-        document.getElementById(`${location}PrinterName`).value = '';
-
-        console.log(`✅ Impressora USB selecionada: ${printer.displayName}`);
-        console.log(`   Vendor ID: 0x${printer.vendorId.toString(16).padStart(4, '0')}`);
-        console.log(`   Product ID: 0x${printer.productId.toString(16).padStart(4, '0')}`);
-    }
-}
-
-// Função para selecionar logo (v1.7.0)
-async function selectLogo(location) {
-    try {
-        const result = await ipcRenderer.invoke('select-logo-file');
-
-        if (result.filePath) {
-            document.getElementById(`${location}LogoPath`).value = result.filePath;
-            console.log(`Logo selecionado: ${result.filePath}`);
-        }
-
-    } catch (error) {
-        alert('Erro ao selecionar logo: ' + error.message);
-    }
-}
-
-function configurePrinter(location) {
-    const type = document.getElementById(`${location}Type`).value;
-
-    if (!type) {
-        alert('Selecione o tipo de impressora');
-        return;
-    }
-
-    let config = {
-        location: location,
-        type: type
+function savePreferences() {
+    const prefs = {
+        soundEnabled: document.getElementById('soundEnabledCheckbox').checked,
+        notificationsEnabled: document.getElementById('notificationsEnabledCheckbox').checked
     };
 
-    // CORREÇÃO: Detecta se é impressora do sistema (tem nome mas não tem vendor/product ID)
-    const printerName = document.getElementById(`${location}PrinterName`).value;
-    const isSystemPrinter = printerName && printerName.trim() !== '';
-
-    if (isSystemPrinter) {
-        // Impressora do sistema (detectada via PowerShell/getPrinters)
-        config.type = 'system';
-        config.printerName = printerName;
-        config.vendorId = null;
-        config.productId = null;
-
-        // Configurações avançadas para impressoras do sistema
-        const copiesEl = document.getElementById(`${location}Copies`);
-        config.copies = copiesEl ? parseInt(copiesEl.value) : 1;
-
-        const paperWidthEl = document.getElementById(`${location}PaperWidth`);
-        config.paperWidth = paperWidthEl ? parseInt(paperWidthEl.value) : 80;
-
-        const fontSizeEl = document.getElementById(`${location}FontSize`);
-        config.fontSize = fontSizeEl ? fontSizeEl.value : 'normal';
-
-        const printLogoEl = document.getElementById(`${location}PrintLogo`);
-        config.printLogo = printLogoEl ? printLogoEl.checked : false;
-
-        if (config.printLogo) {
-            const logoPathEl = document.getElementById(`${location}LogoPath`);
-            config.logoPath = logoPathEl ? logoPathEl.value : '';
-        }
-
-        const removeAccentsEl = document.getElementById(`${location}RemoveAccents`);
-        config.removeAccents = removeAccentsEl ? removeAccentsEl.checked : false;
-
-        console.log(`✅ Configurando impressora do sistema: ${printerName}`);
-        console.log(`   Cópias: ${config.copies}, Largura: ${config.paperWidth}mm`);
-
-    } else if (type === 'usb') {
-        const vendorId = document.getElementById(`${location}VendorId`).value;
-        const productId = document.getElementById(`${location}ProductId`).value;
-
-        if (!vendorId || !productId) {
-            alert('Busque e selecione uma impressora USB primeiro');
-            return;
-        }
-
-        config.vendorId = parseInt(vendorId);
-        config.productId = parseInt(productId);
-
-        // ==================== NOVAS CONFIGURAÇÕES v1.7.0 ====================
-        // Número de cópias
-        const copiesEl = document.getElementById(`${location}Copies`);
-        config.copies = copiesEl ? parseInt(copiesEl.value) : 1;
-
-        // Largura do papel
-        const paperWidthEl = document.getElementById(`${location}PaperWidth`);
-        config.paperWidth = paperWidthEl ? parseInt(paperWidthEl.value) : 80;
-
-        // Tamanho da fonte
-        const fontSizeEl = document.getElementById(`${location}FontSize`);
-        config.fontSize = fontSizeEl ? fontSizeEl.value : 'normal';
-
-        // Imprimir logo
-        const printLogoEl = document.getElementById(`${location}PrintLogo`);
-        config.printLogo = printLogoEl ? printLogoEl.checked : false;
-
-        if (config.printLogo) {
-            const logoPathEl = document.getElementById(`${location}LogoPath`);
-            config.logoPath = logoPathEl ? logoPathEl.value : '';
-
-            if (!config.logoPath) {
-                alert('Selecione um arquivo de logo para imprimir');
-                return;
-            }
-        }
-
-        // Remover acentos
-        const removeAccentsEl = document.getElementById(`${location}RemoveAccents`);
-        config.removeAccents = removeAccentsEl ? removeAccentsEl.checked : false;
-
-        console.log(`Configurações avançadas:`, {
-            copies: config.copies,
-            paperWidth: config.paperWidth,
-            fontSize: config.fontSize,
-            printLogo: config.printLogo,
-            logoPath: config.logoPath,
-            removeAccents: config.removeAccents
-        });
-
-    } else if (type === 'network') {
-        const ip = document.getElementById(`${location}Ip`).value;
-        const port = document.getElementById(`${location}Port`).value;
-
-        if (!ip) {
-            alert('Preencha o endereço IP');
-            return;
-        }
-
-        config.ip = ip;
-        config.port = parseInt(port) || 9100;
-
-        // Configurações avançadas também para rede (v1.7.0)
-        const copiesEl = document.getElementById(`${location}Copies`);
-        config.copies = copiesEl ? parseInt(copiesEl.value) : 1;
-
-        const paperWidthEl = document.getElementById(`${location}PaperWidth`);
-        config.paperWidth = paperWidthEl ? parseInt(paperWidthEl.value) : 80;
-
-        const fontSizeEl = document.getElementById(`${location}FontSize`);
-        config.fontSize = fontSizeEl ? fontSizeEl.value : 'normal';
-
-        const printLogoEl = document.getElementById(`${location}PrintLogo`);
-        config.printLogo = printLogoEl ? printLogoEl.checked : false;
-
-        if (config.printLogo) {
-            const logoPathEl = document.getElementById(`${location}LogoPath`);
-            config.logoPath = logoPathEl ? logoPathEl.value : '';
-        }
-
-        const removeAccentsEl = document.getElementById(`${location}RemoveAccents`);
-        config.removeAccents = removeAccentsEl ? removeAccentsEl.checked : false;
-    }
-
-    ipcRenderer.send('configure-printer', config);
+    ipcRenderer.send('save-preferences', prefs);
+    addLog('info', 'Preferências salvas');
 }
 
-ipcRenderer.on('printer-configured', (event, result) => {
-    if (result.success) {
-        const statusEl = document.getElementById(`${result.location}Status`);
-        statusEl.textContent = 'Configurada ✓';
-        statusEl.className = 'printer-status configured';
-        alert(`Impressora ${result.location} configurada com sucesso!`);
-    } else {
-        alert(`Erro ao configurar impressora: ${result.error}`);
-    }
-});
+// ===== TESTS =====
+async function testWebSocket() {
+    const resultDiv = document.getElementById('websocketTestResult');
+    resultDiv.classList.remove('hidden');
+    resultDiv.className = 'test-result';
+    resultDiv.textContent = '⏳ Testando conexão...';
 
-function testPrint(location) {
-    ipcRenderer.send('test-print', { location });
+    try {
+        const result = await ipcRenderer.invoke('test-websocket');
+        resultDiv.className = 'test-result success';
+        resultDiv.textContent = `✅ ${result.message}`;
+        addLog('info', 'Teste de WebSocket: OK');
+    } catch (error) {
+        resultDiv.className = 'test-result error';
+        resultDiv.textContent = `❌ ${error.message}`;
+        addLog('error', `Teste de WebSocket falhou: ${error.message}`);
+    }
 }
 
-ipcRenderer.on('test-print-result', (event, result) => {
-    if (result.success) {
-        alert(result.message);
-    } else {
-        alert(`Erro no teste: ${result.error}`);
+async function testPrintAll() {
+    const resultDiv = document.getElementById('printTestResult');
+    resultDiv.classList.remove('hidden');
+    resultDiv.className = 'test-result';
+    resultDiv.textContent = '⏳ Enviando teste para todas as impressoras...';
+
+    try {
+        await ipcRenderer.invoke('test-print-all');
+        resultDiv.className = 'test-result success';
+        resultDiv.textContent = '✅ Teste enviado para todas as impressoras configuradas!';
+        addLog('info', 'Teste de impressão enviado para todas');
+    } catch (error) {
+        resultDiv.className = 'test-result error';
+        resultDiv.textContent = `❌ ${error.message}`;
+        addLog('error', `Teste de impressão falhou: ${error.message}`);
     }
-});
+}
 
-// ===== PEDIDOS =====
+// ===== LOGS =====
+function addLog(level, message) {
+    const timestamp = new Date().toLocaleTimeString('pt-BR');
+    const log = { level, message, timestamp };
+    logs.push(log);
 
-ipcRenderer.on('new-order', (event, order) => {
-    // Adicionar pedido na lista
-    const orderEl = document.createElement('div');
-    orderEl.className = 'order-item';
-    orderEl.innerHTML = `
-        <strong>Pedido #${order.order_number}</strong><br>
-        Cliente: ${order.customer.name}<br>
-        Total: R$ ${order.totals.total.toFixed(2)}<br>
-        <small>${new Date(order.created_at).toLocaleString('pt-BR')}</small>
+    // Limitar a 1000 logs
+    if (logs.length > 1000) {
+        logs.shift();
+    }
+
+    // Atualizar UI
+    const container = document.getElementById('logsContainer');
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${level}`;
+    entry.innerHTML = `
+        <span class="log-time">${timestamp}</span>
+        <span class="log-level">${level.toUpperCase()}</span>
+        <span class="log-message">${message}</span>
     `;
 
-    // Remover mensagem "Nenhum pedido"
-    if (ordersList.children.length === 1 && ordersList.children[0].tagName === 'P') {
-        ordersList.innerHTML = '';
+    container.insertBefore(entry, container.firstChild);
+
+    // Limitar logs visíveis a 100
+    while (container.children.length > 100) {
+        container.removeChild(container.lastChild);
     }
 
-    ordersList.insertBefore(orderEl, ordersList.firstChild);
+    console.log(`[${level.toUpperCase()}] ${message}`);
+}
 
-    // Limitar a 10 pedidos
-    if (ordersList.children.length > 10) {
-        ordersList.removeChild(ordersList.lastChild);
+function clearLogs() {
+    if (confirm('Limpar todos os logs?')) {
+        logs = [];
+        document.getElementById('logsContainer').innerHTML = '';
+        addLog('info', 'Logs limpos');
     }
-});
+}
 
-ipcRenderer.on('print-error', (event, data) => {
-    alert(`Erro ao imprimir pedido #${data.order_id}: ${data.error}`);
-});
+function exportLogs() {
+    const text = logs.map(log => `[${log.timestamp}] [${log.level.toUpperCase()}] ${log.message}`).join('\n');
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `yumgo-bridge-logs-${Date.now()}.txt`;
+    a.click();
+    addLog('info', 'Logs exportados');
+}
 
-// Tocar som de notificação
-ipcRenderer.on('play-sound', () => {
-    // Som desabilitado - notificações do sistema já têm som
-    // notificationSound.play().catch(err => {
-    //     console.error('Erro ao tocar som:', err);
-    // });
-});
-
-// ===== INICIALIZAÇÃO =====
-
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('YumGo Bridge iniciado');
-
-    // Busca e exibe a versão do app (v1.9.3+)
-    try {
-        const version = await ipcRenderer.invoke('get-app-version');
-        const versionElement = document.getElementById('appVersion');
-        if (versionElement) {
-            versionElement.textContent = version;
-            console.log(`📦 Versão: ${version}`);
+function filterLogs(level) {
+    const entries = document.querySelectorAll('.log-entry');
+    entries.forEach(entry => {
+        if (level === 'all' || entry.classList.contains(level)) {
+            entry.style.display = 'flex';
+        } else {
+            entry.style.display = 'none';
         }
-    } catch (error) {
-        console.error('Erro ao obter versão:', error);
+    });
+}
+
+// ===== HISTORY =====
+function addToHistory(order) {
+    orderHistory.unshift({
+        id: order.id,
+        number: order.order_number,
+        customer: order.customer.name,
+        total: order.totals.total,
+        timestamp: new Date()
+    });
+
+    // Limitar a 50
+    if (orderHistory.length > 50) {
+        orderHistory.pop();
     }
 
-    // MODO TESTE: Mostra seção de impressoras mesmo sem conexão (v1.9.9+)
-    console.log('🧪 Modo de teste: Habilitando seção de impressoras...');
-    if (printersCard) {
-        printersCard.classList.remove('hidden');
-        console.log('✅ Seção de impressoras habilitada (modo offline)');
+    updateHistory();
+    updateHomeRecent();
+}
+
+function updateHistory() {
+    const list = document.getElementById('historyList');
+
+    if (orderHistory.length === 0) {
+        list.innerHTML = '<p class="empty-state">Nenhum pedido impresso ainda</p>';
+        return;
     }
 
-    console.log('Verificando funções globais:');
-    console.log('- connect:', typeof connect);
-    console.log('- disconnect:', typeof disconnect);
-    console.log('Elementos DOM:');
-    console.log('- connectBtn:', connectBtn ? 'OK' : 'NULL');
-    console.log('- restaurantIdInput:', restaurantIdInput ? 'OK' : 'NULL');
-    console.log('- tokenInput:', tokenInput ? 'OK' : 'NULL');
+    list.innerHTML = orderHistory.map(order => `
+        <div class="order-card">
+            <div class="order-header">
+                <div class="order-number">#${order.number}</div>
+                <div class="order-time">${order.timestamp.toLocaleTimeString('pt-BR')}</div>
+            </div>
+            <div class="order-customer">${order.customer}</div>
+            <div class="order-total">R$ ${order.total.toFixed(2)}</div>
+        </div>
+    `).join('');
+}
+
+function updateHomeRecent() {
+    const container = document.getElementById('recentOrders');
+    const recent = orderHistory.slice(0, 5);
+
+    if (recent.length === 0) {
+        container.innerHTML = '<p class="empty-state">Nenhum pedido recebido ainda</p>';
+        return;
+    }
+
+    container.innerHTML = recent.map(order => `
+        <div class="order-card">
+            <div class="order-header">
+                <div class="order-number">#${order.number}</div>
+                <div class="order-time">${order.timestamp.toLocaleTimeString('pt-BR')}</div>
+            </div>
+            <div class="order-customer">${order.customer}</div>
+            <div class="order-total">R$ ${order.total.toFixed(2)}</div>
+        </div>
+    `).join('');
+}
+
+function clearHistory() {
+    if (confirm('Limpar todo o histórico?')) {
+        orderHistory = [];
+        updateHistory();
+        updateHomeRecent();
+        addLog('info', 'Histórico limpo');
+    }
+}
+
+// ===== HOME STATUS =====
+function updateHomeStatus() {
+    // Atualizar contadores
+    const printersConfigured = Object.values(printerConfigs).filter(c => c !== null).length;
+    document.getElementById('homePrintersStatus').textContent = `${printersConfigured} configuradas`;
+
+    const ordersToday = orderHistory.filter(o => {
+        const today = new Date().toDateString();
+        return o.timestamp.toDateString() === today;
+    }).length;
+    document.getElementById('homeOrdersCount').textContent = ordersToday;
+}
+
+// ===== IPC LISTENERS =====
+
+// Status de conexão
+ipcRenderer.on('connection-status', (event, status) => {
+    const dot = document.querySelector('.status-dot');
+    const text = document.querySelector('.connection-status span');
+    const homeStatus = document.getElementById('homeConnectionStatus');
+
+    dot.className = 'status-dot';
+
+    if (status === 'connected') {
+        dot.classList.add('connected');
+        text.textContent = 'Conectado';
+        homeStatus.textContent = 'Conectado ✅';
+        homeStatus.style.color = 'var(--success)';
+        addLog('info', '✅ Conectado ao servidor YumGo');
+    } else if (status === 'disconnected') {
+        dot.classList.add('disconnected');
+        text.textContent = 'Desconectado';
+        homeStatus.textContent = 'Desconectado';
+        homeStatus.style.color = 'var(--error)';
+        addLog('warn', 'Desconectado do servidor');
+    } else if (status === 'reconnecting') {
+        dot.classList.add('reconnecting');
+        text.textContent = 'Reconectando...';
+        homeStatus.textContent = 'Reconectando...';
+        homeStatus.style.color = 'var(--warning)';
+        addLog('warn', 'Tentando reconectar...');
+    }
 });
+
+// Novo pedido
+ipcRenderer.on('new-order', (event, order) => {
+    addLog('info', `🔔 Novo pedido #${order.order_number} - ${order.customer.name}`);
+    addToHistory(order);
+    updateHomeStatus();
+});
+
+// Restaurar configurações
+ipcRenderer.on('restore-config', (event, config) => {
+    document.getElementById('restaurantId').value = config.restaurantId || '';
+    document.getElementById('token').value = config.token || '';
+});
+
+ipcRenderer.on('restore-printers', (event, configs) => {
+    printerConfigs = configs;
+
+    // Atualizar badges de status de cada impressora
+    Object.keys(printerConfigs).forEach(location => {
+        updatePrinterStatusBadge(location);
+    });
+
+    updateHomeStatus();
+});
+
+ipcRenderer.on('restore-preferences', (event, prefs) => {
+    document.getElementById('soundEnabledCheckbox').checked = prefs.soundEnabled !== false;
+    document.getElementById('notificationsEnabledCheckbox').checked = prefs.notificationsEnabled !== false;
+});
+
+ipcRenderer.on('autostart-status', (event, enabled) => {
+    document.getElementById('autostartCheckbox').checked = enabled;
+    document.getElementById('homeAutostartStatus').textContent = enabled ? 'Habilitado ✅' : 'Desabilitado';
+});
+
+// ===== SYSTEM INFO =====
+async function loadAppVersion() {
+    const version = await ipcRenderer.invoke('get-app-version');
+    document.getElementById('appVersion').textContent = version;
+    document.getElementById('systemVersion').textContent = version;
+}
+
+async function loadSystemInfo() {
+    const os = await ipcRenderer.invoke('get-system-os');
+    const electron = await ipcRenderer.invoke('get-electron-version');
+    const node = await ipcRenderer.invoke('get-node-version');
+
+    document.getElementById('systemOs').textContent = os;
+    document.getElementById('systemElectron').textContent = electron;
+    document.getElementById('systemNode').textContent = node;
+}
+
+// Expor funções globais para onclick
+window.updatePrinterFields = updatePrinterFields;
+window.updateCharsLabel = updateCharsLabel;
+window.findSystemPrinters = findSystemPrinters;
+window.findUSBPrinters = findUSBPrinters;
+window.savePrinter = savePrinter;
+window.testPrinter = testPrinter;

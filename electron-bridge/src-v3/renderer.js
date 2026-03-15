@@ -64,7 +64,10 @@ function createPrinterConfig(location, label) {
 
     const html = `
         <div class="card printer-card" id="${location}-card">
-            <h2>🖨️ ${label}</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">🖨️ ${label}</h2>
+                <span id="${location}StatusBadge" class="status-badge" style="display: none;">✅ Configurada</span>
+            </div>
 
             <!-- Tipo de impressora -->
             <div class="form-group">
@@ -343,10 +346,23 @@ async function savePrinter(location) {
         printerConfigs[location] = config;
         addLog('info', `✅ Impressora ${location} salva: ${config.charsPerLine} chars/linha, ${config.spacing} spacing`);
         alert(`✅ Impressora ${location} configurada com sucesso!`);
+        updatePrinterStatusBadge(location);  // Atualiza badge
         updateHomeStatus();
     } catch (error) {
         addLog('error', `Erro ao salvar ${location}: ${error.message}`);
         alert(`❌ Erro ao salvar: ${error.message}`);
+    }
+}
+
+// Atualiza badge de status da impressora
+function updatePrinterStatusBadge(location) {
+    const badge = document.getElementById(`${location}StatusBadge`);
+    if (badge) {
+        if (printerConfigs[location] !== null) {
+            badge.style.display = 'inline-block';  // Mostra "✅ Configurada"
+        } else {
+            badge.style.display = 'none';  // Esconde
+        }
     }
 }
 
@@ -695,7 +711,12 @@ ipcRenderer.on('restore-config', (event, config) => {
 
 ipcRenderer.on('restore-printers', (event, configs) => {
     printerConfigs = configs;
-    // TODO: Restaurar na UI
+
+    // Atualizar badges de status de cada impressora
+    Object.keys(printerConfigs).forEach(location => {
+        updatePrinterStatusBadge(location);
+    });
+
     updateHomeStatus();
 });
 
