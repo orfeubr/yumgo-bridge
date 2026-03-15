@@ -76,10 +76,115 @@ class OrderResource extends Resource
 
                                         $set('delivery_address', $address);
                                         $set('delivery_neighborhood', $customer->neighborhood);
+
+                                        // Se não tem endereço, mostra notificação
+                                        if (!$customer->address) {
+                                            \Filament\Notifications\Notification::make()
+                                                ->warning()
+                                                ->title('⚠️ Cliente sem endereço cadastrado')
+                                                ->body('Preencha o endereço de entrega abaixo ou clique no botão ✏️ para cadastrar.')
+                                                ->send();
+                                        }
                                     }
                                 }
                             })
                             ->searchable()
+                            ->suffixAction(
+                                Forms\Components\Actions\Action::make('editAddress')
+                                    ->icon('heroicon-o-pencil')
+                                    ->tooltip('Editar/Adicionar Endereço')
+                                    ->visible(fn (Forms\Get $get) => $get('customer_id'))
+                                    ->form([
+                                        Forms\Components\TextInput::make('address')
+                                            ->label('Rua/Avenida')
+                                            ->required()
+                                            ->maxLength(255),
+
+                                        Forms\Components\TextInput::make('number')
+                                            ->label('Número')
+                                            ->required()
+                                            ->maxLength(10),
+
+                                        Forms\Components\TextInput::make('complement')
+                                            ->label('Complemento')
+                                            ->maxLength(255),
+
+                                        Forms\Components\TextInput::make('neighborhood')
+                                            ->label('Bairro')
+                                            ->required()
+                                            ->maxLength(255),
+
+                                        Forms\Components\TextInput::make('city')
+                                            ->label('Cidade')
+                                            ->required()
+                                            ->maxLength(255),
+
+                                        Forms\Components\Select::make('state')
+                                            ->label('Estado')
+                                            ->required()
+                                            ->options([
+                                                'AC' => 'AC', 'AL' => 'AL', 'AP' => 'AP', 'AM' => 'AM',
+                                                'BA' => 'BA', 'CE' => 'CE', 'DF' => 'DF', 'ES' => 'ES',
+                                                'GO' => 'GO', 'MA' => 'MA', 'MT' => 'MT', 'MS' => 'MS',
+                                                'MG' => 'MG', 'PA' => 'PA', 'PB' => 'PB', 'PR' => 'PR',
+                                                'PE' => 'PE', 'PI' => 'PI', 'RJ' => 'RJ', 'RN' => 'RN',
+                                                'RS' => 'RS', 'RO' => 'RO', 'RR' => 'RR', 'SC' => 'SC',
+                                                'SP' => 'SP', 'SE' => 'SE', 'TO' => 'TO',
+                                            ])
+                                            ->searchable(),
+
+                                        Forms\Components\TextInput::make('zipcode')
+                                            ->label('CEP')
+                                            ->mask('99999-999')
+                                            ->maxLength(9),
+                                    ])
+                                    ->fillForm(function (Forms\Get $get): array {
+                                        $customerId = $get('customer_id');
+                                        if ($customerId) {
+                                            $customer = \App\Models\Customer::find($customerId);
+                                            return [
+                                                'address' => $customer->address,
+                                                'number' => $customer->number,
+                                                'complement' => $customer->complement,
+                                                'neighborhood' => $customer->neighborhood,
+                                                'city' => $customer->city,
+                                                'state' => $customer->state,
+                                                'zipcode' => $customer->zipcode,
+                                            ];
+                                        }
+                                        return [];
+                                    })
+                                    ->action(function (array $data, Forms\Get $get, callable $set) {
+                                        $customerId = $get('customer_id');
+                                        if ($customerId) {
+                                            $customer = \App\Models\Customer::find($customerId);
+                                            $customer->update($data);
+
+                                            // Atualiza campos de endereço do pedido
+                                            $address = $data['address'] . ', ' . $data['number'];
+                                            if ($data['complement']) {
+                                                $address .= ' - ' . $data['complement'];
+                                            }
+                                            if ($data['neighborhood']) {
+                                                $address .= ' - ' . $data['neighborhood'];
+                                            }
+                                            if ($data['city']) {
+                                                $address .= ' - ' . $data['city'] . '/' . $data['state'];
+                                            }
+
+                                            $set('delivery_address', $address);
+                                            $set('delivery_neighborhood', $data['neighborhood']);
+
+                                            \Filament\Notifications\Notification::make()
+                                                ->success()
+                                                ->title('✅ Endereço atualizado!')
+                                                ->body('O endereço foi salvo e preenchido no pedido.')
+                                                ->send();
+                                        }
+                                    })
+                                    ->modalHeading('Editar/Adicionar Endereço do Cliente')
+                                    ->modalSubmitActionLabel('Salvar Endereço')
+                            )
                             ->createOptionForm([
                                 Forms\Components\Section::make('Dados do Cliente')
                                     ->schema([
@@ -374,15 +479,21 @@ class OrderResource extends Resource
                 Forms\Components\Section::make('Endereço de Entrega')
                     ->schema([
                         Forms\Components\Textarea::make('delivery_address')
-                            ->label('Endereço')
+                            ->label('Endereço Completo')
                             ->rows(3)
-                            ->columnSpanFull(),
+                            ->columnSpanFull()
+                            ->helperText('Preenche automaticamente ao selecionar cliente. Pode editar se necessário.'),
+
+                        Forms\Components\TextInput::make('delivery_neighborhood')
+                            ->label('Bairro')
+                            ->maxLength(255),
 
                         Forms\Components\TextInput::make('estimated_time')
                             ->label('Tempo Estimado (min)')
                             ->numeric()
                             ->suffix('min'),
-                    ]),
+                    ])->columns(2)
+                    ->description('Endereço será preenchido automaticamente. Se o cliente não tiver endereço, preencha manualmente.'),
 
                 Forms\Components\Section::make('Observações')
                     ->schema([
