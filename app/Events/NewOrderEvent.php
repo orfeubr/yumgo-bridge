@@ -22,8 +22,10 @@ class NewOrderEvent implements ShouldBroadcast
      */
     public function broadcastOn(): Channel
     {
-        // Canal privado do restaurante (tenant)
-        return new Channel("restaurant.{$this->order->tenant_id}.orders");
+        // TESTE: Canal PÚBLICO (sem autenticação)
+        // Usar tenancy() para obter tenant_id do contexto (schema isolation)
+        $tenantId = tenancy()->tenant?->id ?? tenant('id');
+        return new Channel("restaurant.{$tenantId}");
     }
 
     /**
@@ -31,7 +33,8 @@ class NewOrderEvent implements ShouldBroadcast
      */
     public function broadcastAs(): string
     {
-        return 'new-order';
+        // IMPORTANTE: Bridge escuta evento ".order.created"
+        return 'order.created';
     }
 
     /**

@@ -408,13 +408,13 @@ function connectWebSocket(restaurantId, token) {
 
         // Já temos state_change acima, remover duplicado
 
-        // Inscrever no canal privado do restaurante
-        const channelName = `private-restaurant.${restaurantId}`;
-        log.info(`Inscrevendo no canal: ${channelName}`);
+        // Inscrever no canal PÚBLICO do restaurante (TESTE - sem autenticação)
+        const channelName = `restaurant.${restaurantId}`;
+        log.info(`Inscrevendo no canal PÚBLICO: ${channelName}`);
 
-        const channel = echo.private(channelName);
+        const channel = echo.channel(channelName);
 
-        log.info(`📡 Tentando autenticar no canal privado...`);
+        log.info(`📡 Conectando ao canal público...`);
 
         channel.error((error) => {
             log.error('❌ Erro ao inscrever no canal:', JSON.stringify(error, null, 2));
