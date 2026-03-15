@@ -874,6 +874,199 @@ ipcMain.handle('set-autostart', async (event, enable) => {
     }
 });
 
+// ===== HANDLERS ADICIONAIS (v3.0.0) =====
+
+// save-printer (alias de configure-printer para compatibilidade v3)
+ipcMain.handle('save-printer', async (event, location, config) => {
+    try {
+        if (!printerManager) {
+            printerManager = new ThermalPrinter();
+        }
+
+        const fullConfig = { ...config, location };
+        await printerManager.configurePrinter(location, fullConfig);
+
+        // Salvar configuração
+        const printers = store.get('printers', {});
+        printers[location] = fullConfig;
+        store.set('printers', printers);
+
+        log.info(`Impressora ${location} configurada com sucesso (v3)`);
+        return { success: true };
+
+    } catch (error) {
+        log.error('Erro ao configurar impressora:', error);
+        throw error;
+    }
+});
+
+// connect como handle (para uso com invoke)
+ipcMain.handle('connect', async (event, { restaurantId, token }) => {
+    try {
+        // Salvar configuração
+        store.set('config', { restaurantId, token });
+
+        // Conectar
+        connectWebSocket(restaurantId, token);
+
+        return { success: true };
+    } catch (error) {
+        log.error('Erro ao conectar:', error);
+        throw error;
+    }
+});
+
+// disconnect como handle
+ipcMain.handle('disconnect', async () => {
+    try {
+        if (echo) {
+            echo.disconnect();
+            echo = null;
+        }
+        isConnected = false;
+        currentToken = null;
+        currentRestaurantId = null;
+
+        if (mainWindow) {
+            mainWindow.webContents.send('status', 'disconnected');
+        }
+        updateTrayStatus(false);
+
+        return { success: true };
+    } catch (error) {
+        log.error('Erro ao desconectar:', error);
+        throw error;
+    }
+});
+
+// test-websocket
+ipcMain.handle('test-websocket', async () => {
+    try {
+        if (!isConnected) {
+            throw new Error('Bridge não está conectado');
+        }
+
+        if (!echo) {
+            throw new Error('WebSocket não inicializado');
+        }
+
+        return {
+            success: true,
+            connected: isConnected,
+            restaurantId: currentRestaurantId,
+            socketId: echo.socketId ? echo.socketId() : null
+        };
+
+    } catch (error) {
+        log.error('Erro no teste WebSocket:', error);
+        throw error;
+    }
+});
+
+// test-print-all
+ipcMain.handle('test-print-all', async () => {
+    try {
+        if (!printerManager) {
+            throw new Error('Nenhuma impressora configurada');
+        }
+
+        const printers = store.get('printers', {});
+        const locations = Object.keys(printers);
+
+        if (locations.length === 0) {
+            throw new Error('Nenhuma impressora configurada');
+        }
+
+        const testOrder = {
+            order_number: 'TESTE-001',
+            customer: {
+                name: 'Teste de Impressão',
+                phone: '(11) 99999-9999'
+            },
+            delivery: {
+                method: 'delivery',
+                address: 'Rua Teste, 123',
+                neighborhood: 'Bairro Teste'
+            },
+            items: [
+                {
+                    quantity: 2,
+                    name: 'Produto Teste',
+                    price: 25.00,
+                    notes: 'Observação de teste'
+                }
+            ],
+            totals: {
+                subtotal: 50.00,
+                delivery_fee: 5.00,
+                total: 55.00
+            },
+            payment: {
+                method: 'pix',
+                status: 'paid'
+            },
+            notes: 'Este é um pedido de teste automático',
+            created_at: new Date().toISOString()
+        };
+
+        const results = [];
+        for (const location of locations) {
+            try {
+                await printerManager.printOrder(testOrder, location);
+                results.push({ location, success: true });
+                log.info(`Teste de impressão enviado para ${location}`);
+            } catch (error) {
+                results.push({ location, success: false, error: error.message });
+                log.error(`Erro ao imprimir em ${location}:`, error);
+            }
+        }
+
+        return {
+            success: true,
+            results: results
+        };
+
+    } catch (error) {
+        log.error('Erro no teste de impressão:', error);
+        throw error;
+    }
+});
+
+// get-system-os
+ipcMain.handle('get-system-os', () => {
+    return process.platform;
+});
+
+// get-electron-version
+ipcMain.handle('get-electron-version', () => {
+    return process.versions.electron;
+});
+
+// get-node-version
+ipcMain.handle('get-node-version', () => {
+    return process.versions.node;
+});
+
+// minimize-window
+ipcMain.on('minimize-window', () => {
+    if (mainWindow) {
+        mainWindow.minimize();
+    }
+});
+
+// close-window
+ipcMain.on('close-window', () => {
+    if (mainWindow) {
+        mainWindow.hide();
+    }
+});
+
+// save-preferences
+ipcMain.on('save-preferences', (event, prefs) => {
+    store.set('preferences', prefs);
+    log.info('Preferências salvas:', prefs);
+});
+
 // ===== APP LIFECYCLE =====
 
 app.whenReady().then(() => {
