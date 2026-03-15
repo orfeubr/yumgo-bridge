@@ -287,7 +287,7 @@ function connectWebSocket(restaurantId, token) {
 
     // Configurar URLs baseado no ambiente
     const baseUrl = isDev ? 'http://localhost:8000' : 'https://yumgo.com.br';
-    const wsHost = isDev ? 'localhost' : 'yumgo.com.br';  // FIX v3.0.2: Usar domínio direto (não ws. subdomain)
+    const wsHost = isDev ? 'localhost' : 'ws.yumgo.com.br';  // v3.0.3: Usar subdomínio WebSocket dedicado
     const wsPort = isDev ? 8081 : 443;  // HTTPS/443 em produção
     const wsPath = '';  // Empty - Pusher adds /app/{key} automatically
 
@@ -309,67 +309,18 @@ function connectWebSocket(restaurantId, token) {
     log.info(`   - isDev: ${isDev}`);
 
     try {
-        // Configurar Laravel Echo com Pusher/Reverb (servidor próprio)
-        //
-        // NOTA: cluster é obrigatório mesmo para servidor próprio
-        // O Pusher-JS valida a presença do cluster, mas IGNORA o valor quando
-        // wsHost é especificado. Isso é comportamento documentado:
-        // https://pusher.com/docs/channels/using_channels/connection/#self-hosted
-        //
-        // O valor 'mt1' é um cluster Pusher válido, mas qualquer string funciona.
-        // O importante é que o campo exista para passar na validação.
-
-        log.info('🔵 Criando cliente Pusher...');
-
-        let pusherClient;
-        try {
-            // FIX: Em Node.js/Electron, não especificar enabledTransports
-            // Deixar o Pusher escolher automaticamente o melhor transporte
-            pusherClient = new global.Pusher('t9pg2dslmpl5y1cp6rrf', {
-                wsHost: wsHost,
-                wsPort: wsPort,
-                wssPort: wsPort,
-                forceTLS: !isDev,
-                encrypted: !isDev,
-                disableStats: true,
-                // REMOVIDO enabledTransports - Pusher-JS Node escolhe automaticamente
-                cluster: 'mt1',  // Obrigatório para Pusher-JS, ignorado com wsHost
-                authEndpoint: `${baseUrl}/api/broadcasting/auth`,  // FIX: Auth endpoint no Pusher
-                auth: {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/json',
-                        'X-Restaurant-ID': restaurantId
-                    }
-                }
-            });
-
-            log.info('✅ Cliente Pusher criado');
-            log.info('📡 Estado inicial:', pusherClient.connection.state);
-
-            // Log de informações do transporte
-            if (pusherClient.connection.options) {
-                log.info('📡 Transporte habilitado:', pusherClient.connection.options.enabledTransports);
-            }
-
-        } catch (pusherError) {
-            log.error('❌ ERRO ao criar cliente Pusher:', pusherError.message);
-            log.error('Stack:', pusherError.stack);
-            throw pusherError;
-        }
+        // v3.0.3: CONFIGURAÇÃO SIMPLIFICADA - IGUAL À PÁGINA QUE FUNCIONA!
+        log.info('🔵 Criando Echo com broadcaster REVERB...');
 
         const echoConfig = {
-            broadcaster: 'pusher',
+            broadcaster: 'reverb',  // ⭐ MUDANÇA CRÍTICA: usar 'reverb' não 'pusher'
             key: 't9pg2dslmpl5y1cp6rrf',
-            client: pusherClient,  // FIX: Passar cliente criado manualmente
-            authEndpoint: `${baseUrl}/api/broadcasting/auth`,
-            auth: {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json',
-                    'X-Restaurant-ID': restaurantId
-                }
-            }
+            wsHost: wsHost,
+            wsPort: wsPort,
+            wssPort: wsPort,
+            forceTLS: !isDev,
+            enabledTransports: ['ws', 'wss'],  // ⭐ Adicionar transports explícitos
+            disableStats: true
         };
 
         // Log config sem o cliente (evita circular reference)
