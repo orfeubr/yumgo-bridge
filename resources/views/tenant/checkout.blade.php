@@ -80,14 +80,17 @@
         <!-- Overlay de Processamento -->
         <div x-show="loading || pageLoading" x-cloak class="order-overlay">
             <div class="text-center">
-                <!-- Animação de Cozinha -->
-                <div class="mb-8">
-                    <x-cooking-animation />
+                <!-- Animação Moderna - Jumping Dots -->
+                <div class="mb-8 flex items-center justify-center">
+                    <div class="flex items-center gap-3">
+                        <div class="w-5 h-5 bg-white rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+                        <div class="w-5 h-5 bg-white rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+                        <div class="w-5 h-5 bg-white rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+                    </div>
                 </div>
 
                 <h3 class="text-white text-2xl font-bold mb-2" x-text="loading ? 'Preparando seu pedido...' : 'Carregando suas informações...'"></h3>
-                <p class="text-gray-300 text-sm mb-4" x-text="loading ? 'Estamos confirmando todos os detalhes' : 'Só mais um instante'"></p>
-                <x-loading-dots />
+                <p class="text-gray-300 text-sm" x-text="loading ? 'Estamos confirmando todos os detalhes' : 'Só mais um instante'"></p>
             </div>
         </div>
 
@@ -520,11 +523,11 @@
                     <button
                         @click="submitOrder()"
                         :disabled="loading || !isFormValid"
-                        :class="loading || !isFormValid ? 'bg-gray-300 cursor-not-allowed' : 'bg-primary hover:bg-red-700'"
-                        class="w-full py-4 text-white font-bold text-lg rounded-lg transition-all duration-200">
+                        :class="loading || !isFormValid ? 'bg-gray-300 cursor-not-allowed text-gray-600' : 'bg-primary hover:bg-red-700 text-white'"
+                        class="w-full py-4 font-bold text-lg rounded-lg transition-all duration-200">
                         <span x-show="!loading">Confirmar Pedido - R$ <span x-text="total.toFixed(2).replace('.', ',')"></span></span>
                         <span x-show="loading" class="inline-flex items-center gap-2">
-                            <x-loading-spinner size="sm" />
+                            <x-loading-dots />
                             Processando...
                         </span>
                     </button>

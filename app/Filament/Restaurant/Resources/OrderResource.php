@@ -22,7 +22,20 @@ class OrderResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';
     protected static ?string $navigationLabel = 'Pedidos';
     protected static ?string $modelLabel = 'Pedido';
-    protected static ?int $navigationSort = 2;
+    protected static ?string $navigationGroup = '📦 Operações';
+    protected static ?int $navigationSort = 1;
+
+    // Forçar aparecer no menu
+    public static function shouldRegisterNavigation(): bool
+    {
+        return true;
+    }
+
+    // Permitir visualização para todos usuários autenticados
+    public static function canViewAny(): bool
+    {
+        return true;
+    }
 
     public static function form(Form $form): Form
     {

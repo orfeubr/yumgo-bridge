@@ -23,7 +23,7 @@ class ImportProducts extends Page implements HasForms
 
     protected static ?string $title = 'Importar Produtos';
 
-    protected static ?string $navigationGroup = 'Produtos';
+    protected static ?string $navigationGroup = '🍕 Cardápio';
 
     protected static ?int $navigationSort = 22;
 

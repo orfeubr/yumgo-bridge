@@ -17,8 +17,8 @@ class FiscalSettings extends Page implements HasForms
     protected static ?string $navigationIcon = 'heroicon-o-document-check';
     protected static ?string $navigationLabel = 'Configuração Fiscal';
     protected static ?string $title = 'Configuração Fiscal - Tributa AI';
-    protected static ?int $navigationSort = 93;
-    protected static ?string $navigationGroup = 'Configurações';
+    protected static ?int $navigationSort = 4;
+    protected static ?string $navigationGroup = '⚙️ Configurações';
 
     protected static string $view = 'filament.restaurant.pages.fiscal-settings';
 

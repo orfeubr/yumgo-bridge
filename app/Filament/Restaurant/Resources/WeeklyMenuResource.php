@@ -26,9 +26,9 @@ class WeeklyMenuResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Cardápios Semanais';
 
-    protected static ?string $navigationGroup = 'Produtos';
+    protected static ?string $navigationGroup = '🍕 Cardápio';
 
-    protected static ?int $navigationSort = 23;
+    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {

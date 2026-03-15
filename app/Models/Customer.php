@@ -15,9 +15,11 @@ class Customer extends Authenticatable
     use Notifiable, SoftDeletes, HasApiTokens;
 
     /**
-     * Tabela de customers do tenant
-     * IMPORTANTE: Não definir $connection para permitir usar conexão do tenant
+     * Customer é SEMPRE do schema CENTRAL (public.customers)
+     * Dados específicos por tenant ficam em customer_tenant (pivot table)
+     * Tokens Sanctum ficam em public.personal_access_tokens
      */
+    protected $connection = 'pgsql'; // Schema CENTRAL (PUBLIC)
     protected $table = 'customers';
 
     protected $fillable = [

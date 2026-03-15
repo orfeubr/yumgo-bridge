@@ -18,7 +18,7 @@ class PrinterSettings extends Page
 
     protected static ?int $navigationSort = 94;
 
-    protected static ?string $navigationGroup = 'Configurações';
+    protected static ?string $navigationGroup = '⚙️ Configurações';
 
     public function mount(): void
     {

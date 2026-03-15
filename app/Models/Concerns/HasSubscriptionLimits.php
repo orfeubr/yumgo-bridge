@@ -44,10 +44,18 @@ trait HasSubscriptionLimits
             return true;
         }
 
-        // Contar produtos existentes (no schema do tenant)
-        tenancy()->initialize($this);
-        $currentCount = \DB::table('products')->count();
-        tenancy()->end();
+        // ✅ SOLUÇÃO LIMPA: Usar Model (respeita tenancy automático)
+        $wasInitialized = tenancy()->initialized;
+
+        if (!$wasInitialized) {
+            tenancy()->initialize($this);
+        }
+
+        $currentCount = \App\Models\Product::count();
+
+        if (!$wasInitialized) {
+            tenancy()->end();
+        }
 
         return $currentCount < $maxProducts;
     }
@@ -71,13 +79,20 @@ trait HasSubscriptionLimits
             return true;
         }
 
-        // Contar pedidos deste mês (no schema do tenant)
-        tenancy()->initialize($this);
-        $currentCount = \DB::table('orders')
-            ->whereYear('created_at', now()->year)
+        // ✅ SOLUÇÃO LIMPA: Usar Model (respeita tenancy automático)
+        $wasInitialized = tenancy()->initialized;
+
+        if (!$wasInitialized) {
+            tenancy()->initialize($this);
+        }
+
+        $currentCount = \App\Models\Order::whereYear('created_at', now()->year)
             ->whereMonth('created_at', now()->month)
             ->count();
-        tenancy()->end();
+
+        if (!$wasInitialized) {
+            tenancy()->end();
+        }
 
         return $currentCount < $maxOrders;
     }
@@ -151,15 +166,21 @@ trait HasSubscriptionLimits
             ];
         }
 
-        tenancy()->initialize($this);
+        // ✅ SOLUÇÃO LIMPA: Usar Models (respeitam tenancy automático)
+        $wasInitialized = tenancy()->initialized;
 
-        $productsCount = \DB::table('products')->count();
-        $ordersCount = \DB::table('orders')
-            ->whereYear('created_at', now()->year)
+        if (!$wasInitialized) {
+            tenancy()->initialize($this);
+        }
+
+        $productsCount = \App\Models\Product::count();
+        $ordersCount = \App\Models\Order::whereYear('created_at', now()->year)
             ->whereMonth('created_at', now()->month)
             ->count();
 
-        tenancy()->end();
+        if (!$wasInitialized) {
+            tenancy()->end();
+        }
 
         $plan = $subscription->plan;
         $maxProducts = $plan->max_products ?? null;

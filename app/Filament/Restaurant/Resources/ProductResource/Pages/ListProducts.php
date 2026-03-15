@@ -13,6 +13,11 @@ class ListProducts extends ListRecords
 
     protected function getHeaderActions(): array
     {
+        // ⚠️ CORREÇÃO: Verificar se tenancy está inicializado
+        if (!tenancy()->initialized) {
+            return [];
+        }
+
         $tenant = tenancy()->tenant;
         $canCreate = $tenant->canCreateProduct();
         $stats = $tenant->usageStats();

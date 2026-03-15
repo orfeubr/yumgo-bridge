@@ -20,7 +20,7 @@ class FiscalOnboarding extends Page implements HasForms
     protected static ?string $navigationLabel = 'Começar com NFC-e';
     protected static ?string $title = 'Guia de Configuração NFC-e';
     protected static ?int $navigationSort = 95;
-    protected static ?string $navigationGroup = 'Configurações';
+    protected static ?string $navigationGroup = '⚙️ Configurações';
 
     protected static string $view = 'filament.restaurant.pages.fiscal-onboarding';
 

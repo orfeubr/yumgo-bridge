@@ -26,7 +26,7 @@ class POS extends Page implements HasForms
     protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';
     protected static ?string $navigationLabel = '💰 PDV - Frente de Caixa';
     protected static ?string $title = 'PDV - Ponto de Venda';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 4;
 
     protected static string $view = 'filament.restaurant.pages.p-o-s';
 

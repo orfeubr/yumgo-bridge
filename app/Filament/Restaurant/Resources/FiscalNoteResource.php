@@ -21,8 +21,8 @@ class FiscalNoteResource extends Resource
     protected static ?string $navigationLabel = 'Notas Fiscais';
     protected static ?string $modelLabel = 'Nota Fiscal';
     protected static ?string $pluralModelLabel = 'Notas Fiscais';
-    protected static ?string $navigationGroup = 'Financeiro';
-    protected static ?int $navigationSort = 40;
+    protected static ?string $navigationGroup = '💰 Financeiro';
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {

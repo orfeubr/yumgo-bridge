@@ -1,0 +1,38 @@
+# 🔧 PATCH MANUAL - YumGo Bridge v2.1.5 → v2.1.6
+# Data: 15/03/2026
+# Objetivo: Mudar de canal privado para público
+
+## 📍 ARQUIVO A EDITAR:
+C:\Program Files\YumGo Bridge\resources\app.asar.unpacked\src\main.js
+
+## 🔍 PROCURAR (linha ~412):
+        // Inscrever no canal privado do restaurante
+        const channelName = `private-restaurant.${restaurantId}`;
+        log.info(`Inscrevendo no canal: ${channelName}`);
+
+        const channel = echo.private(channelName);
+
+        log.info(`📡 Tentando autenticar no canal privado...`);
+
+## ✏️ SUBSTITUIR POR:
+        // Inscrever no canal PÚBLICO do restaurante
+        const channelName = `restaurant.${restaurantId}`;
+        log.info(`Inscrevendo no canal PÚBLICO: ${channelName}`);
+
+        const channel = echo.channel(channelName);
+
+        log.info(`📡 Conectando ao canal público...`);
+
+## 💾 SALVAR E REINICIAR BRIDGE
+
+## ✅ LOGS ESPERADOS:
+Inscrevendo no canal PÚBLICO: restaurant.marmitariadagi
+📡 Conectando ao canal público...
+✅ Inscrito no canal com sucesso
+
+## 🧪 TESTAR:
+1. Feche o Bridge
+2. Abra novamente
+3. Conecte normalmente
+4. Eu vou disparar um pedido de teste
+5. DEVE IMPRIMIR! 🎉

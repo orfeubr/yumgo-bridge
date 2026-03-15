@@ -235,6 +235,10 @@ Route::prefix('api/v1')->middleware([
     Route::get('/settings', [SettingsController::class, 'index'])->middleware('throttle:60,1'); // 60 req/min
     Route::get('/settings/payment-methods', [SettingsController::class, 'paymentMethods'])->middleware('throttle:60,1'); // 60 req/min
 
+    // Avaliações (público) (🔒 RATE LIMITED)
+    Route::get('/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'index'])->middleware('throttle:60,1'); // 60 req/min
+    Route::get('/reviews/stats', [\App\Http\Controllers\Api\ReviewController::class, 'stats'])->middleware('throttle:60,1'); // 60 req/min
+
     // Cupons (público) (🔒 RATE LIMITED)
     Route::post('/coupons/validate', [\App\Http\Controllers\Api\CouponController::class, 'validate'])->middleware('throttle:30,1'); // 30 req/min
 
@@ -355,6 +359,10 @@ Route::prefix('api/v1')->middleware([
     Route::post('/cashback/calculate', [CashbackController::class, 'calculate']);
     Route::get('/cashback/transactions', [CashbackController::class, 'transactions']);
     Route::get('/cashback/settings', [CashbackController::class, 'settings']);
+
+    // Avaliações (protegidas - requer autenticação) (🔒 RATE LIMITED)
+    Route::post('/reviews', [\App\Http\Controllers\Api\ReviewController::class, 'store'])->middleware('throttle:5,60'); // 5 reviews/hora
+    Route::get('/orders/{id}/review', [\App\Http\Controllers\Api\ReviewController::class, 'checkReview'])->middleware('throttle:60,1'); // 60 req/min
 
     // Cliente
     Route::get('/profile', [CustomerController::class, 'show']);

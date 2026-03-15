@@ -281,11 +281,57 @@ class TenantResource extends Resource
                         Forms\Components\Select::make('payment_gateway')
                             ->label('Gateway de Pagamento')
                             ->options([
+                                'asaas' => 'Asaas (Recomendado)',
                                 'pagarme' => 'Pagar.me',
                             ])
-                            ->default('pagarme')
+                            ->default('asaas')
                             ->required()
+                            ->live()
                             ->helperText('Gateway usado para processar pagamentos'),
+
+                        // ASAAS FIELDS
+                        Forms\Components\TextInput::make('asaas_account_id')
+                            ->label('ID da Sub-conta Asaas')
+                            ->helperText('Será preenchido automaticamente após criar sub-conta')
+                            ->disabled()
+                            ->dehydrated(true)
+                            ->visible(fn (Forms\Get $get) => $get('payment_gateway') === 'asaas'),
+
+                        Forms\Components\Actions::make([
+                            Forms\Components\Actions\Action::make('create_asaas_account')
+                                ->label('Criar Sub-conta Asaas')
+                                ->icon('heroicon-o-building-library')
+                                ->color('success')
+                                ->visible(fn (Forms\Get $get) => empty($get('asaas_account_id')) && $get('payment_gateway') === 'asaas')
+                                ->requiresConfirmation()
+                                ->action(function (Forms\Set $set, Forms\Get $get, $record) {
+                                    try {
+                                        $asaasService = app(\App\Services\AsaasService::class);
+                                        $result = $asaasService->createSubAccount($record);
+
+                                        if ($result && isset($result['id'])) {
+                                            $record->update(['asaas_account_id' => $result['id']]);
+                                            $set('asaas_account_id', $result['id']);
+
+                                            \Filament\Notifications\Notification::make()
+                                                ->title('Sub-conta Asaas criada!')
+                                                ->success()
+                                                ->send();
+                                        } else {
+                                            throw new \Exception('Resposta inválida da API Asaas');
+                                        }
+                                    } catch (\Exception $e) {
+                                        \Filament\Notifications\Notification::make()
+                                            ->title('Erro ao criar sub-conta')
+                                            ->body($e->getMessage())
+                                            ->danger()
+                                            ->send();
+                                    }
+                                }),
+                        ])
+                        ->visible(fn (Forms\Get $get) => $get('payment_gateway') === 'asaas'),
+
+                        // PAGAR.ME FIELDS
 
                         Forms\Components\TextInput::make('pagarme_recipient_id')
                             ->label('ID do Recebedor Pagar.me')

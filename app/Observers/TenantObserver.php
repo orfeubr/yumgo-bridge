@@ -274,8 +274,14 @@ class TenantObserver
     protected function syncLogoToSettings(Tenant $tenant): void
     {
         try {
-            // Inicializar contexto do tenant
-            tenancy()->initialize($tenant);
+            // ⚠️ CORREÇÃO: Verificar se tenancy já está inicializado
+            // Se já está, não fazer tenancy()->end() para não quebrar a requisição atual
+            $wasInitialized = tenancy()->initialized;
+
+            // Inicializar contexto do tenant (se ainda não estiver)
+            if (!$wasInitialized) {
+                tenancy()->initialize($tenant);
+            }
 
             // Buscar settings
             $settings = \App\Models\Settings::first();
@@ -296,12 +302,20 @@ class TenantObserver
                 Log::warning("⚠️ Settings não encontrado para tenant {$tenant->name}");
             }
 
-            // Finalizar contexto
-            tenancy()->end();
+            // ⚠️ IMPORTANTE: Só fazer tenancy()->end() se FOI INICIALIZADO AQUI
+            // Se já estava inicializado, NÃO DESLIGAR (pode quebrar requisição tenant)
+            if (!$wasInitialized) {
+                tenancy()->end();
+            }
 
         } catch (\Exception $e) {
             Log::error("❌ Erro ao sincronizar logo: " . $e->getMessage());
-            tenancy()->end();
+            // Só fazer end() se inicializamos aqui
+            if (!tenancy()->initialized) {
+                // Já estava desligado, ok
+            } else {
+                // Estava ligado, manter ligado
+            }
         }
     }
 

@@ -3,6 +3,7 @@
 namespace App\Filament\Restaurant\Pages;
 
 use App\Services\PagarMeService;
+use App\Services\AsaasService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
@@ -18,9 +19,9 @@ class PaymentAccount extends Page
 
     protected static ?string $title = 'Configurar Recebimentos';
 
-    protected static ?string $navigationGroup = 'Financeiro';
+    protected static ?string $navigationGroup = '💰 Financeiro';
 
-    protected static ?int $navigationSort = 41;
+    protected static ?int $navigationSort = 1;
 
     protected static string $view = 'filament.restaurant.pages.payment-account';
 
@@ -361,70 +362,134 @@ class PaymentAccount extends Page
                 return;
             }
 
-            // Criar recebedor no Pagar.me
-            $pagarmeService = new PagarMeService();
+            // Detectar qual gateway usar (configurado pelo admin)
+            $gateway = $tenant->payment_gateway ?? 'asaas';
 
-            // Log para debug
-            \Log::info('Criando recebedor Pagar.me', [
-                'cpf_cnpj' => $cpfCnpj,
-                'bank_code' => $data['bank_code'],
-            ]);
+            if ($gateway === 'asaas') {
+                // CRIAR SUB-CONTA ASAAS
+                $asaasService = new AsaasService();
 
-            $recipientData = [
-                'name' => $data['name'],
-                'email' => $data['email'],
-                'document' => $cpfCnpj,
-                'type' => strlen($cpfCnpj) === 11 ? 'individual' : 'company',
-                'phone' => preg_replace('/\D/', '', $data['mobile_phone']),
-                'bank_account' => [
-                    'holder_name' => $data['name'],
-                    'holder_type' => strlen($cpfCnpj) === 11 ? 'individual' : 'company',
-                    'holder_document' => $cpfCnpj,
-                    'bank' => $data['bank_code'],
-                    'branch_number' => $data['bank_agency'],
-                    'branch_check_digit' => $data['bank_branch_digit'] ?? '0',
-                    'account_number' => $data['bank_account'],
-                    'account_check_digit' => $data['bank_account_digit'],
-                    'type' => $data['bank_account_type'], // checking ou savings
-                ],
-            ];
+                \Log::info('Criando sub-conta Asaas', [
+                    'cpf_cnpj' => $cpfCnpj,
+                    'name' => $data['name'],
+                ]);
 
-            $result = $pagarmeService->createRecipient($recipientData);
+                $asaasData = [
+                    'name' => $data['name'],
+                    'email' => $data['email'],
+                    'cpfCnpj' => $cpfCnpj,
+                    'companyType' => $data['company_type'],
+                    'mobilePhone' => preg_replace('/\D/', '', $data['mobile_phone']),
+                    'phone' => preg_replace('/\D/', '', $data['phone'] ?? ''),
+                    'postalCode' => preg_replace('/\D/', '', $data['postal_code']),
+                    'address' => $data['address'],
+                    'addressNumber' => $data['address_number'],
+                    'complement' => $data['complement'] ?? '',
+                    'province' => $data['province'],
+                    'city' => $data['city'],
+                    'state' => $data['state'],
+                ];
 
-            if (!$result || !isset($result['id'])) {
-                throw new \Exception('Erro ao criar recebedor no Pagar.me. Verifique os dados bancários.');
+                $result = $asaasService->createSubAccount($asaasData);
+
+                if (!$result || !isset($result['id'])) {
+                    throw new \Exception('Erro ao criar sub-conta no Asaas. Verifique os dados.');
+                }
+
+                $tenant->update([
+                    'cpf_cnpj' => $cpfCnpj,
+                    'birth_date' => $data['birth_date'],
+                    'company_type' => $data['company_type'],
+                    'phone' => $data['phone'],
+                    'mobile_phone' => $data['mobile_phone'],
+                    'address_zipcode' => $data['postal_code'],
+                    'address_street' => $data['address'],
+                    'address_number' => $data['address_number'],
+                    'address_complement' => $data['complement'],
+                    'address_neighborhood' => $data['province'],
+                    'address_city' => $data['city'],
+                    'address_state' => $data['state'],
+                    'bank_code' => $data['bank_code'],
+                    'bank_name' => $data['bank_code'],
+                    'bank_agency' => $data['bank_agency'],
+                    'bank_branch_digit' => $data['bank_branch_digit'] ?? '0',
+                    'bank_account' => $data['bank_account'],
+                    'bank_account_digit' => $data['bank_account_digit'],
+                    'bank_account_type' => $data['bank_account_type'],
+                    'asaas_account_id' => $result['id'],
+                    'payment_gateway' => 'asaas',
+                ]);
+
+                Notification::make()
+                    ->success()
+                    ->title('🎉 Sub-conta Asaas criada!')
+                    ->body('Seus dados foram cadastrados no Asaas. Você já pode receber pagamentos!')
+                    ->send();
+
+            } else {
+                // CRIAR RECEBEDOR PAGAR.ME
+                $pagarmeService = new PagarMeService();
+
+                \Log::info('Criando recebedor Pagar.me', [
+                    'cpf_cnpj' => $cpfCnpj,
+                    'bank_code' => $data['bank_code'],
+                ]);
+
+                $recipientData = [
+                    'name' => $data['name'],
+                    'email' => $data['email'],
+                    'document' => $cpfCnpj,
+                    'type' => strlen($cpfCnpj) === 11 ? 'individual' : 'company',
+                    'phone' => preg_replace('/\D/', '', $data['mobile_phone']),
+                    'bank_account' => [
+                        'holder_name' => $data['name'],
+                        'holder_type' => strlen($cpfCnpj) === 11 ? 'individual' : 'company',
+                        'holder_document' => $cpfCnpj,
+                        'bank' => $data['bank_code'],
+                        'branch_number' => $data['bank_agency'],
+                        'branch_check_digit' => $data['bank_branch_digit'] ?? '0',
+                        'account_number' => $data['bank_account'],
+                        'account_check_digit' => $data['bank_account_digit'],
+                        'type' => $data['bank_account_type'], // checking ou savings
+                    ],
+                ];
+
+                $result = $pagarmeService->createRecipient($recipientData);
+
+                if (!$result || !isset($result['id'])) {
+                    throw new \Exception('Erro ao criar recebedor no Pagar.me. Verifique os dados bancários.');
+                }
+
+                $tenant->update([
+                    'cpf_cnpj' => $cpfCnpj,
+                    'birth_date' => $data['birth_date'],
+                    'company_type' => $data['company_type'],
+                    'phone' => $data['phone'],
+                    'mobile_phone' => $data['mobile_phone'],
+                    'address_zipcode' => $data['postal_code'],
+                    'address_street' => $data['address'],
+                    'address_number' => $data['address_number'],
+                    'address_complement' => $data['complement'],
+                    'address_neighborhood' => $data['province'],
+                    'address_city' => $data['city'],
+                    'address_state' => $data['state'],
+                    'bank_name' => $data['bank_code'],
+                    'bank_agency' => $data['bank_agency'],
+                    'bank_account' => $data['bank_account'],
+                    'bank_account_digit' => $data['bank_account_digit'],
+                    'bank_account_type' => $data['bank_account_type'],
+                    'bank_code' => $data['bank_code'],
+                    'bank_branch_digit' => $data['bank_branch_digit'] ?? '0',
+                    'pagarme_recipient_id' => $result['id'],
+                    'payment_gateway' => 'pagarme',
+                ]);
+
+                Notification::make()
+                    ->success()
+                    ->title('🎉 Recebedor Pagar.me criado!')
+                    ->body('Seus dados foram cadastrados no Pagar.me. Você já pode receber pagamentos!')
+                    ->send();
             }
-
-            // Mapear para os nomes corretos das colunas
-            $tenant->update([
-                'cpf_cnpj' => $cpfCnpj,
-                'birth_date' => $data['birth_date'],
-                'company_type' => $data['company_type'],
-                'phone' => $data['phone'],
-                'mobile_phone' => $data['mobile_phone'],
-                'address_zipcode' => $data['postal_code'],
-                'address_street' => $data['address'],
-                'address_number' => $data['address_number'],
-                'address_complement' => $data['complement'],
-                'address_neighborhood' => $data['province'],
-                'address_city' => $data['city'],
-                'address_state' => $data['state'],
-                'bank_name' => $data['bank_code'],
-                'bank_agency' => $data['bank_agency'],
-                'bank_account' => $data['bank_account'],
-                'bank_account_digit' => $data['bank_account_digit'],
-                'bank_account_type' => $data['bank_account_type'],
-                'bank_code' => $data['bank_code'],
-                'bank_branch_digit' => $data['bank_branch_digit'] ?? '0',
-                'pagarme_recipient_id' => $result['id'],
-                'payment_gateway' => 'pagarme',
-            ]);
-
-            Notification::make()
-                ->success()
-                ->title('🎉 Recebedor criado com sucesso!')
-                ->body('Seus dados foram cadastrados no Pagar.me. Você já pode receber pagamentos!')
-                ->send();
 
         } catch (Halt $exception) {
             throw $exception;

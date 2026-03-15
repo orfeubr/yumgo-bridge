@@ -35,6 +35,12 @@ class ProductLimitWidget extends Widget
 
     public static function canView(): bool
     {
+        // ⚠️ CORREÇÃO: canView() é chamado ANTES dos middlewares
+        // Não executar se tenancy não estiver inicializado
+        if (!tenancy()->initialized) {
+            return false;
+        }
+
         $widget = new static();
         return $widget->shouldShowWidget();
     }

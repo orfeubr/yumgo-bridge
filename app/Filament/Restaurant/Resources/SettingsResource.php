@@ -22,9 +22,9 @@ class SettingsResource extends Resource
 
     protected static ?string $modelLabel = 'Configuração';
 
-    protected static ?string $navigationGroup = 'Configurações';
+    protected static ?string $navigationGroup = '⚙️ Configurações';
 
-    protected static ?int $navigationSort = 90;
+    protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
     {

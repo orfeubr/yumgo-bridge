@@ -17,8 +17,8 @@ class Kitchen extends Page implements HasTable
     protected static ?string $navigationIcon = 'heroicon-o-fire';
     protected static ?string $navigationLabel = '👨‍🍳 Cozinha';
     protected static ?string $title = 'Painel da Cozinha';
-    protected static ?int $navigationSort = 10;
-    protected static ?string $navigationGroup = 'Operações';
+    protected static ?int $navigationSort = 2;
+    protected static ?string $navigationGroup = '📦 Operações';
 
     protected static string $view = 'filament.restaurant.pages.kitchen';
 

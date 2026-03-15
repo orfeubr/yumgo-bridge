@@ -80,7 +80,11 @@ class PrintMonitor extends Page
         // Criar evento de teste
         event(new \App\Events\TestPrintEvent($tenantId));
 
-        $this->notify('success', 'Evento de teste disparado! Verifique se imprimiu.');
+        \Filament\Notifications\Notification::make()
+            ->title('Evento de teste disparado!')
+            ->body('Verifique se o Bridge imprimiu.')
+            ->success()
+            ->send();
     }
 
     /**
@@ -94,7 +98,10 @@ class PrintMonitor extends Page
         Cache::forget("bridge_printers_{$tenantId}");
         Cache::forget("print_history_{$tenantId}");
 
-        $this->notify('success', 'Cache limpo!');
+        \Filament\Notifications\Notification::make()
+            ->title('Cache limpo!')
+            ->success()
+            ->send();
     }
 
     /**

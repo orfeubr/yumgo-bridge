@@ -140,17 +140,26 @@
 
         /* Info Banner sempre fixo logo abaixo do header */
         .sticky-info-banner {
+            position: -webkit-sticky !important;
             position: sticky !important;
-            top: 88px !important; /* Ajustado para ficar abaixo do header */
+            top: 110px !important; /* Desktop: altura do header (~110px) */
             z-index: 90 !important;
             background: white !important;
             width: 100% !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
         }
 
-        /* Mobile: ajustar top do banner */
+        /* Mobile: ajustar top do banner (header maior no mobile) */
         @media (max-width: 768px) {
             .sticky-info-banner {
-                top: 140px !important;
+                top: 155px !important; /* Mobile: header ~155px */
+            }
+        }
+
+        /* Tablet: valor intermediário */
+        @media (min-width: 769px) and (max-width: 1023px) {
+            .sticky-info-banner {
+                top: 120px !important;
             }
         }
 
@@ -878,10 +887,13 @@
             <!-- Primeira Linha: Rating + Tempo + Categorias -->
             <div class="flex items-center gap-3 overflow-x-auto scrollbar-hide">
                 <!-- Rating -->
+                @if($averageRating && $totalReviews > 0)
                 <div class="flex items-center gap-1 text-xs text-gray-600 shrink-0">
                     <svg class="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-                    <span class="font-semibold text-gray-900">4.8</span>
+                    <span class="font-semibold text-gray-900">{{ $averageRating }}</span>
+                    <span class="text-gray-500">({{ $totalReviews }})</span>
                 </div>
+                @endif
 
                 <!-- Tempo de Entrega -->
                 <span class="text-xs text-gray-600 shrink-0">30-45 min</span>
@@ -943,15 +955,19 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     @foreach($category->products as $product)
                     @php
-                        $isAvailable = !($previewMode ?? false);
+                        // ✅ Produto indisponível se:
+                        // 1. Restaurante fechado OU
+                        // 2. Produto não está no cardápio de hoje
+                        $isProductAvailableToday = in_array($product->id, $todayProductIds ?? []);
+                        $isProductUnavailable = !$isOpen || !$isProductAvailableToday;
                     @endphp
                     <div
                         x-show="searchQuery === '' || '{{ addslashes(strtolower($product->name)) }}'.includes(searchQuery.toLowerCase())"
-                        class="bg-white rounded-lg border border-gray-200 overflow-hidden {{ !$isAvailable ? 'opacity-60' : '' }}">
+                        class="bg-white rounded-lg border border-gray-200 overflow-hidden {{ $isProductUnavailable ? 'opacity-60' : '' }}">
 
                         <!-- Container Horizontal -->
-                        <div class="flex gap-3 p-3 {{ !$isOpen ? 'pointer-events-none' : 'cursor-pointer' }}"
-                            @if($isOpen)
+                        <div class="flex gap-3 p-3 {{ $isProductUnavailable ? 'pointer-events-none' : 'cursor-pointer' }}"
+                            @if(!$isProductUnavailable)
                             @click="openProductModal({
                                 id: {{ $product->id }},
                                 name: '{{ addslashes($product->name) }}',
@@ -970,7 +986,7 @@
                                     <img
                                         src="{{ str_starts_with($product->image, 'http') ? $product->image : '/storage/' . $product->image }}"
                                         alt="{{ $product->name }}"
-                                        class="w-full h-full object-cover {{ !$isOpen ? 'grayscale opacity-60' : '' }}"
+                                        class="w-full h-full object-cover {{ $isProductUnavailable ? 'grayscale opacity-60' : '' }}"
                                         loading="lazy">
                                 @else
                                 @php
@@ -1007,22 +1023,22 @@
                                     <img
                                         src="{{ $defaultImage }}"
                                         alt="{{ $product->name }}"
-                                        class="w-full h-full object-cover {{ !$isOpen ? 'grayscale opacity-60' : '' }}"
+                                        class="w-full h-full object-cover {{ $isProductUnavailable ? 'grayscale opacity-60' : '' }}"
                                         loading="lazy">
                                 @endif
 
-                                @if($product->is_featured && $isOpen)
+                                @if($product->is_featured && !$isProductUnavailable)
                                     <span class="absolute top-1 right-1 px-1.5 py-0.5 bg-yellow-400 text-yellow-900 text-xs font-bold rounded">⭐</span>
                                 @endif
                             </div>
 
                             <!-- Conteúdo (Direita) -->
-                            <div class="flex-1 flex flex-col justify-between min-w-0 {{ !$isOpen ? 'opacity-60' : '' }}">
+                            <div class="flex-1 flex flex-col justify-between min-w-0 {{ $isProductUnavailable ? 'opacity-60' : '' }}">
                                 <div class="mb-2">
-                                    <h4 class="font-semibold text-base mb-1 {{ !$isOpen ? 'text-gray-500' : 'text-gray-900' }} line-clamp-1">{{ $product->name }}</h4>
+                                    <h4 class="font-semibold text-base mb-1 {{ $isProductUnavailable ? 'text-gray-500' : 'text-gray-900' }} line-clamp-1">{{ $product->name }}</h4>
 
                                     @if($product->description)
-                                        <p class="text-sm {{ !$isOpen ? 'text-gray-400' : 'text-gray-600' }} line-clamp-2">{{ $product->description }}</p>
+                                        <p class="text-sm {{ $isProductUnavailable ? 'text-gray-400' : 'text-gray-600' }} line-clamp-2">{{ $product->description }}</p>
                                     @endif
                                 </div>
 
@@ -1042,8 +1058,8 @@
                                                 {{ json_encode($product->variations->map(fn($v) => ['id' => $v->id, 'name' => $v->name, 'price' => $v->price])->toArray()) }},
                                                 {{ json_encode($product->image) }}
                                             )"
-                                            {{ (!$isAvailable || !$isOpen) ? 'disabled' : '' }}
-                                            class="w-9 h-9 bg-red-500 text-white font-bold text-xl rounded-full flex items-center justify-center {{ (!$isAvailable || !$isOpen) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-600' }}">
+                                            {{ $isProductUnavailable ? 'disabled' : '' }}
+                                            class="w-9 h-9 bg-red-500 text-white font-bold text-xl rounded-full flex items-center justify-center {{ $isProductUnavailable ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-600' }}">
                                             +
                                         </button>
                                     </div>
@@ -1055,15 +1071,15 @@
                                         @if($product->is_pizza)
                                             <button
                                                 @click.stop="openPizzaModal({{ $product->id }}, '{{ addslashes($product->name) }}', {{ $product->price }})"
-                                                {{ (!$isAvailable || !$isOpen) ? 'disabled' : '' }}
-                                                class="w-9 h-9 bg-red-500 text-white font-bold text-xl rounded-full flex items-center justify-center {{ (!$isAvailable || !$isOpen) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-600' }}">
+                                                {{ $isProductUnavailable ? 'disabled' : '' }}
+                                                class="w-9 h-9 bg-red-500 text-white font-bold text-xl rounded-full flex items-center justify-center {{ $isProductUnavailable ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-600' }}">
                                                 +
                                             </button>
                                         @else
                                             <button
                                                 @click.stop="addToCart({id:{{ $product->id }},name:'{{ addslashes($product->name) }}',price:{{ $product->price }}})"
-                                                {{ (!$isAvailable || !$isOpen) ? 'disabled' : '' }}
-                                                class="w-9 h-9 bg-red-500 text-white font-bold text-xl rounded-full flex items-center justify-center {{ (!$isAvailable || !$isOpen) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-600' }}">
+                                                {{ $isProductUnavailable ? 'disabled' : '' }}
+                                                class="w-9 h-9 bg-red-500 text-white font-bold text-xl rounded-full flex items-center justify-center {{ $isProductUnavailable ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-600' }}">
                                                 +
                                             </button>
                                         @endif
@@ -2381,6 +2397,70 @@
                 this.showToast = true;
                 setTimeout(() => { this.showToast = false; }, 3000);
             },
+            // Reviews
+            showReviewModal: false,
+            reviewData: {
+                order_id: null,
+                rating: 0,
+                food_rating: null,
+                delivery_rating: null,
+                service_rating: null,
+                comment: '',
+                is_public: true
+            },
+            openReviewModal(orderId) {
+                this.reviewData = {
+                    order_id: orderId,
+                    rating: 0,
+                    food_rating: null,
+                    delivery_rating: null,
+                    service_rating: null,
+                    comment: '',
+                    is_public: true
+                };
+                this.showReviewModal = true;
+            },
+            async submitReview() {
+                if (!this.reviewData.rating) {
+                    this.showToastNotification('Por favor, dê uma avaliação geral', 'error');
+                    return;
+                }
+
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    this.showToastNotification('Você precisa estar logado', 'error');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/v1/reviews', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(this.reviewData)
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.showReviewModal = false;
+                        this.showToastNotification('✅ Avaliação enviada! Obrigado pelo feedback!', 'success');
+
+                        // Marcar pedido como avaliado
+                        const order = this.myOrders.find(o => o.id === this.reviewData.order_id);
+                        if (order) {
+                            order.has_review = true;
+                        }
+                    } else {
+                        this.showToastNotification('❌ ' + (data.message || 'Erro ao enviar avaliação'), 'error');
+                    }
+                } catch (error) {
+                    console.error('Erro ao enviar avaliação:', error);
+                    this.showToastNotification('❌ Erro ao enviar avaliação', 'error');
+                }
+            },
             get cartTotal(){return this.cart.reduce((s,i)=>s+i.price*i.quantity,0)},
             get cartCount(){return this.cart.reduce((s,i)=>s+i.quantity,0)},
             get finalTotal(){
@@ -2475,5 +2555,9 @@
             dismissPWAPrompt();
         });
     </script>
+
+    <!-- Modal de Avaliação -->
+    @include('components.review-modal')
+
 </body>
 </html>

@@ -12,8 +12,8 @@ class OrderService
 {
     public function __construct(
         private CashbackService $cashbackService,
-        private PagarMeService $pagarmeService
-        // AsaasService removido - usar apenas Pagar.me
+        private PagarMeService $pagarmeService,
+        private AsaasService $asaasService
     ) {}
 
     /**
@@ -275,10 +275,10 @@ class OrderService
                 'order_id' => $order->id,
             ]);
 
-            // Criar pagamento no gateway
-            $payment = $this->pagarmeService->createPayment($order, [
-                'payment_method' => $paymentMethod
-            ]);
+            // Criar pagamento no gateway apropriado
+            $payment = $gateway === 'asaas'
+                ? $this->asaasService->createPayment($order, ['payment_method' => $paymentMethod])
+                : $this->pagarmeService->createPayment($order, ['payment_method' => $paymentMethod]);
 
             // Obter QR Code do PIX
             $pixData = $this->getPixQrCode($payment['id'] ?? null, $gateway);
@@ -335,7 +335,10 @@ class OrderService
         }
 
         try {
-            $qrCodeData = $this->pagarmeService->getPixQrCode($paymentId);
+            // Usar o gateway apropriado
+            $qrCodeData = $gateway === 'asaas'
+                ? $this->asaasService->getPixQrCode($paymentId)
+                : $this->pagarmeService->getPixQrCode($paymentId);
 
             if ($qrCodeData && isset($qrCodeData['encodedImage'])) {
                 \Log::info('✅ QR Code PIX obtido', [

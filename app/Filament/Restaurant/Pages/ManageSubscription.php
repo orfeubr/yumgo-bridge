@@ -20,7 +20,7 @@ class ManageSubscription extends Page
 
     protected static ?string $title = 'Gerenciar Assinatura';
 
-    protected static ?string $navigationGroup = 'Configurações';
+    protected static ?string $navigationGroup = '⚙️ Configurações';
 
     protected static ?int $navigationSort = 10;
 

@@ -43,8 +43,15 @@
                             Conta de Recebimentos
                         </h3>
                         <span class="text-sm text-gray-500 dark:text-gray-400">via</span>
-                        <img src="/images/pagarme-logo.svg" alt="Pagar.me" class="h-8 w-auto bg-white dark:bg-white rounded px-2 py-1" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
-                        <span class="hidden bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-1 rounded-md font-bold text-sm">PAGAR.ME</span>
+                        @php
+                            $activeGateway = tenant()->payment_gateway ?? 'asaas';
+                        @endphp
+                        @if($activeGateway === 'asaas')
+                            <span class="bg-gradient-to-r from-green-500 to-green-600 text-white px-3 py-1 rounded-md font-bold text-sm">ASAAS</span>
+                        @else
+                            <img src="/images/pagarme-logo.svg" alt="Pagar.me" class="h-8 w-auto bg-white dark:bg-white rounded px-2 py-1" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                            <span class="hidden bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-1 rounded-md font-bold text-sm">PAGAR.ME</span>
+                        @endif
                     </div>
                     <p class="text-sm text-gray-600 dark:text-gray-400">
                         @if($statusInfo['status'] === 'not_configured')
@@ -69,23 +76,50 @@
                 </div>
             </div>
 
-            @if($statusInfo['configured'] && $statusInfo['status'] === 'approved')
+            @if($statusInfo['configured'] && in_array($statusInfo['status'], ['approved', 'legacy']))
                 <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        @php
+                            $gateway = tenant()->payment_gateway ?? 'asaas';
+                        @endphp
                         <div class="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg">
                             <p class="text-3xl mb-2">💰</p>
                             <p class="text-sm font-semibold text-blue-900 dark:text-blue-300">PIX Habilitado</p>
-                            <p class="text-xs text-blue-700 dark:text-blue-400 mt-1">0,99% do valor</p>
+                            <p class="text-xs text-blue-700 dark:text-blue-400 mt-1">
+                                @if($gateway === 'asaas')
+                                    R$ 0,99 por transação
+                                @else
+                                    0,99% do valor
+                                @endif
+                            </p>
                         </div>
                         <div class="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg">
                             <p class="text-3xl mb-2">💳</p>
                             <p class="text-sm font-semibold text-green-900 dark:text-green-300">Cartão Habilitado</p>
-                            <p class="text-xs text-green-700 dark:text-green-400 mt-1">3,99% a 4,99%</p>
+                            <p class="text-xs text-green-700 dark:text-green-400 mt-1">
+                                @if($gateway === 'asaas')
+                                    3,99% do valor
+                                @else
+                                    3,99% a 4,99%
+                                @endif
+                            </p>
                         </div>
                         <div class="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg">
                             <p class="text-3xl mb-2">⚡</p>
-                            <p class="text-sm font-semibold text-purple-900 dark:text-purple-300">Recebimento D+1</p>
-                            <p class="text-xs text-purple-700 dark:text-purple-400 mt-1">Plano Starter</p>
+                            <p class="text-sm font-semibold text-purple-900 dark:text-purple-300">
+                                @if($gateway === 'asaas')
+                                    Recebimento D+1
+                                @else
+                                    Recebimento D+1
+                                @endif
+                            </p>
+                            <p class="text-xs text-purple-700 dark:text-purple-400 mt-1">
+                                @if($gateway === 'asaas')
+                                    Conta Grátis
+                                @else
+                                    Plano Starter
+                                @endif
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -121,13 +155,23 @@
 
     <!-- Banner Como Funciona (apenas se não configurado) -->
     @if($statusInfo['status'] === 'not_configured')
+        @php
+            $gateway = tenant()->payment_gateway ?? 'asaas';
+            $gatewayName = $gateway === 'asaas' ? 'Asaas' : 'Pagar.me';
+        @endphp
         <div class="mb-6 banner-info" style="margin-bottom: 1.5rem; border-radius: 0.75rem; box-shadow: 0 2px 8px rgba(249, 115, 22, 0.1); padding: 2rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
                 <span style="font-size: 2rem;">💡</span>
                 <h3 style="font-size: 1.5rem; font-weight: 700; margin: 0;">Como Configurar sua Conta de Recebimentos</h3>
             </div>
             <p style="margin-bottom: 1.5rem; font-size: 1rem; line-height: 1.6; color: #57534e !important;">
-                Você <strong>não precisa criar conta</strong> no Pagar.me! Basta preencher seus dados abaixo e criaremos um recebedor automaticamente para você receber seus pagamentos.
+                Você <strong>não precisa criar conta</strong> no {{ $gatewayName }}! Basta preencher seus dados abaixo e criaremos
+                @if($gateway === 'asaas')
+                    uma sub-conta
+                @else
+                    um recebedor
+                @endif
+                automaticamente para você receber seus pagamentos.
             </p>
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 1.5rem;">
                 <div style="background: white; border: 2px solid #fed7aa; border-radius: 0.5rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
@@ -168,6 +212,10 @@
 
     <!-- Mensagem de Sucesso -->
     @if($statusInfo['configured'] && in_array($statusInfo['status'], ['approved', 'legacy']))
+        @php
+            $gateway = tenant()->payment_gateway ?? 'asaas';
+            $gatewayName = $gateway === 'asaas' ? 'Asaas' : 'Pagar.me';
+        @endphp
         <div style="margin-top: 1.5rem; background: linear-gradient(135deg, #dcfce7, #bbf7d0); border: 2px solid #86efac; border-radius: 0.5rem; padding: 1.5rem;">
             <div style="display: flex; align-items: start; gap: 1rem;">
                 <span style="font-size: 2.5rem; line-height: 1;">🎉</span>
@@ -176,11 +224,7 @@
                         Parabéns! Você está pronto para vender!
                     </h4>
                     <p style="font-size: 0.875rem; color: #15803d !important; margin-bottom: 0.75rem;">
-                        @if($statusInfo['status'] === 'approved')
-                            Sua conta Pagar.me foi aprovada e está 100% funcional. Todos os pedidos já vão gerar cobranças automaticamente!
-                        @else
-                            Sua conta está ativa e você pode receber pagamentos. Todos os pedidos já vão gerar cobranças automaticamente!
-                        @endif
+                        Sua conta {{ $gatewayName }} está ativa e 100% funcional. Todos os pedidos já vão gerar cobranças automaticamente!
                     </p>
                     <div style="display: flex; gap: 1rem; font-size: 0.875rem;">
                         <div style="display: flex; align-items: center; gap: 0.5rem;">

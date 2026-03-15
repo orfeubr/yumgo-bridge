@@ -33,31 +33,40 @@ class RestaurantHomeController extends Controller
 
         // Verificar se há cardápio semanal ativo
         $activeMenu = WeeklyMenu::getActive();
+        $allMenuProductIds = null;
         $todayProductIds = null;
         $hasMenuFilter = false;
 
         if ($activeMenu) {
-            // Pegar apenas os produtos disponíveis para hoje
+            // ✅ REGRA: Produto DEVE estar no cardápio para aparecer
             $today = WeeklyMenu::getCurrentDayOfWeek();
+
+            // 1️⃣ Buscar TODOS produtos do cardápio semanal (qualquer dia)
+            $allMenuProductIds = $activeMenu->items()
+                ->where('is_available', true)
+                ->pluck('product_id')
+                ->unique()
+                ->toArray();
+
+            // 2️⃣ Buscar produtos disponíveis HOJE (para remover greyscale)
             $todayProductIds = $activeMenu->items()
                 ->where('day_of_week', $today)
                 ->where('is_available', true)
                 ->pluck('product_id')
                 ->toArray();
 
-            // Se há cardápio ativo, SEMPRE filtra (mesmo que vazio)
-            // Array vazio = nenhum produto hoje = loja vazia
+            // Filtrar por produtos no cardápio
             $hasMenuFilter = true;
         } else {
-            // ⚠️ IMPORTANTE: Se NÃO há cardápio cadastrado, forçar loja vazia
-            // Enquanto o restaurante não configurar o cardápio semanal,
-            // não mostrar produtos na home
+            // ⚠️ OBRIGATÓRIO: Sem cardápio ativo = loja vazia
+            // Força restaurante a criar e gerenciar cardápio semanal
             $hasMenuFilter = true;
-            $todayProductIds = []; // Forçar array vazio = sem produtos
+            $allMenuProductIds = []; // Array vazio = sem produtos
+            $todayProductIds = [];
         }
 
         // Query base para produtos ativos com estoque
-        $productQuery = function ($query) use ($todayProductIds, $hasMenuFilter) {
+        $productQuery = function ($query) use ($allMenuProductIds, $hasMenuFilter) {
             $query->where('is_active', true)
                   ->where(function ($q) {
                       $q->where('has_stock_control', false)
@@ -67,38 +76,19 @@ class RestaurantHomeController extends Controller
                         });
                   });
 
-            // Se há cardápio ativo, filtrar pelos produtos do dia
+            // Se há cardápio ativo, filtrar por TODOS produtos do cardápio
             if ($hasMenuFilter) {
-                // Se $todayProductIds vazio, whereIn([]) não retorna nada = correto!
-                $query->whereIn('id', $todayProductIds ?: [0]); // 0 = ID inexistente
+                // Se vazio, whereIn([]) não retorna nada = correto!
+                $query->whereIn('id', $allMenuProductIds ?: [0]); // 0 = ID inexistente
             }
         };
 
-        // Se há cardápio mas está vazio para hoje, buscar TODOS os produtos (modo "visualização")
-        $previewMode = $hasMenuFilter && empty($todayProductIds);
+        // ⚠️ DESABILITADO: Modo preview removido
+        // Se não há produtos no cardápio, loja fica vazia (sem preview)
+        $previewMode = false;
 
-        if ($previewMode) {
-            // Modo preview: mostrar todos os produtos mas marcados como indisponíveis
-            $categories = Category::with(['products' => function ($query) {
-                $query->where('is_active', true)
-                      ->with(['variations' => function ($q) {
-                          $q->where('is_active', true)->orderBy('price_modifier');
-                      }])
-                      ->orderBy('order', 'asc')
-                      ->orderBy('name', 'asc');
-            }])
-            ->where('is_active', true)
-            ->orderBy('order', 'asc')
-            ->orderBy('name', 'asc')
-            ->get()
-            ->filter(function ($category) {
-                return $category->products->count() > 0;
-            });
-
-            $allProducts = Product::where('is_active', true)
-                ->with('category')
-                ->orderBy('name', 'asc')
-                ->get();
+        if (false) {
+            // Preview mode desabilitado
         } else {
             // Modo normal: mostrar apenas produtos disponíveis
             $categories = Category::with(['products' => function ($query) use ($productQuery) {
@@ -125,8 +115,8 @@ class RestaurantHomeController extends Controller
                              ->where('stock_quantity', '>', 0);
                       });
                 })
-                ->when($hasMenuFilter, function ($query) use ($todayProductIds) {
-                    $query->whereIn('id', $todayProductIds ?: [0]);
+                ->when($hasMenuFilter, function ($query) use ($allMenuProductIds) {
+                    $query->whereIn('id', $allMenuProductIds ?: [0]);
                 })
                 ->with('category')
                 ->orderBy('name', 'asc')
@@ -144,8 +134,8 @@ class RestaurantHomeController extends Controller
                          ->where('stock_quantity', '>', 0);
                   });
             })
-            ->when($hasMenuFilter, function ($query) use ($todayProductIds) {
-                $query->whereIn('id', $todayProductIds ?: [0]); // Se vazio, ID 0 não existe = nada
+            ->when($hasMenuFilter, function ($query) use ($allMenuProductIds) {
+                $query->whereIn('id', $allMenuProductIds ?: [0]); // Se vazio, ID 0 não existe = nada
             })
             ->get()
             ->mapWithKeys(function ($product) {
@@ -222,6 +212,16 @@ class RestaurantHomeController extends Controller
         $allowPickup = $settings->allow_pickup ?? true;
         $minimumOrderValue = $settings->minimum_order_value ?? 0;
 
+        // Reviews
+        $averageRating = \App\Models\Review::public()->avg('rating');
+        $totalReviews = \App\Models\Review::public()->count();
+        $recentReviews = \App\Models\Review::with(['customer', 'order'])
+            ->public()
+            ->whereNotNull('comment')
+            ->orderBy('created_at', 'desc')
+            ->take(5)
+            ->get();
+
         return view('restaurant-home', [
             'categories' => $categories,
             'allProducts' => $allProducts,
@@ -240,6 +240,9 @@ class RestaurantHomeController extends Controller
             'todayProductIds' => $todayProductIds ?? [],
             'settings' => $settings,
             'tenant' => $tenant, // ✅ Passando tenant para a view
+            'averageRating' => $averageRating ? round($averageRating, 1) : null,
+            'totalReviews' => $totalReviews,
+            'recentReviews' => $recentReviews,
         ]);
     }
 }

@@ -44,6 +44,9 @@ class RestaurantPanelProvider extends PanelProvider
             //     fn () => '<link rel="stylesheet" href="' . asset('css/restaurant-theme.css') . '">'
             // )
             ->discoverResources(in: app_path('Filament/Restaurant/Resources'), for: 'App\\Filament\\Restaurant\\Resources')
+            ->resources([
+                \App\Filament\Restaurant\Resources\OrderResource::class, // ← Registro explícito
+            ])
             ->discoverPages(in: app_path('Filament/Restaurant/Pages'), for: 'App\\Filament\\Restaurant\\Pages')
             ->discoverWidgets(in: app_path('Filament/Restaurant/Widgets'), for: 'App\\Filament\\Restaurant\\Widgets')
             ->widgets([
@@ -68,6 +71,15 @@ class RestaurantPanelProvider extends PanelProvider
             ])
             ->databaseNotifications()
             ->sidebarCollapsibleOnDesktop()
+            ->navigationGroups([
+                '📦 Operações',
+                '🍕 Cardápio',
+                '👥 Clientes',
+                '📍 Entregas',
+                '💰 Financeiro',
+                '📊 Relatórios',
+                '⚙️ Configurações',
+            ])
             ->plugins([
                 FilamentShieldPlugin::make()
             ])

@@ -26,9 +26,9 @@ class NeighborhoodResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Bairros';
 
-    protected static ?int $navigationSort = 30;
+    protected static ?int $navigationSort = 1;
 
-    protected static ?string $navigationGroup = 'Delivery';
+    protected static ?string $navigationGroup = '📍 Entregas';
 
     public static function form(Form $form): Form
     {

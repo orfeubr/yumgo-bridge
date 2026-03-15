@@ -19,11 +19,27 @@ class ProductResource extends Resource
 
     protected static ?string $slug = 'produtos';
 
+    /**
+     * ⚠️ CRÍTICO: Forçar uso da conexão tenant
+     * O Filament cacheia o query builder antes do tenancy estar ativo
+     */
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        // Forçar conexão tenant se tenancy estiver ativo
+        if (tenancy()->initialized) {
+            $query->getModel()->setConnection('tenant');
+        }
+
+        return $query;
+    }
+
     protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
     protected static ?string $navigationLabel = 'Produtos';
     protected static ?string $modelLabel = 'Produto';
-    protected static ?string $navigationGroup = 'Produtos';
-    protected static ?int $navigationSort = 20;
+    protected static ?string $navigationGroup = '🍕 Cardápio';
+    protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
     {
@@ -764,6 +780,11 @@ class ProductResource extends Resource
      */
     public static function getNavigationBadge(): ?string
     {
+        // ⚠️ CORREÇÃO: getNavigationBadge() é chamado ANTES dos middlewares
+        if (!tenancy()->initialized) {
+            return null;
+        }
+
         $tenant = tenancy()->tenant;
 
         if (!$tenant) {
@@ -794,6 +815,11 @@ class ProductResource extends Resource
      */
     public static function getNavigationBadgeColor(): ?string
     {
+        // ⚠️ CORREÇÃO: getNavigationBadgeColor() é chamado ANTES dos middlewares
+        if (!tenancy()->initialized) {
+            return null;
+        }
+
         $tenant = tenancy()->tenant;
 
         if (!$tenant) {
