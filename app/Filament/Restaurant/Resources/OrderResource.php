@@ -69,7 +69,7 @@ class OrderResource extends Resource
                                         // Busca taxa de entrega do bairro
                                         if ($customer->neighborhood) {
                                             $neighborhood = \App\Models\Neighborhood::where('name', $customer->neighborhood)
-                                                ->where('enabled', true)
+                                                ->where('is_active', true)
                                                 ->first();
 
                                             if ($neighborhood) {
@@ -121,7 +121,7 @@ class OrderResource extends Resource
                                         
                                         // Atualiza taxa de entrega
                                         $neighborhood = \App\Models\Neighborhood::where('name', $data['neighborhood'])
-                                            ->where('enabled', true)
+                                            ->where('is_active', true)
                                             ->first();
                                         if ($neighborhood) {
                                             $set('delivery_fee', $neighborhood->delivery_fee);
@@ -159,7 +159,7 @@ class OrderResource extends Resource
                             ->afterStateUpdated(function ($state, callable $set) {
                                 if ($state) {
                                     $neighborhood = \App\Models\Neighborhood::where('name', $state)
-                                        ->where('enabled', true)
+                                        ->where('is_active', true)
                                         ->first();
                                     if ($neighborhood) {
                                         $set('delivery_fee', $neighborhood->delivery_fee);
