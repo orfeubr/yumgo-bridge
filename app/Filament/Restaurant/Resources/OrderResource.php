@@ -153,8 +153,7 @@ class OrderResource extends Resource
                                 $customer = \App\Models\Customer::create($data);
                                 return $customer->id;
                             })
-                            ->createOptionModalHeading('Cadastrar Novo Cliente')
-                            ->createOptionModalWidth('3xl'),
+                            ->createOptionModalHeading('Cadastrar Novo Cliente'),
 
                         Forms\Components\Select::make('status')
                             ->label('Status')
