@@ -41,225 +41,159 @@ class OrderResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Informações do Pedido')
+                // ===== CABEÇALHO: Cliente e Entrega =====
+                Forms\Components\Section::make('📋 Cliente e Entrega')
+                    ->description('Informações do cliente e endereço de entrega')
                     ->schema([
-                        Forms\Components\TextInput::make('order_number')
-                            ->label('Nº do Pedido')
-                            ->disabled()
-                            ->dehydrated(false),
-
                         Forms\Components\Select::make('customer_id')
                             ->label('Cliente')
                             ->relationship('customer', 'name')
                             ->required()
-                            ->live()
+                            ->live(onBlur: true)
                             ->afterStateUpdated(function ($state, callable $set) {
                                 if ($state) {
                                     $customer = \App\Models\Customer::find($state);
                                     if ($customer) {
-                                        // Preenche endereço automaticamente
-                                        $address = $customer->address
-                                            ? $customer->address . ', ' . $customer->number
-                                            : '';
-
-                                        if ($customer->complement) {
-                                            $address .= ' - ' . $customer->complement;
+                                        // Preenche endereço
+                                        $address = '';
+                                        if ($customer->address) {
+                                            $address = $customer->address . ', ' . $customer->number;
+                                            if ($customer->complement) $address .= ' - ' . $customer->complement;
+                                            if ($customer->neighborhood) $address .= ' - ' . $customer->neighborhood;
+                                            if ($customer->city) $address .= ' - ' . $customer->city . '/' . $customer->state;
                                         }
-
-                                        if ($customer->neighborhood) {
-                                            $address .= ' - ' . $customer->neighborhood;
-                                        }
-
-                                        if ($customer->city) {
-                                            $address .= ' - ' . $customer->city . '/' . $customer->state;
-                                        }
-
+                                        
                                         $set('delivery_address', $address);
                                         $set('delivery_neighborhood', $customer->neighborhood);
-
-                                        // Se não tem endereço, mostra notificação
+                                        
+                                        // Busca taxa de entrega do bairro
+                                        if ($customer->neighborhood) {
+                                            $neighborhood = \App\Models\Neighborhood::where('name', $customer->neighborhood)
+                                                ->where('is_active', true)
+                                                ->first();
+                                            
+                                            if ($neighborhood) {
+                                                $set('delivery_fee', $neighborhood->delivery_fee);
+                                            }
+                                        }
+                                        
+                                        // Aviso se não tem endereço
                                         if (!$customer->address) {
                                             \Filament\Notifications\Notification::make()
                                                 ->warning()
-                                                ->title('⚠️ Cliente sem endereço cadastrado')
-                                                ->body('Preencha o endereço de entrega abaixo ou clique no botão ✏️ para cadastrar.')
+                                                ->title('⚠️ Cliente sem endereço')
+                                                ->body('Preencha o endereço abaixo ou clique no ✏️')
                                                 ->send();
                                         }
                                     }
                                 }
                             })
                             ->searchable()
+                            ->preload()
                             ->suffixAction(
                                 Forms\Components\Actions\Action::make('editAddress')
                                     ->icon('heroicon-o-pencil')
-                                    ->tooltip('Editar/Adicionar Endereço')
+                                    ->tooltip('Editar Endereço')
                                     ->visible(fn (Forms\Get $get) => $get('customer_id'))
+                                    ->modalHeading('Editar Endereço do Cliente')
                                     ->form([
-                                        Forms\Components\TextInput::make('address')
-                                            ->label('Rua/Avenida')
-                                            ->required()
-                                            ->maxLength(255),
-
-                                        Forms\Components\TextInput::make('number')
-                                            ->label('Número')
-                                            ->required()
-                                            ->maxLength(10),
-
-                                        Forms\Components\TextInput::make('complement')
-                                            ->label('Complemento')
-                                            ->maxLength(255),
-
-                                        Forms\Components\TextInput::make('neighborhood')
-                                            ->label('Bairro')
-                                            ->required()
-                                            ->maxLength(255),
-
-                                        Forms\Components\TextInput::make('city')
-                                            ->label('Cidade')
-                                            ->required()
-                                            ->maxLength(255),
-
-                                        Forms\Components\Select::make('state')
-                                            ->label('Estado')
-                                            ->required()
-                                            ->options([
-                                                'AC' => 'AC', 'AL' => 'AL', 'AP' => 'AP', 'AM' => 'AM',
-                                                'BA' => 'BA', 'CE' => 'CE', 'DF' => 'DF', 'ES' => 'ES',
-                                                'GO' => 'GO', 'MA' => 'MA', 'MT' => 'MT', 'MS' => 'MS',
-                                                'MG' => 'MG', 'PA' => 'PA', 'PB' => 'PB', 'PR' => 'PR',
-                                                'PE' => 'PE', 'PI' => 'PI', 'RJ' => 'RJ', 'RN' => 'RN',
-                                                'RS' => 'RS', 'RO' => 'RO', 'RR' => 'RR', 'SC' => 'SC',
-                                                'SP' => 'SP', 'SE' => 'SE', 'TO' => 'TO',
-                                            ])
-                                            ->searchable(),
-
-                                        Forms\Components\TextInput::make('zipcode')
-                                            ->label('CEP')
-                                            ->mask('99999-999')
-                                            ->maxLength(9),
+                                        Forms\Components\Grid::make(2)->schema([
+                                            Forms\Components\TextInput::make('address')->label('Rua')->required(),
+                                            Forms\Components\TextInput::make('number')->label('Nº')->required(),
+                                            Forms\Components\TextInput::make('complement')->label('Compl.'),
+                                            Forms\Components\TextInput::make('neighborhood')->label('Bairro')->required(),
+                                            Forms\Components\TextInput::make('city')->label('Cidade')->required(),
+                                            Forms\Components\TextInput::make('zipcode')->label('CEP')->mask('99999-999'),
+                                        ]),
                                     ])
-                                    ->fillForm(function (Forms\Get $get): array {
-                                        $customerId = $get('customer_id');
-                                        if ($customerId) {
-                                            $customer = \App\Models\Customer::find($customerId);
-                                            return [
-                                                'address' => $customer->address,
-                                                'number' => $customer->number,
-                                                'complement' => $customer->complement,
-                                                'neighborhood' => $customer->neighborhood,
-                                                'city' => $customer->city,
-                                                'state' => $customer->state,
-                                                'zipcode' => $customer->zipcode,
-                                            ];
-                                        }
-                                        return [];
-                                    })
+                                    ->fillForm(fn (Forms\Get $get) => \App\Models\Customer::find($get('customer_id'))?->only(['address', 'number', 'complement', 'neighborhood', 'city', 'zipcode']) ?? [])
                                     ->action(function (array $data, Forms\Get $get, callable $set) {
-                                        $customerId = $get('customer_id');
-                                        if ($customerId) {
-                                            $customer = \App\Models\Customer::find($customerId);
-                                            $customer->update($data);
-
-                                            // Atualiza campos de endereço do pedido
-                                            $address = $data['address'] . ', ' . $data['number'];
-                                            if ($data['complement']) {
-                                                $address .= ' - ' . $data['complement'];
-                                            }
-                                            if ($data['neighborhood']) {
-                                                $address .= ' - ' . $data['neighborhood'];
-                                            }
-                                            if ($data['city']) {
-                                                $address .= ' - ' . $data['city'] . '/' . $data['state'];
-                                            }
-
-                                            $set('delivery_address', $address);
-                                            $set('delivery_neighborhood', $data['neighborhood']);
-
-                                            \Filament\Notifications\Notification::make()
-                                                ->success()
-                                                ->title('✅ Endereço atualizado!')
-                                                ->body('O endereço foi salvo e preenchido no pedido.')
-                                                ->send();
+                                        $customer = \App\Models\Customer::find($get('customer_id'));
+                                        $customer->update($data);
+                                        
+                                        $address = $data['address'] . ', ' . $data['number'];
+                                        if ($data['complement']) $address .= ' - ' . $data['complement'];
+                                        if ($data['neighborhood']) $address .= ' - ' . $data['neighborhood'];
+                                        if ($data['city']) $address .= ' - ' . $data['city'];
+                                        
+                                        $set('delivery_address', $address);
+                                        $set('delivery_neighborhood', $data['neighborhood']);
+                                        
+                                        // Atualiza taxa de entrega
+                                        $neighborhood = \App\Models\Neighborhood::where('name', $data['neighborhood'])->where('is_active', true)->first();
+                                        if ($neighborhood) {
+                                            $set('delivery_fee', $neighborhood->delivery_fee);
                                         }
+                                        
+                                        \Filament\Notifications\Notification::make()->success()->title('✅ Salvo!')->send();
                                     })
-                                    ->modalHeading('Editar/Adicionar Endereço do Cliente')
-                                    ->modalSubmitActionLabel('Salvar Endereço')
                             )
                             ->createOptionForm([
-                                Forms\Components\Section::make('Dados do Cliente')
-                                    ->schema([
-                                        Forms\Components\TextInput::make('name')
-                                            ->label('Nome Completo')
-                                            ->required()
-                                            ->maxLength(255),
-
-                                        Forms\Components\TextInput::make('phone')
-                                            ->label('Telefone/WhatsApp')
-                                            ->tel()
-                                            ->required()
-                                            ->mask('(99) 99999-9999')
-                                            ->placeholder('(11) 98888-7777'),
-
-                                        Forms\Components\TextInput::make('email')
-                                            ->label('Email (Opcional)')
-                                            ->email()
-                                            ->maxLength(255),
-                                    ])->columns(2),
-
-                                Forms\Components\Section::make('Endereço de Entrega')
-                                    ->schema([
-                                        Forms\Components\TextInput::make('address')
-                                            ->label('Rua/Avenida')
-                                            ->required()
-                                            ->maxLength(255),
-
-                                        Forms\Components\TextInput::make('number')
-                                            ->label('Número')
-                                            ->required()
-                                            ->maxLength(10),
-
-                                        Forms\Components\TextInput::make('complement')
-                                            ->label('Complemento')
-                                            ->maxLength(255),
-
-                                        Forms\Components\TextInput::make('neighborhood')
-                                            ->label('Bairro')
-                                            ->required()
-                                            ->maxLength(255),
-
-                                        Forms\Components\TextInput::make('city')
-                                            ->label('Cidade')
-                                            ->required()
-                                            ->maxLength(255)
-                                            ->default(tenant()->address_city ?? 'São Paulo'),
-
-                                        Forms\Components\Select::make('state')
-                                            ->label('Estado')
-                                            ->required()
-                                            ->options([
-                                                'AC' => 'AC', 'AL' => 'AL', 'AP' => 'AP', 'AM' => 'AM',
-                                                'BA' => 'BA', 'CE' => 'CE', 'DF' => 'DF', 'ES' => 'ES',
-                                                'GO' => 'GO', 'MA' => 'MA', 'MT' => 'MT', 'MS' => 'MS',
-                                                'MG' => 'MG', 'PA' => 'PA', 'PB' => 'PB', 'PR' => 'PR',
-                                                'PE' => 'PE', 'PI' => 'PI', 'RJ' => 'RJ', 'RN' => 'RN',
-                                                'RS' => 'RS', 'RO' => 'RO', 'RR' => 'RR', 'SC' => 'SC',
-                                                'SP' => 'SP', 'SE' => 'SE', 'TO' => 'TO',
-                                            ])
-                                            ->default(tenant()->address_state ?? 'SP')
-                                            ->searchable(),
-
-                                        Forms\Components\TextInput::make('zipcode')
-                                            ->label('CEP')
-                                            ->mask('99999-999')
-                                            ->maxLength(9),
-                                    ])->columns(3),
+                                Forms\Components\Grid::make(2)->schema([
+                                    Forms\Components\TextInput::make('name')->label('Nome')->required()->columnSpan(2),
+                                    Forms\Components\TextInput::make('phone')->label('Telefone')->mask('(99) 99999-9999')->required(),
+                                    Forms\Components\TextInput::make('email')->label('Email')->email(),
+                                    Forms\Components\TextInput::make('address')->label('Rua')->required(),
+                                    Forms\Components\TextInput::make('number')->label('Nº')->required(),
+                                    Forms\Components\TextInput::make('complement')->label('Complemento'),
+                                    Forms\Components\TextInput::make('neighborhood')->label('Bairro')->required(),
+                                    Forms\Components\TextInput::make('city')->label('Cidade')->required()->default(tenant()->address_city),
+                                    Forms\Components\TextInput::make('zipcode')->label('CEP')->mask('99999-999'),
+                                ]),
                             ])
-                            ->createOptionUsing(function (array $data) {
-                                $customer = \App\Models\Customer::create($data);
-                                return $customer->id;
-                            })
-                            ->createOptionModalHeading('Cadastrar Novo Cliente'),
-
+                            ->createOptionUsing(fn (array $data) => \App\Models\Customer::create($data)->id)
+                            ->createOptionModalHeading('Cadastrar Cliente')
+                            ->columnSpan(2),
+                        
+                        Forms\Components\Textarea::make('delivery_address')
+                            ->label('Endereço de Entrega')
+                            ->rows(2)
+                            ->columnSpan(2)
+                            ->helperText('Preenche automaticamente ao selecionar cliente'),
+                        
+                        Forms\Components\TextInput::make('delivery_neighborhood')
+                            ->label('Bairro')
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if ($state) {
+                                    $neighborhood = \App\Models\Neighborhood::where('name', $state)->where('is_active', true)->first();
+                                    if ($neighborhood) {
+                                        $set('delivery_fee', $neighborhood->delivery_fee);
+                                        
+                                        \Filament\Notifications\Notification::make()
+                                            ->info()
+                                            ->title('Taxa de entrega atualizada')
+                                            ->body('R$ ' . number_format($neighborhood->delivery_fee, 2, ',', '.'))
+                                            ->send();
+                                    }
+                                }
+                            }),
+                        
+                        Forms\Components\Select::make('delivery_type')
+                            ->label('Tipo de Entrega')
+                            ->options([
+                                'delivery' => '🚗 Entrega',
+                                'pickup' => '🏃 Retirada',
+                            ])
+                            ->default('delivery')
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if ($state === 'pickup') {
+                                    $set('delivery_fee', 0);
+                                }
+                            }),
+                        
+                        Forms\Components\TextInput::make('estimated_time')
+                            ->label('Tempo Estimado (min)')
+                            ->numeric()
+                            ->suffix('min')
+                            ->default(30),
+                    ])->columns(2)->collapsible(),
+                
+                // ===== Status e Pagamento =====
+                Forms\Components\Section::make('📝 Status e Pagamento')
+                    ->schema([
                         Forms\Components\Select::make('status')
                             ->label('Status')
                             ->options([
@@ -271,50 +205,46 @@ class OrderResource extends Resource
                                 'delivered' => '✅ Entregue',
                                 'cancelled' => '❌ Cancelado',
                             ])
-                            ->required()
-                            ->default('pending'),
-
+                            ->default('pending')
+                            ->required(),
+                        
                         Forms\Components\Select::make('payment_status')
-                            ->label('Status do Pagamento')
+                            ->label('Pagamento')
                             ->options([
                                 'pending' => 'Pendente',
                                 'paid' => 'Pago',
                                 'failed' => 'Falhou',
                                 'refunded' => 'Reembolsado',
                             ])
-                            ->required()
-                            ->default('pending'),
-
+                            ->default('pending')
+                            ->required(),
+                        
                         Forms\Components\Select::make('payment_method')
-                            ->label('Método de Pagamento')
+                            ->label('Método')
                             ->options([
                                 'pix' => '💰 PIX',
-                                'credit_card' => '💳 Cartão de Crédito',
-                                'debit_card' => '💳 Cartão de Débito',
+                                'credit_card' => '💳 Crédito',
+                                'debit_card' => '💳 Débito',
                                 'cash' => '💵 Dinheiro',
                             ]),
-
-                        Forms\Components\Select::make('delivery_type')
-                            ->label('Tipo de Entrega')
-                            ->options([
-                                'delivery' => '🚗 Entrega',
-                                'pickup' => '🏃 Retirada',
-                            ])
-                            ->required()
-                            ->default('delivery'),
-                    ])->columns(2),
-
-                Forms\Components\Section::make('Itens do Pedido')
+                        
+                        Forms\Components\Textarea::make('customer_notes')
+                            ->label('Observações do Cliente')
+                            ->rows(2)
+                            ->columnSpanFull(),
+                    ])->columns(3)->collapsible()->collapsed(),
+                
+                // ===== CORPO: Itens do Pedido =====
+                Forms\Components\Section::make('🛒 Itens do Pedido')
                     ->schema([
                         Forms\Components\Repeater::make('items')
-                            ->label('')
                             ->relationship('items')
                             ->schema([
                                 Forms\Components\Select::make('product_id')
                                     ->label('Produto')
                                     ->relationship('product', 'name')
                                     ->required()
-                                    ->live()
+                                    ->live(onBlur: true)
                                     ->afterStateUpdated(function ($state, callable $set) {
                                         if ($state) {
                                             $product = \App\Models\Product::find($state);
@@ -326,190 +256,192 @@ class OrderResource extends Resource
                                         }
                                     })
                                     ->searchable()
+                                    ->preload()
                                     ->columnSpan(3),
-
+                                
                                 Forms\Components\Hidden::make('product_name'),
-
+                                
                                 Forms\Components\TextInput::make('quantity')
                                     ->label('Qtd')
-                                    ->required()
                                     ->numeric()
                                     ->default(1)
                                     ->minValue(1)
-                                    ->live()
-                                    ->columnSpan(1),
-
-                                Forms\Components\TextInput::make('unit_price')
-                                    ->label('Preço Unit.')
                                     ->required()
+                                    ->live(onBlur: true)
+                                    ->columnSpan(1),
+                                
+                                Forms\Components\TextInput::make('unit_price')
+                                    ->label('Preço Un.')
                                     ->numeric()
                                     ->prefix('R$')
-                                    ->live()
+                                    ->required()
+                                    ->live(onBlur: true)
                                     ->columnSpan(2),
-
-                                Forms\Components\Placeholder::make('subtotal_calc')
-                                    ->label('Subtotal')
-                                    ->content(function (Forms\Get $get): string {
-                                        $qty = $get('quantity') ?? 0;
-                                        $price = $get('unit_price') ?? 0;
-                                        $subtotal = $qty * $price;
-                                        return 'R$ ' . number_format($subtotal, 2, ',', '.');
-                                    })
+                                
+                                Forms\Components\Placeholder::make('item_total')
+                                    ->label('Total')
+                                    ->content(fn (Forms\Get $get) => 'R$ ' . number_format(($get('quantity') ?? 0) * ($get('unit_price') ?? 0), 2, ',', '.'))
                                     ->columnSpan(1),
-
+                                
                                 Forms\Components\Textarea::make('notes')
                                     ->label('Observações')
-                                    ->rows(2)
+                                    ->rows(1)
                                     ->columnSpanFull(),
                             ])
                             ->columns(7)
                             ->defaultItems(0)
-                            ->addActionLabel('Adicionar Produto')
+                            ->addActionLabel('+ Adicionar Produto')
                             ->reorderable()
                             ->collapsible()
-                            ->itemLabel(fn (array $state): ?string => $state['product_name'] ?? 'Novo Item')
+                            ->itemLabel(fn (array $state) => $state['product_name'] ?? 'Novo Item')
+                            ->live()
                             ->columnSpanFull(),
-                    ])
-                    ->collapsible()
-                    ->collapsed(false),
-
-                Forms\Components\Section::make('Valores')
+                    ])->collapsible(),
+                
+                // ===== RODAPÉ: Valores =====
+                Forms\Components\Section::make('💰 Valores')
                     ->schema([
-                        Forms\Components\Placeholder::make('subtotal_display')
+                        Forms\Components\Placeholder::make('subtotal_calc')
                             ->label('Subtotal (Items)')
-                            ->content(function (Forms\Get $get): string {
+                            ->content(function (Forms\Get $get) {
                                 $items = $get('items') ?? [];
                                 $subtotal = 0;
-
                                 foreach ($items as $item) {
-                                    $qty = $item['quantity'] ?? 0;
-                                    $price = $item['unit_price'] ?? 0;
-                                    $subtotal += $qty * $price;
+                                    $subtotal += ($item['quantity'] ?? 0) * ($item['unit_price'] ?? 0);
                                 }
-
                                 return 'R$ ' . number_format($subtotal, 2, ',', '.');
                             }),
-
-                        Forms\Components\Hidden::make('subtotal')
-                            ->default(0)
-                            ->dehydrateStateUsing(function (Forms\Get $get) {
-                                $items = $get('items') ?? [];
-                                $subtotal = 0;
-
-                                foreach ($items as $item) {
-                                    $qty = $item['quantity'] ?? 0;
-                                    $price = $item['unit_price'] ?? 0;
-                                    $subtotal += $qty * $price;
-                                }
-
-                                return $subtotal;
-                            }),
-
+                        
                         Forms\Components\TextInput::make('delivery_fee')
                             ->label('Taxa de Entrega')
                             ->numeric()
                             ->prefix('R$')
                             ->default(0)
-                            ->live()
-                            ->afterStateUpdated(fn ($state, callable $set) => $set('delivery_fee', $state ?? 0)),
-
+                            ->live(onBlur: true)
+                            ->helperText('Preenche automaticamente baseado no bairro'),
+                        
                         Forms\Components\TextInput::make('discount')
                             ->label('Desconto')
                             ->numeric()
                             ->prefix('R$')
                             ->default(0)
-                            ->live(),
-
+                            ->live(onBlur: true),
+                        
                         Forms\Components\TextInput::make('cashback_used')
-                            ->label('Cashback Utilizado')
+                            ->label('Cashback Usado')
                             ->numeric()
                             ->prefix('R$')
                             ->default(0)
-                            ->live(),
-
-                        Forms\Components\Placeholder::make('total_display')
-                            ->label('Total Final')
-                            ->content(function (Forms\Get $get): string {
+                            ->live(onBlur: true),
+                        
+                        Forms\Components\Placeholder::make('total_calc')
+                            ->label('💵 TOTAL')
+                            ->content(function (Forms\Get $get) {
                                 $items = $get('items') ?? [];
                                 $subtotal = 0;
-
                                 foreach ($items as $item) {
-                                    $qty = $item['quantity'] ?? 0;
-                                    $price = $item['unit_price'] ?? 0;
-                                    $subtotal += $qty * $price;
+                                    $subtotal += ($item['quantity'] ?? 0) * ($item['unit_price'] ?? 0);
                                 }
-
-                                $deliveryFee = $get('delivery_fee') ?? 0;
-                                $discount = $get('discount') ?? 0;
-                                $cashbackUsed = $get('cashback_used') ?? 0;
-
-                                $total = $subtotal + $deliveryFee - $discount - $cashbackUsed;
-                                $total = max(0, $total); // Não pode ser negativo
-
-                                return 'R$ ' . number_format($total, 2, ',', '.');
-                            }),
-
-                        Forms\Components\Hidden::make('total')
-                            ->default(0)
+                                
+                                $total = $subtotal 
+                                    + ($get('delivery_fee') ?? 0) 
+                                    - ($get('discount') ?? 0) 
+                                    - ($get('cashback_used') ?? 0);
+                                
+                                return 'R$ ' . number_format(max(0, $total), 2, ',', '.');
+                            })
+                            ->extraAttributes(['class' => 'text-2xl font-bold text-green-600']),
+                        
+                        Forms\Components\Placeholder::make('cashback_calc')
+                            ->label('Cashback a Ganhar')
+                            ->content(function (Forms\Get $get) {
+                                $customerId = $get('customer_id');
+                                if (!$customerId) return 'R$ 0,00';
+                                
+                                $customer = \App\Models\Customer::find($customerId);
+                                $settings = \App\Models\CashbackSettings::first();
+                                
+                                if (!$settings || !$settings->is_active) return 'R$ 0,00';
+                                
+                                $items = $get('items') ?? [];
+                                $subtotal = 0;
+                                foreach ($items as $item) {
+                                    $subtotal += ($item['quantity'] ?? 0) * ($item['unit_price'] ?? 0);
+                                }
+                                
+                                // Busca % baseado no tier do cliente
+                                $tier = $customer->loyalty_tier ?? 'bronze';
+                                $percentage = match($tier) {
+                                    'bronze' => $settings->bronze_percentage ?? 2,
+                                    'silver' => $settings->silver_percentage ?? 3.5,
+                                    'gold' => $settings->gold_percentage ?? 5,
+                                    'platinum' => $settings->platinum_percentage ?? 7,
+                                    default => 2,
+                                };
+                                
+                                $cashback = ($subtotal * $percentage) / 100;
+                                
+                                return 'R$ ' . number_format($cashback, 2, ',', '.') . " ({$percentage}%)";
+                            })
+                            ->helperText('Calculado automaticamente baseado no nível do cliente'),
+                        
+                        // Hidden fields para salvar no banco
+                        Forms\Components\Hidden::make('subtotal')
                             ->dehydrateStateUsing(function (Forms\Get $get) {
                                 $items = $get('items') ?? [];
                                 $subtotal = 0;
-
                                 foreach ($items as $item) {
-                                    $qty = $item['quantity'] ?? 0;
-                                    $price = $item['unit_price'] ?? 0;
-                                    $subtotal += $qty * $price;
+                                    $subtotal += ($item['quantity'] ?? 0) * ($item['unit_price'] ?? 0);
                                 }
-
-                                $deliveryFee = $get('delivery_fee') ?? 0;
-                                $discount = $get('discount') ?? 0;
-                                $cashbackUsed = $get('cashback_used') ?? 0;
-
-                                $total = $subtotal + $deliveryFee - $discount - $cashbackUsed;
+                                return $subtotal;
+                            }),
+                        
+                        Forms\Components\Hidden::make('total')
+                            ->dehydrateStateUsing(function (Forms\Get $get) {
+                                $items = $get('items') ?? [];
+                                $subtotal = 0;
+                                foreach ($items as $item) {
+                                    $subtotal += ($item['quantity'] ?? 0) * ($item['unit_price'] ?? 0);
+                                }
+                                
+                                $total = $subtotal 
+                                    + ($get('delivery_fee') ?? 0) 
+                                    - ($get('discount') ?? 0) 
+                                    - ($get('cashback_used') ?? 0);
+                                
                                 return max(0, $total);
                             }),
-
-                        Forms\Components\TextInput::make('cashback_earned')
-                            ->label('Cashback Ganho')
-                            ->numeric()
-                            ->prefix('R$')
-                            ->default(0),
+                        
+                        Forms\Components\Hidden::make('cashback_earned')
+                            ->dehydrateStateUsing(function (Forms\Get $get) {
+                                $customerId = $get('customer_id');
+                                if (!$customerId) return 0;
+                                
+                                $customer = \App\Models\Customer::find($customerId);
+                                $settings = \App\Models\CashbackSettings::first();
+                                
+                                if (!$settings || !$settings->is_active) return 0;
+                                
+                                $items = $get('items') ?? [];
+                                $subtotal = 0;
+                                foreach ($items as $item) {
+                                    $subtotal += ($item['quantity'] ?? 0) * ($item['unit_price'] ?? 0);
+                                }
+                                
+                                $tier = $customer->loyalty_tier ?? 'bronze';
+                                $percentage = match($tier) {
+                                    'bronze' => $settings->bronze_percentage ?? 2,
+                                    'silver' => $settings->silver_percentage ?? 3.5,
+                                    'gold' => $settings->gold_percentage ?? 5,
+                                    'platinum' => $settings->platinum_percentage ?? 7,
+                                    default => 2,
+                                };
+                                
+                                return ($subtotal * $percentage) / 100;
+                            }),
                     ])->columns(3),
-
-                Forms\Components\Section::make('Endereço de Entrega')
-                    ->schema([
-                        Forms\Components\Textarea::make('delivery_address')
-                            ->label('Endereço Completo')
-                            ->rows(3)
-                            ->columnSpanFull()
-                            ->helperText('Preenche automaticamente ao selecionar cliente. Pode editar se necessário.'),
-
-                        Forms\Components\TextInput::make('delivery_neighborhood')
-                            ->label('Bairro')
-                            ->maxLength(255),
-
-                        Forms\Components\TextInput::make('estimated_time')
-                            ->label('Tempo Estimado (min)')
-                            ->numeric()
-                            ->suffix('min'),
-                    ])->columns(2)
-                    ->description('Endereço será preenchido automaticamente. Se o cliente não tiver endereço, preencha manualmente.'),
-
-                Forms\Components\Section::make('Observações')
-                    ->schema([
-                        Forms\Components\Textarea::make('customer_notes')
-                            ->label('Observações do Cliente')
-                            ->rows(2)
-                            ->columnSpanFull(),
-
-                        Forms\Components\Textarea::make('internal_notes')
-                            ->label('Observações Internas')
-                            ->rows(2)
-                            ->columnSpanFull(),
-                    ]),
             ]);
     }
-
     public static function table(Table $table): Table
     {
         return $table
