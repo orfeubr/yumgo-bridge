@@ -79,7 +79,83 @@ class OrderResource extends Resource
                                     }
                                 }
                             })
-                            ->searchable(),
+                            ->searchable()
+                            ->createOptionForm([
+                                Forms\Components\Section::make('Dados do Cliente')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('name')
+                                            ->label('Nome Completo')
+                                            ->required()
+                                            ->maxLength(255),
+
+                                        Forms\Components\TextInput::make('phone')
+                                            ->label('Telefone/WhatsApp')
+                                            ->tel()
+                                            ->required()
+                                            ->mask('(99) 99999-9999')
+                                            ->placeholder('(11) 98888-7777'),
+
+                                        Forms\Components\TextInput::make('email')
+                                            ->label('Email (Opcional)')
+                                            ->email()
+                                            ->maxLength(255),
+                                    ])->columns(2),
+
+                                Forms\Components\Section::make('Endereço de Entrega')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('address')
+                                            ->label('Rua/Avenida')
+                                            ->required()
+                                            ->maxLength(255),
+
+                                        Forms\Components\TextInput::make('number')
+                                            ->label('Número')
+                                            ->required()
+                                            ->maxLength(10),
+
+                                        Forms\Components\TextInput::make('complement')
+                                            ->label('Complemento')
+                                            ->maxLength(255),
+
+                                        Forms\Components\TextInput::make('neighborhood')
+                                            ->label('Bairro')
+                                            ->required()
+                                            ->maxLength(255),
+
+                                        Forms\Components\TextInput::make('city')
+                                            ->label('Cidade')
+                                            ->required()
+                                            ->maxLength(255)
+                                            ->default(tenant()->address_city ?? 'São Paulo'),
+
+                                        Forms\Components\Select::make('state')
+                                            ->label('Estado')
+                                            ->required()
+                                            ->options([
+                                                'AC' => 'AC', 'AL' => 'AL', 'AP' => 'AP', 'AM' => 'AM',
+                                                'BA' => 'BA', 'CE' => 'CE', 'DF' => 'DF', 'ES' => 'ES',
+                                                'GO' => 'GO', 'MA' => 'MA', 'MT' => 'MT', 'MS' => 'MS',
+                                                'MG' => 'MG', 'PA' => 'PA', 'PB' => 'PB', 'PR' => 'PR',
+                                                'PE' => 'PE', 'PI' => 'PI', 'RJ' => 'RJ', 'RN' => 'RN',
+                                                'RS' => 'RS', 'RO' => 'RO', 'RR' => 'RR', 'SC' => 'SC',
+                                                'SP' => 'SP', 'SE' => 'SE', 'TO' => 'TO',
+                                            ])
+                                            ->default(tenant()->address_state ?? 'SP')
+                                            ->searchable(),
+
+                                        Forms\Components\TextInput::make('zipcode')
+                                            ->label('CEP')
+                                            ->mask('99999-999')
+                                            ->maxLength(9),
+                                    ])->columns(3),
+                            ])
+                            ->createOptionUsing(function (array $data) {
+                                $customer = \App\Models\Customer::create($data);
+                                return $customer->id;
+                            })
+                            ->createOptionModalHeading('Cadastrar Novo Cliente')
+                            ->createOptionModalSubmitActionLabel('Cadastrar Cliente')
+                            ->createOptionModalWidth('3xl'),
 
                         Forms\Components\Select::make('status')
                             ->label('Status')
