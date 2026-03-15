@@ -15,6 +15,7 @@ class Kitchen extends Page implements HasTable
     use InteractsWithTable;
 
     protected static ?string $navigationIcon = 'heroicon-o-fire';
+    protected static ?string $slug = 'cozinha'; // URL em português
     protected static ?string $navigationLabel = '👨‍🍳 Cozinha';
     protected static ?string $title = 'Painel da Cozinha';
     protected static ?int $navigationSort = 2;

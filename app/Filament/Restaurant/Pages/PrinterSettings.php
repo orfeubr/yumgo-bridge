@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 class PrinterSettings extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-printer';
+    protected static ?string $slug = 'configuracoes-impressora'; // URL em português
 
     protected static string $view = 'filament.restaurant.pages.printer-settings';
 

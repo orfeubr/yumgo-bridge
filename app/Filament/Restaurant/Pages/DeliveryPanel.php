@@ -15,6 +15,7 @@ class DeliveryPanel extends Page implements HasTable
     use InteractsWithTable;
 
     protected static ?string $navigationIcon = 'heroicon-o-truck';
+    protected static ?string $slug = 'painel-entregas'; // URL em português
     protected static ?string $navigationLabel = '🚗 Entregas';
     protected static ?string $title = 'Painel de Entregas';
     protected static ?int $navigationSort = 3;

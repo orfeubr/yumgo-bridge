@@ -15,6 +15,7 @@ class FiscalSettings extends Page implements HasForms
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-check';
+    protected static ?string $slug = 'configuracoes-fiscais'; // URL em português
     protected static ?string $navigationLabel = 'Configuração Fiscal';
     protected static ?string $title = 'Configuração Fiscal - Tributa AI';
     protected static ?int $navigationSort = 4;

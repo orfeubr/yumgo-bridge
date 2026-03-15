@@ -18,6 +18,7 @@ class ImportProducts extends Page implements HasForms
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-up-tray';
+    protected static ?string $slug = 'importar-produtos'; // URL em português
 
     protected static ?string $navigationLabel = 'Importar Produtos';
 

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Cache;
 class PrintMonitor extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-computer-desktop';
+    protected static ?string $slug = 'monitor-impressao'; // URL em português
     protected static string $view = 'filament.restaurant.pages.print-monitor';
     protected static ?string $navigationLabel = 'Monitor de Impressão';
     protected static ?string $title = 'Monitor de Impressão';

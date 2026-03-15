@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Http;
 class PaymentAccount extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-banknotes';
+    protected static ?string $slug = 'dados-recebimento'; // URL em português
 
     protected static ?string $navigationLabel = 'Dados para Recebimento';
 

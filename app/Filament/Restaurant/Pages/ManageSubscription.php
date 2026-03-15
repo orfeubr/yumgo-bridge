@@ -13,6 +13,7 @@ use Filament\Support\Enums\MaxWidth;
 class ManageSubscription extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-credit-card';
+    protected static ?string $slug = 'gerenciar-assinatura'; // URL em português
 
     protected static string $view = 'filament.restaurant.pages.manage-subscription';
 

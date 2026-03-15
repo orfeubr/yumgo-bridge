@@ -11,6 +11,7 @@ use Filament\Notifications\Notification;
 class CashbackConfig extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-gift';
+    protected static ?string $slug = 'configurar-cashback'; // URL em português
     protected static ?string $navigationLabel = 'Cashback';
     protected static ?string $navigationGroup = '⚙️ Configurações';
     protected static ?int $navigationSort = 2;

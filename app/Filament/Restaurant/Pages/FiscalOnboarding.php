@@ -17,6 +17,7 @@ class FiscalOnboarding extends Page implements HasForms
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-academic-cap';
+    protected static ?string $slug = 'configurar-nfce'; // URL em português
     protected static ?string $navigationLabel = 'Começar com NFC-e';
     protected static ?string $title = 'Guia de Configuração NFC-e';
     protected static ?int $navigationSort = 95;
