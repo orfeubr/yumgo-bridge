@@ -577,8 +577,8 @@ ipcMain.on('disconnect', () => {
     updateTrayStatus(false);
 });
 
-// Configurar impressora
-ipcMain.on('configure-printer', async (event, config) => {
+// Configurar impressora (v3.0.1: mudado para handle)
+ipcMain.handle('configure-printer', async (event, config) => {
     try {
         if (!printerManager) {
             printerManager = new ThermalPrinter();
@@ -591,25 +591,21 @@ ipcMain.on('configure-printer', async (event, config) => {
         printers[config.location] = config;
         store.set('printers', printers);
 
-        event.reply('printer-configured', {
+        log.info(`Impressora ${config.location} configurada com sucesso`);
+
+        return {
             location: config.location,
             success: true
-        });
-
-        log.info(`Impressora ${config.location} configurada com sucesso`);
+        };
 
     } catch (error) {
         log.error('Erro ao configurar impressora:', error);
-        event.reply('printer-configured', {
-            location: config.location,
-            success: false,
-            error: error.message
-        });
+        throw error;
     }
 });
 
-// Teste de impressão
-ipcMain.on('test-print', async (event, { location }) => {
+// Teste de impressão (v3.0.1: mudado para handle)
+ipcMain.handle('test-print', async (event, location) => {
     try {
         if (!printerManager) {
             throw new Error('Nenhuma impressora configurada');
@@ -649,17 +645,16 @@ ipcMain.on('test-print', async (event, { location }) => {
 
         await printerManager.printOrder(testOrder, location);
 
-        event.reply('test-print-result', {
+        log.info(`Teste de impressão enviado para ${location}`);
+
+        return {
             success: true,
             message: 'Impressão de teste enviada com sucesso!'
-        });
+        };
 
     } catch (error) {
         log.error('Erro no teste de impressão:', error);
-        event.reply('test-print-result', {
-            success: false,
-            error: error.message
-        });
+        throw error;
     }
 });
 
