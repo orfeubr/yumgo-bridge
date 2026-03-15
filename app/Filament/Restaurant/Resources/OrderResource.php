@@ -68,7 +68,9 @@ class OrderResource extends Resource
                                         
                                         // Busca taxa de entrega do bairro
                                         if ($customer->neighborhood) {
-                                            $neighborhood = \App\Models\Neighborhood::where('name', $customer->neighborhood)->first();
+                                            $neighborhood = \App\Models\Neighborhood::where('name', $customer->neighborhood)
+                                                ->where('enabled', true)
+                                                ->first();
 
                                             if ($neighborhood) {
                                                 $set('delivery_fee', $neighborhood->delivery_fee);
@@ -118,7 +120,9 @@ class OrderResource extends Resource
                                         $set('delivery_neighborhood', $data['neighborhood']);
                                         
                                         // Atualiza taxa de entrega
-                                        $neighborhood = \App\Models\Neighborhood::where('name', $data['neighborhood'])->first();
+                                        $neighborhood = \App\Models\Neighborhood::where('name', $data['neighborhood'])
+                                            ->where('enabled', true)
+                                            ->first();
                                         if ($neighborhood) {
                                             $set('delivery_fee', $neighborhood->delivery_fee);
                                         }
@@ -154,7 +158,9 @@ class OrderResource extends Resource
                             ->live()
                             ->afterStateUpdated(function ($state, callable $set) {
                                 if ($state) {
-                                    $neighborhood = \App\Models\Neighborhood::where('name', $state)->first();
+                                    $neighborhood = \App\Models\Neighborhood::where('name', $state)
+                                        ->where('enabled', true)
+                                        ->first();
                                     if ($neighborhood) {
                                         $set('delivery_fee', $neighborhood->delivery_fee);
 
