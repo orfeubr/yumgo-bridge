@@ -409,12 +409,21 @@ function connectWebSocket(restaurantId, token) {
 
         log.info(`📡 Conectando ao canal público...`);
 
+        // v3.0.4: Adicionar callback de sucesso
+        channel.subscribed(() => {
+            log.info(`✅ ✅ ✅ INSCRITO NO CANAL: ${channelName}`);
+            log.info(`🎧 Aguardando eventos .order.created...`);
+        });
+
         channel.error((error) => {
             log.error('❌ Erro ao inscrever no canal:', JSON.stringify(error, null, 2));
             mainWindow.webContents.send('status', 'error');
         });
 
         channel.listen('.order.created', async (data) => {
+            log.info(`🔔 🔔 🔔 PEDIDO RECEBIDO VIA WEBSOCKET!`);
+            log.info(`📦 Dados: #${data.order.order_number}`);
+
                 log.info(`🔔 Novo pedido recebido: #${data.order.order_number}`);
 
                 try {
