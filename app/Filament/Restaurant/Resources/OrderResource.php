@@ -52,6 +52,33 @@ class OrderResource extends Resource
                             ->label('Cliente')
                             ->relationship('customer', 'name')
                             ->required()
+                            ->live()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if ($state) {
+                                    $customer = \App\Models\Customer::find($state);
+                                    if ($customer) {
+                                        // Preenche endereço automaticamente
+                                        $address = $customer->address
+                                            ? $customer->address . ', ' . $customer->number
+                                            : '';
+
+                                        if ($customer->complement) {
+                                            $address .= ' - ' . $customer->complement;
+                                        }
+
+                                        if ($customer->neighborhood) {
+                                            $address .= ' - ' . $customer->neighborhood;
+                                        }
+
+                                        if ($customer->city) {
+                                            $address .= ' - ' . $customer->city . '/' . $customer->state;
+                                        }
+
+                                        $set('delivery_address', $address);
+                                        $set('delivery_neighborhood', $customer->neighborhood);
+                                    }
+                                }
+                            })
                             ->searchable(),
 
                         Forms\Components\Select::make('status')
@@ -108,7 +135,7 @@ class OrderResource extends Resource
                                     ->label('Produto')
                                     ->relationship('product', 'name')
                                     ->required()
-                                    ->reactive()
+                                    ->live()
                                     ->afterStateUpdated(function ($state, callable $set) {
                                         if ($state) {
                                             $product = \App\Models\Product::find($state);
@@ -130,7 +157,7 @@ class OrderResource extends Resource
                                     ->numeric()
                                     ->default(1)
                                     ->minValue(1)
-                                    ->reactive()
+                                    ->live()
                                     ->columnSpan(1),
 
                                 Forms\Components\TextInput::make('unit_price')
@@ -138,7 +165,7 @@ class OrderResource extends Resource
                                     ->required()
                                     ->numeric()
                                     ->prefix('R$')
-                                    ->reactive()
+                                    ->live()
                                     ->columnSpan(2),
 
                                 Forms\Components\Placeholder::make('subtotal_calc')
@@ -169,37 +196,99 @@ class OrderResource extends Resource
 
                 Forms\Components\Section::make('Valores')
                     ->schema([
-                        Forms\Components\TextInput::make('subtotal')
-                            ->label('Subtotal')
-                            ->numeric()
-                            ->prefix('R$')
+                        Forms\Components\Placeholder::make('subtotal_display')
+                            ->label('Subtotal (Items)')
+                            ->content(function (Forms\Get $get): string {
+                                $items = $get('items') ?? [];
+                                $subtotal = 0;
+
+                                foreach ($items as $item) {
+                                    $qty = $item['quantity'] ?? 0;
+                                    $price = $item['unit_price'] ?? 0;
+                                    $subtotal += $qty * $price;
+                                }
+
+                                return 'R$ ' . number_format($subtotal, 2, ',', '.');
+                            }),
+
+                        Forms\Components\Hidden::make('subtotal')
                             ->default(0)
-                            ->helperText('Calculado automaticamente baseado nos items'),
+                            ->dehydrateStateUsing(function (Forms\Get $get) {
+                                $items = $get('items') ?? [];
+                                $subtotal = 0;
+
+                                foreach ($items as $item) {
+                                    $qty = $item['quantity'] ?? 0;
+                                    $price = $item['unit_price'] ?? 0;
+                                    $subtotal += $qty * $price;
+                                }
+
+                                return $subtotal;
+                            }),
 
                         Forms\Components\TextInput::make('delivery_fee')
                             ->label('Taxa de Entrega')
                             ->numeric()
                             ->prefix('R$')
-                            ->default(0),
+                            ->default(0)
+                            ->live()
+                            ->afterStateUpdated(fn ($state, callable $set) => $set('delivery_fee', $state ?? 0)),
 
                         Forms\Components\TextInput::make('discount')
                             ->label('Desconto')
                             ->numeric()
                             ->prefix('R$')
-                            ->default(0),
+                            ->default(0)
+                            ->live(),
 
                         Forms\Components\TextInput::make('cashback_used')
                             ->label('Cashback Utilizado')
                             ->numeric()
                             ->prefix('R$')
-                            ->default(0),
-
-                        Forms\Components\TextInput::make('total')
-                            ->label('Total')
-                            ->numeric()
-                            ->prefix('R$')
                             ->default(0)
-                            ->helperText('Subtotal + Taxa - Descontos - Cashback'),
+                            ->live(),
+
+                        Forms\Components\Placeholder::make('total_display')
+                            ->label('Total Final')
+                            ->content(function (Forms\Get $get): string {
+                                $items = $get('items') ?? [];
+                                $subtotal = 0;
+
+                                foreach ($items as $item) {
+                                    $qty = $item['quantity'] ?? 0;
+                                    $price = $item['unit_price'] ?? 0;
+                                    $subtotal += $qty * $price;
+                                }
+
+                                $deliveryFee = $get('delivery_fee') ?? 0;
+                                $discount = $get('discount') ?? 0;
+                                $cashbackUsed = $get('cashback_used') ?? 0;
+
+                                $total = $subtotal + $deliveryFee - $discount - $cashbackUsed;
+                                $total = max(0, $total); // Não pode ser negativo
+
+                                return 'R$ ' . number_format($total, 2, ',', '.');
+                            }),
+
+                        Forms\Components\Hidden::make('total')
+                            ->default(0)
+                            ->dehydrateStateUsing(function (Forms\Get $get) {
+                                $items = $get('items') ?? [];
+                                $subtotal = 0;
+
+                                foreach ($items as $item) {
+                                    $qty = $item['quantity'] ?? 0;
+                                    $price = $item['unit_price'] ?? 0;
+                                    $subtotal += $qty * $price;
+                                }
+
+                                $deliveryFee = $get('delivery_fee') ?? 0;
+                                $discount = $get('discount') ?? 0;
+                                $cashbackUsed = $get('cashback_used') ?? 0;
+
+                                $total = $subtotal + $deliveryFee - $discount - $cashbackUsed;
+                                return max(0, $total);
+                            }),
 
                         Forms\Components\TextInput::make('cashback_earned')
                             ->label('Cashback Ganho')
