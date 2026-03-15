@@ -5,10 +5,9 @@ const log = require('electron-log');
 const { autoUpdater } = require('electron-updater');
 const AutoLaunch = require('auto-launch');
 
-// FIX: Pusher precisa estar disponível globalmente para Laravel Echo
+// v3.2.0: Pusher.js direto (sem Laravel Echo)
 global.Pusher = require('pusher-js');
 
-const Echo = require('laravel-echo').default;  // FIX: ES6 default export
 const axios = require('axios');
 const ThermalPrinter = require('./printer');
 
@@ -309,44 +308,36 @@ function connectWebSocket(restaurantId, token) {
     log.info(`   - isDev: ${isDev}`);
 
     try {
-        // v3.0.3: CONFIGURAÇÃO SIMPLIFICADA - IGUAL À PÁGINA QUE FUNCIONA!
-        log.info('🔵 Criando Echo com broadcaster REVERB...');
+        // v3.2.0: PUSHER.JS DIRETO (solução para incompatibilidade Laravel Echo)
+        log.info('🔵 Criando conexão Pusher.js direta...');
 
-        const echoConfig = {
-            broadcaster: 'reverb',  // ⭐ MUDANÇA CRÍTICA: usar 'reverb' não 'pusher'
+        const pusherConfig = {
             key: 't9pg2dslmpl5y1cp6rrf',
             wsHost: wsHost,
             wsPort: wsPort,
-            wssPort: wsPort,
+            cluster: 'mt1',  // ⭐ CRÍTICO: Parâmetro obrigatório para Pusher.js
             forceTLS: !isDev,
-            enabledTransports: ['ws', 'wss'],  // ⭐ Adicionar transports explícitos
+            enabledTransports: isDev ? ['ws'] : ['wss'],
             disableStats: true
         };
 
-        // Log config sem o cliente (evita circular reference)
-        log.info(`📡 Echo config:`, JSON.stringify({
-            broadcaster: echoConfig.broadcaster,
-            key: echoConfig.key,
-            authEndpoint: echoConfig.authEndpoint,
-            hasClient: !!echoConfig.client
-        }, null, 2));
+        // Log config
+        log.info(`📡 Pusher config:`, JSON.stringify(pusherConfig, null, 2));
 
-        log.info('🔵 Criando instância do Echo...');
-        echo = new Echo(echoConfig);
-        log.info('✅ Echo criado com sucesso');
+        log.info('🔵 Criando instância do Pusher...');
+        const pusher = new global.Pusher(pusherConfig.key, pusherConfig);
+        log.info('✅ Pusher criado com sucesso');
 
-        log.info('🔵 Acessando Pusher connector...');
-        const pusher = echo.connector.pusher;
-        log.info('✅ Pusher connector acessado');
+        // Guardar referência global para uso em disconnect
+        echo = { pusher }; // Mantém compatibilidade com código existente
 
         log.info('📡 Pusher connection state:', pusher.connection.state);
-        log.info('📡 Pusher socket_id:', pusher.connection.socket_id || 'null');
 
         // Eventos de conexão do Pusher
         log.info('🔵 Registrando event listeners do Pusher...');
 
         // Log de TODOS os eventos de state para debug
-        echo.connector.pusher.connection.bind('state_change', (states) => {
+        pusher.connection.bind('state_change', (states) => {
             log.info(`📊 [STATE CHANGE] ${states.previous} → ${states.current}`);
 
             // Capturar informações adicionais de cada estado
@@ -364,7 +355,7 @@ function connectWebSocket(restaurantId, token) {
         });
 
         // Capturar erro no nível de transporte
-        echo.connector.pusher.connection.bind('error', (error) => {
+        pusher.connection.bind('error', (error) => {
             log.error('❌ [CONNECTION ERROR]', JSON.stringify(error, null, 2));
             if (error.error) {
                 log.error('   → Error object:', JSON.stringify(error.error, null, 2));
@@ -377,8 +368,9 @@ function connectWebSocket(restaurantId, token) {
             }
         });
 
-        echo.connector.pusher.connection.bind('connected', () => {
+        pusher.connection.bind('connected', () => {
             log.info('✅ Conectado ao servidor YumGo via Reverb/Pusher');
+            log.info('📡 Socket ID:', pusher.connection.socket_id);
             isConnected = true;
 
             // Atualizar UI
@@ -389,7 +381,7 @@ function connectWebSocket(restaurantId, token) {
             showNotification('Conectado', 'YumGo Bridge conectado com sucesso!');
         });
 
-        echo.connector.pusher.connection.bind('disconnected', () => {
+        pusher.connection.bind('disconnected', () => {
             log.warn('❌ Desconectado do servidor');
             isConnected = false;
 
@@ -397,105 +389,103 @@ function connectWebSocket(restaurantId, token) {
             updateTrayStatus(false);
         });
 
-        // Já temos error binding acima, não duplicar
-
-        // Já temos state_change acima, remover duplicado
-
-        // Inscrever no canal PÚBLICO do restaurante (TESTE - sem autenticação)
+        // Inscrever no canal PÚBLICO do restaurante
         const channelName = `restaurant.${restaurantId}`;
-        log.info(`Inscrevendo no canal PÚBLICO: ${channelName}`);
+        log.info(`🔵 Inscrevendo no canal PÚBLICO: ${channelName}`);
 
-        const channel = echo.channel(channelName);
+        const channel = pusher.subscribe(channelName);
 
-        log.info(`📡 Conectando ao canal público...`);
+        log.info(`📡 Aguardando inscrição no canal...`);
 
-        // v3.0.4: Adicionar callback de sucesso
-        channel.subscribed(() => {
+        // Callback de sucesso na inscrição
+        channel.bind('pusher:subscription_succeeded', () => {
             log.info(`✅ ✅ ✅ INSCRITO NO CANAL: ${channelName}`);
             log.info(`🎧 Aguardando eventos .order.created...`);
         });
 
-        channel.error((error) => {
+        // Callback de erro na inscrição
+        channel.bind('pusher:subscription_error', (error) => {
             log.error('❌ Erro ao inscrever no canal:', JSON.stringify(error, null, 2));
             mainWindow.webContents.send('status', 'error');
         });
 
-        channel.listen('.order.created', async (data) => {
+        // Escutar evento .order.created
+        channel.bind('.order.created', async (data) => {
             log.info(`🔔 🔔 🔔 PEDIDO RECEBIDO VIA WEBSOCKET!`);
             log.info(`📦 Dados: #${data.order.order_number}`);
 
-                log.info(`🔔 Novo pedido recebido: #${data.order.order_number}`);
+            log.info(`🔔 Novo pedido recebido: #${data.order.order_number}`);
 
-                try {
-                    const order = data.order;
-                    const orderId = order.id;
-                    const now = Date.now();
+            try {
+                const order = data.order;
+                const orderId = order.id;
+                const now = Date.now();
 
-                    // ===== PROTEÇÃO CONTRA IMPRESSÃO DUPLICADA (v1.8.0) =====
-                    if (printedOrders.has(orderId)) {
-                        const lastPrinted = printedOrders.get(orderId);
-                        const timeSinceLastPrint = now - lastPrinted;
+                // ===== PROTEÇÃO CONTRA IMPRESSÃO DUPLICADA (v1.8.0) =====
+                if (printedOrders.has(orderId)) {
+                    const lastPrinted = printedOrders.get(orderId);
+                    const timeSinceLastPrint = now - lastPrinted;
 
-                        if (timeSinceLastPrint < PRINT_COOLDOWN) {
-                            const minutesLeft = Math.ceil((PRINT_COOLDOWN - timeSinceLastPrint) / 60000);
-                            log.warn(`⚠️ Pedido #${order.order_number} (ID: ${orderId}) já foi impresso há ${Math.floor(timeSinceLastPrint / 1000)}s. Ignorando impressão duplicada.`);
+                    if (timeSinceLastPrint < PRINT_COOLDOWN) {
+                        const minutesLeft = Math.ceil((PRINT_COOLDOWN - timeSinceLastPrint) / 60000);
+                        log.warn(`⚠️ Pedido #${order.order_number} (ID: ${orderId}) já foi impresso há ${Math.floor(timeSinceLastPrint / 1000)}s. Ignorando impressão duplicada.`);
 
-                            mainWindow.webContents.send('print-skipped', {
-                                order_id: orderId,
-                                order_number: order.order_number,
-                                reason: `Já impresso há ${Math.floor(timeSinceLastPrint / 1000)}s (cooldown: ${minutesLeft} min)`
-                            });
+                        mainWindow.webContents.send('print-skipped', {
+                            order_id: orderId,
+                            order_number: order.order_number,
+                            reason: `Já impresso há ${Math.floor(timeSinceLastPrint / 1000)}s (cooldown: ${minutesLeft} min)`
+                        });
 
-                            return; // Não imprimir novamente
-                        } else {
-                            // Cooldown expirou, pode reimprimir
-                            log.info(`✅ Cooldown expirado para pedido #${order.order_number}. Permitindo impressão.`);
-                        }
+                        return; // Não imprimir novamente
+                    } else {
+                        // Cooldown expirado, pode reimprimir
+                        log.info(`✅ Cooldown expirado para pedido #${order.order_number}. Permitindo impressão.`);
                     }
-
-                    // Registrar impressão
-                    printedOrders.set(orderId, now);
-
-                    // Limpar registros antigos (mais de 10 minutos)
-                    for (const [id, timestamp] of printedOrders.entries()) {
-                        if (now - timestamp > PRINT_COOLDOWN * 2) {
-                            printedOrders.delete(id);
-                        }
-                    }
-
-                    log.info(`📝 Pedido #${order.order_number} registrado no histórico de impressão`);
-                    // ===== FIM DA PROTEÇÃO =====
-
-                    // Tocar som de notificação
-                    mainWindow.webContents.send('play-sound');
-
-                    // Mostrar notificação
-                    showNotification(
-                        `Novo Pedido #${order.order_number}`,
-                        `Cliente: ${order.customer.name}\nTotal: R$ ${order.totals.total.toFixed(2)}`
-                    );
-
-                    // Imprimir em todas as impressoras configuradas
-                    if (printerManager && order.print_locations) {
-                        for (const location of order.print_locations) {
-                            await printerManager.printOrder(order, location);
-                        }
-                    }
-
-                    // Atualizar lista de pedidos na UI
-                    mainWindow.webContents.send('new-order', order);
-
-                } catch (error) {
-                    log.error('Erro ao processar pedido:', error);
-                    mainWindow.webContents.send('print-error', {
-                        order_id: data.order.id,
-                        error: error.message
-                    });
                 }
-            });
+
+                // Registrar impressão
+                printedOrders.set(orderId, now);
+
+                // Limpar registros antigos (mais de 10 minutos)
+                for (const [id, timestamp] of printedOrders.entries()) {
+                    if (now - timestamp > PRINT_COOLDOWN * 2) {
+                        printedOrders.delete(id);
+                    }
+                }
+
+                log.info(`📝 Pedido #${order.order_number} registrado no histórico de impressão`);
+                // ===== FIM DA PROTEÇÃO =====
+
+                // Tocar som de notificação
+                mainWindow.webContents.send('play-sound');
+
+                // Mostrar notificação
+                showNotification(
+                    `Novo Pedido #${order.order_number}`,
+                    `Cliente: ${order.customer.name}\nTotal: R$ ${order.totals.total.toFixed(2)}`
+                );
+
+                // Imprimir em todas as impressoras configuradas
+                if (printerManager && order.print_locations) {
+                    for (const location of order.print_locations) {
+                        await printerManager.printOrder(order, location);
+                    }
+                }
+
+                // Atualizar lista de pedidos na UI
+                mainWindow.webContents.send('new-order', order);
+
+            } catch (error) {
+                log.error('Erro ao processar pedido:', error);
+                mainWindow.webContents.send('print-error', {
+                    order_id: data.order.id,
+                    error: error.message
+                });
+            }
+        });
 
     } catch (error) {
-        log.error('Erro ao inicializar Laravel Echo:', error);
+        log.error('Erro ao inicializar Pusher.js:', error);
         mainWindow.webContents.send('status', 'error');
     }
 }
@@ -526,8 +516,8 @@ ipcMain.on('connect', (event, { restaurantId, token }) => {
 
 // Desconectar
 ipcMain.on('disconnect', () => {
-    if (echo) {
-        echo.disconnect();
+    if (echo && echo.pusher) {
+        echo.pusher.disconnect();
         echo = null;
     }
     isConnected = false;
@@ -874,8 +864,8 @@ ipcMain.handle('connect', async (event, { restaurantId, token }) => {
 // disconnect como handle
 ipcMain.handle('disconnect', async () => {
     try {
-        if (echo) {
-            echo.disconnect();
+        if (echo && echo.pusher) {
+            echo.pusher.disconnect();
             echo = null;
         }
         isConnected = false;
@@ -901,7 +891,7 @@ ipcMain.handle('test-websocket', async () => {
             throw new Error('Bridge não está conectado');
         }
 
-        if (!echo) {
+        if (!echo || !echo.pusher) {
             throw new Error('WebSocket não inicializado');
         }
 
@@ -909,7 +899,7 @@ ipcMain.handle('test-websocket', async () => {
             success: true,
             connected: isConnected,
             restaurantId: currentRestaurantId,
-            socketId: echo.socketId ? echo.socketId() : null
+            socketId: echo.pusher.connection.socket_id || null
         };
 
     } catch (error) {
@@ -1067,8 +1057,8 @@ app.on('activate', () => {
 
 app.on('before-quit', () => {
     app.isQuitting = true;
-    if (echo) {
-        echo.disconnect();
+    if (echo && echo.pusher) {
+        echo.pusher.disconnect();
     }
 });
 
