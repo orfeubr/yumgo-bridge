@@ -49,7 +49,7 @@ class OrderResource extends Resource
                             ->label('Cliente')
                             ->relationship('customer', 'name')
                             ->required()
-                            ->live(onBlur: true)
+                            ->live()
                             ->afterStateUpdated(function ($state, callable $set) {
                                 if ($state) {
                                     $customer = \App\Models\Customer::find($state);
@@ -153,7 +153,7 @@ class OrderResource extends Resource
                         
                         Forms\Components\TextInput::make('delivery_neighborhood')
                             ->label('Bairro')
-                            ->live(onBlur: true)
+                            ->live()
                             ->afterStateUpdated(function ($state, callable $set) {
                                 if ($state) {
                                     $neighborhood = \App\Models\Neighborhood::where('name', $state)->where('is_active', true)->first();
@@ -244,7 +244,7 @@ class OrderResource extends Resource
                                     ->label('Produto')
                                     ->relationship('product', 'name')
                                     ->required()
-                                    ->live(onBlur: true)
+                                    ->live()
                                     ->afterStateUpdated(function ($state, callable $set) {
                                         if ($state) {
                                             $product = \App\Models\Product::find($state);
@@ -267,15 +267,15 @@ class OrderResource extends Resource
                                     ->default(1)
                                     ->minValue(1)
                                     ->required()
-                                    ->live(onBlur: true)
+                                    ->live()
                                     ->columnSpan(1),
-                                
+
                                 Forms\Components\TextInput::make('unit_price')
                                     ->label('Preço Un.')
                                     ->numeric()
                                     ->prefix('R$')
                                     ->required()
-                                    ->live(onBlur: true)
+                                    ->live()
                                     ->columnSpan(2),
                                 
                                 Forms\Components\Placeholder::make('item_total')
@@ -317,22 +317,22 @@ class OrderResource extends Resource
                             ->numeric()
                             ->prefix('R$')
                             ->default(0)
-                            ->live(onBlur: true)
+                            ->live()
                             ->helperText('Preenche automaticamente baseado no bairro'),
-                        
+
                         Forms\Components\TextInput::make('discount')
                             ->label('Desconto')
                             ->numeric()
                             ->prefix('R$')
                             ->default(0)
-                            ->live(onBlur: true),
-                        
+                            ->live(),
+
                         Forms\Components\TextInput::make('cashback_used')
                             ->label('Cashback Usado')
                             ->numeric()
                             ->prefix('R$')
                             ->default(0)
-                            ->live(onBlur: true),
+                            ->live(),
                         
                         Forms\Components\Placeholder::make('total_calc')
                             ->label('💵 TOTAL')
