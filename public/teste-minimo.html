@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Teste Mínimo Pusher</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #fff;
+        }
+        .log {
+            background: #2d2d2d;
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+        .success { color: #4caf50; }
+        .error { color: #f44336; }
+        .info { color: #2196f3; }
+        .warn { color: #ff9800; }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin: 10px 5px;
+        }
+        h1 { color: #4caf50; }
+        pre {
+            background: #000;
+            padding: 10px;
+            overflow-x: auto;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔬 Teste Mínimo - Diagnóstico Pusher</h1>
+
+    <button onclick="teste1()">1️⃣ Verificar Pusher</button>
+    <button onclick="teste2()">2️⃣ Criar Pusher Simples</button>
+    <button onclick="teste3()">3️⃣ Conectar Completo</button>
+    <button onclick="limpar()">🗑️ Limpar</button>
+
+    <div id="logs"></div>
+
+    <script src="/pusher.min.js"></script>
+    <script>
+        function log(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.className = 'log ' + type;
+            div.innerHTML = '<strong>' + new Date().toLocaleTimeString() + '</strong> - ' + msg;
+            document.getElementById('logs').insertBefore(div, document.getElementById('logs').firstChild);
+            console.log(msg);
+        }
+
+        function limpar() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        // TESTE 1: Verificar se Pusher existe
+        function teste1() {
+            log('=== TESTE 1: Verificar Pusher ===', 'info');
+
+            log('typeof Pusher: ' + typeof Pusher, 'info');
+
+            if (typeof Pusher === 'undefined') {
+                log('❌ Pusher não definido!', 'error');
+                return;
+            }
+
+            log('✅ Pusher está definido!', 'success');
+            log('Pusher.VERSION: ' + (Pusher.VERSION || 'não disponível'), 'info');
+            log('Pusher.prototype: ' + typeof Pusher.prototype, 'info');
+
+            // Listar propriedades do Pusher
+            const props = Object.getOwnPropertyNames(Pusher);
+            log('Propriedades do Pusher: ' + props.join(', '), 'info');
+        }
+
+        // TESTE 2: Criar instância básica
+        function teste2() {
+            log('=== TESTE 2: Criar Pusher Básico ===', 'info');
+
+            try {
+                log('Tentando: new Pusher("teste-key")', 'info');
+                const p = new Pusher('teste-key', {
+                    cluster: 'mt1'
+                });
+                log('✅ Pusher criado com sucesso!', 'success');
+                log('Estado: ' + p.connection.state, 'info');
+                p.disconnect();
+                log('✅ Teste OK - Pusher funciona!', 'success');
+            } catch (e) {
+                log('❌ ERRO: ' + e.message, 'error');
+                log('Stack: ' + e.stack, 'error');
+            }
+        }
+
+        // TESTE 3: Configuração completa YumGo
+        function teste3() {
+            log('=== TESTE 3: Conectar YumGo ===', 'info');
+
+            try {
+                const config = {
+                    wsHost: 'yumgo.com.br',
+                    wsPort: 8081,
+                    forceTLS: true,
+                    encrypted: true,
+                    disableStats: true,
+                    enabledTransports: ['ws', 'wss']
+                };
+
+                log('Config: <pre>' + JSON.stringify(config, null, 2) + '</pre>', 'info');
+                log('Criando Pusher...', 'info');
+
+                const pusher = new Pusher('t9pg2dslmpl5y1cp6rrf', config);
+
+                log('✅ Pusher criado!', 'success');
+                log('Estado inicial: ' + pusher.connection.state, 'info');
+
+                pusher.connection.bind('state_change', function(states) {
+                    log('Estado: ' + states.previous + ' → ' + states.current,
+                        states.current === 'connected' ? 'success' : 'info');
+
+                    if (states.current === 'connected') {
+                        log('🎉 CONECTADO! Socket: ' + pusher.connection.socket_id, 'success');
+                    }
+                });
+
+                pusher.connection.bind('error', function(err) {
+                    log('❌ Erro: ' + JSON.stringify(err), 'error');
+                });
+
+                log('Aguardando conexão...', 'warn');
+
+            } catch (e) {
+                log('❌ ERRO: ' + e.message, 'error');
+                log('Tipo: ' + e.name, 'error');
+                log('Stack: ' + e.stack, 'error');
+            }
+        }
+
+        // Auto-executar teste 1 ao carregar
+        window.addEventListener('load', function() {
+            log('🚀 Página carregada', 'success');
+            setTimeout(teste1, 500);
+        });
+    </script>
+</body>
+</html>

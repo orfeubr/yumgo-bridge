@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste WS Subdomínio</title>
+    <script src="/pusher.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.16.1/dist/echo.iife.js"></script>
+</head>
+<body>
+    <h1>🧪 Teste: ws.yumgo.com.br</h1>
+    <button onclick="conectar()">Conectar</button>
+    <div id="status"></div>
+    <div id="pedidos"></div>
+
+    <script>
+        let echo;
+        
+        function log(msg) {
+            document.getElementById('status').innerHTML += '<br>' + msg;
+        }
+
+        function conectar() {
+            log('Conectando em ws.yumgo.com.br...');
+            
+            const config = {
+                broadcaster: 'reverb',
+                key: 't9pg2dslmpl5y1cp6rrf',
+                wsHost: 'ws.yumgo.com.br',  // TESTE COM SUBDOMÍNIO!
+                wsPort: 443,
+                wssPort: 443,
+                forceTLS: true,
+                enabledTransports: ['ws', 'wss'],
+                disableStats: true
+            };
+
+            echo = new window.Echo(config);
+            
+            echo.connector.pusher.connection.bind('connected', () => {
+                log('✅ CONECTADO em ws.yumgo.com.br!');
+                log('Socket ID: ' + echo.socketId());
+            });
+
+            const channel = echo.channel('restaurant.marmitariadagi');
+            
+            channel.listen('.order.created', (data) => {
+                log('🔔🔔🔔 PEDIDO RECEBIDO!');
+                document.getElementById('pedidos').innerHTML = 
+                    '<div style="background:green;color:white;padding:20px;margin:10px">' +
+                    '<h2>🔔 PEDIDO #' + data.order.order_number + '</h2>' +
+                    '<p>Total: R$ ' + data.order.totals.total + '</p>' +
+                    '</div>';
+            });
+        }
+    </script>
+</body>
+</html>

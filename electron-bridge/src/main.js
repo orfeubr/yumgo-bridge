@@ -374,7 +374,7 @@ function connectWebSocket(restaurantId, token) {
             isConnected = true;
 
             // Atualizar UI
-            mainWindow.webContents.send('status', 'connected');
+            mainWindow.webContents.send('connection-status', 'connected');
             updateTrayStatus(true);
 
             // Notificação
@@ -385,7 +385,7 @@ function connectWebSocket(restaurantId, token) {
             log.warn('❌ Desconectado do servidor');
             isConnected = false;
 
-            mainWindow.webContents.send('status', 'disconnected');
+            mainWindow.webContents.send('connection-status', 'disconnected');
             updateTrayStatus(false);
         });
 
@@ -406,7 +406,7 @@ function connectWebSocket(restaurantId, token) {
         // Callback de erro na inscrição
         channel.bind('pusher:subscription_error', (error) => {
             log.error('❌ Erro ao inscrever no canal:', JSON.stringify(error, null, 2));
-            mainWindow.webContents.send('status', 'error');
+            mainWindow.webContents.send('connection-status', 'error');
         });
 
         // Escutar evento .order.created
@@ -523,7 +523,7 @@ ipcMain.on('disconnect', () => {
     isConnected = false;
     currentToken = null;
     currentRestaurantId = null;
-    mainWindow.webContents.send('status', 'disconnected');
+    mainWindow.webContents.send('connection-status', 'disconnected');
     updateTrayStatus(false);
 });
 
@@ -873,7 +873,7 @@ ipcMain.handle('disconnect', async () => {
         currentRestaurantId = null;
 
         if (mainWindow) {
-            mainWindow.webContents.send('status', 'disconnected');
+            mainWindow.webContents.send('connection-status', 'disconnected');
         }
         updateTrayStatus(false);
 

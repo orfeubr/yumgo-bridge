@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>✅ Teste FINAL - Laravel Echo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #fff;
+        }
+        .log {
+            background: #2d2d2d;
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 3px;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+        }
+        .success { color: #4caf50; font-weight: bold; }
+        .error { color: #f44336; font-weight: bold; }
+        .info { color: #2196f3; }
+        .pedido {
+            background: #1a472a;
+            border: 3px solid #4caf50;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 10px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 10px #4caf50; }
+            50% { box-shadow: 0 0 30px #4caf50; }
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            cursor: pointer;
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            margin: 10px 5px;
+            font-weight: bold;
+        }
+        button:hover { background: #45a049; }
+        h1 { color: #4caf50; font-size: 32px; }
+        #status {
+            font-size: 28px;
+            font-weight: bold;
+            margin: 20px 0;
+            padding: 20px;
+            background: #2d2d2d;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .alert {
+            background: #1a3d47;
+            border: 2px solid #2196f3;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        input {
+            padding: 12px;
+            font-size: 16px;
+            width: 350px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #555;
+            background: #2d2d2d;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎉 Teste FINAL - Laravel Echo + Reverb</h1>
+
+    <div class="alert">
+        <h3 style="color: #4caf50; margin-bottom: 10px;">✅ SOLUÇÃO ENCONTRADA!</h3>
+        <p><strong>Laravel Echo</strong> funciona perfeitamente com Reverb!</p>
+        <p>Agora vamos testar receber pedidos em tempo real.</p>
+    </div>
+
+    <div id="status">⚪ Aguardando conexão...</div>
+
+    <div>
+        <label><strong>Restaurant ID:</strong></label><br>
+        <input type="text" id="restaurantId" value="marmitariadagi" placeholder="Ex: marmitariadagi">
+    </div>
+
+    <button onclick="conectar()">🔌 CONECTAR</button>
+    <button onclick="limpar()">🗑️ Limpar Logs</button>
+
+    <div id="pedidosContainer"></div>
+    <div id="logs"></div>
+
+    <script src="/pusher.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.16.1/dist/echo.iife.js"></script>
+    <script>
+        let echo = null;
+
+        function log(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.className = 'log ' + type;
+            div.innerHTML = '<strong>' + new Date().toLocaleTimeString() + '</strong> - ' + msg;
+            document.getElementById('logs').insertBefore(div, document.getElementById('logs').firstChild);
+            console.log('[' + type.toUpperCase() + '] ' + msg);
+        }
+
+        function updateStatus(text, color) {
+            const status = document.getElementById('status');
+            status.textContent = text;
+            status.style.color = color;
+        }
+
+        function limpar() {
+            document.getElementById('logs').innerHTML = '';
+            document.getElementById('pedidosContainer').innerHTML = '';
+        }
+
+        function conectar() {
+            const restaurantId = document.getElementById('restaurantId').value.trim();
+
+            if (!restaurantId) {
+                alert('Digite o Restaurant ID!');
+                return;
+            }
+
+            log('🔵 Iniciando conexão com Laravel Echo...', 'info');
+            updateStatus('🔄 Conectando...', '#ff9800');
+
+            try {
+                // Expor Pusher globalmente (necessário para Echo)
+                window.Pusher = Pusher;
+                log('✅ Pusher exposto globalmente', 'success');
+
+                // Configuração do Echo
+                const config = {
+                    broadcaster: 'reverb',
+                    key: 't9pg2dslmpl5y1cp6rrf',
+                    wsHost: 'yumgo.com.br',
+                    wsPort: 443,
+                    wssPort: 443,
+                    forceTLS: true,
+                    enabledTransports: ['ws', 'wss'],
+                    disableStats: true
+                };
+
+                log('Config: <pre>' + JSON.stringify(config, null, 2) + '</pre>', 'info');
+
+                // Criar Echo
+                echo = new window.Echo(config);
+                log('✅ Echo criado com sucesso!', 'success');
+
+                // Acessar o connector do Pusher subjacente
+                const pusherConnection = echo.connector.pusher.connection;
+                log('✅ Connector Pusher acessado', 'success');
+
+                // Monitorar estados de conexão
+                pusherConnection.bind('state_change', function(states) {
+                    log('Estado: ' + states.previous + ' → ' + states.current, 'info');
+
+                    if (states.current === 'connected') {
+                        log('🎉 CONECTADO AO WEBSOCKET!', 'success');
+                        log('Socket ID: ' + pusherConnection.socket_id, 'success');
+                        updateStatus('✅ CONECTADO!', '#4caf50');
+                        inscreverCanal(restaurantId);
+                    } else if (states.current === 'connecting') {
+                        updateStatus('🔄 Conectando...', '#ff9800');
+                    } else if (states.current === 'disconnected') {
+                        log('⚠️ Desconectado', 'error');
+                        updateStatus('⚠️ Desconectado', '#ff9800');
+                    } else if (states.current === 'failed') {
+                        log('❌ FALHA na conexão', 'error');
+                        updateStatus('❌ Falhou', '#f44336');
+                    } else if (states.current === 'unavailable') {
+                        log('❌ Servidor INDISPONÍVEL', 'error');
+                        updateStatus('❌ Indisponível', '#f44336');
+                    }
+                });
+
+                pusherConnection.bind('error', function(err) {
+                    log('❌ Erro: ' + JSON.stringify(err), 'error');
+                });
+
+            } catch (error) {
+                log('❌ ERRO: ' + error.message, 'error');
+                log('Stack: ' + error.stack, 'error');
+                updateStatus('❌ Erro', '#f44336');
+            }
+        }
+
+        function inscreverCanal(restaurantId) {
+            const channelName = 'restaurant.' + restaurantId;
+            log('📡 Inscrevendo no canal: ' + channelName, 'info');
+
+            try {
+                // Criar canal via Echo
+                echo.channel(channelName);
+                log('✅ Canal criado via Echo', 'success');
+
+                // Acessar o canal Pusher subjacente para usar .bind()
+                const pusherChannel = echo.connector.pusher.channel(channelName);
+                log('✅ Canal Pusher acessado', 'success');
+
+                // Escutar evento .order.created (COM PONTO) usando bind direto do Pusher
+                pusherChannel.bind('.order.created', function(data) {
+                    log('🔔 ========================================', 'success');
+                    log('🔔 PEDIDO RECEBIDO! #' + data.order_number, 'success');
+                    log('🔔 ========================================', 'success');
+                    log('Cliente: ' + data.customer.name, 'info');
+                    log('Total: R$ ' + data.totals.total.toFixed(2), 'info');
+                    log('Items: ' + data.items.length, 'info');
+                    log('Dados completos: <pre>' + JSON.stringify(data, null, 2) + '</pre>', 'info');
+
+                    updateStatus('🔔 Pedido #' + data.order_number + ' recebido!', '#4caf50');
+                    mostrarPedido(data);
+                });
+
+                log('✅ Listener ".order.created" registrado (bind direto Pusher)!', 'success');
+                log('🎧 Aguardando pedidos...', 'info');
+
+            } catch (error) {
+                log('❌ Erro ao inscrever: ' + error.message, 'error');
+            }
+        }
+
+        function mostrarPedido(data) {
+            const container = document.getElementById('pedidosContainer');
+            const div = document.createElement('div');
+            div.className = 'pedido';
+            div.innerHTML = `
+                <h2 style="color: #4caf50; margin: 0 0 15px 0;">🔔 PEDIDO #${data.order_number}</h2>
+                <div style="font-size: 16px; line-height: 1.8;">
+                    <strong>Cliente:</strong> ${data.customer.name}<br>
+                    <strong>Total:</strong> R$ ${data.totals.total.toFixed(2)}<br>
+                    <strong>Items:</strong> ${data.items.length}<br>
+                    <strong>Tipo:</strong> ${data.delivery.method === 'delivery' ? '🛵 DELIVERY' : '🏪 RETIRADA'}<br>
+                    <strong>Recebido:</strong> ${new Date().toLocaleTimeString()}
+                </div>
+            `;
+            container.insertBefore(div, container.firstChild);
+
+            // Som de notificação
+            try {
+                new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZRA8PVKzn77BdGAg+ltrzxnMnBSl+zPLaizsIGGS56+efSg8NUqbi8bllHAU2j9n0yoA2Bh1ywO/mnEoPD1So5O+zYBoGPJbY88p2KwUme8rx3I4+CRdmvOznn0sPDlOq5fK6aB0FMYvY9MyBOwcdccPw56JMDw9VqeXwsGAaBjyU2fTNdysGKH7N8t2RPwkXZ73t6KFODw9Uq+XztmggBTOO2PPNgjkGHnDE8OijTQ8PVqvm8LBfGwY8ltr0zXYrBih+zfLekUAJF2i+7OihTg8PU6vm8rZoHwU0jtj0zII7Bh5xxPDno0wPD1ap5fCwXxsGPJXa9M12KwUofszx3pFACRdovuzooE4PD1Oq5fK2aB8FNI7Y9M2COwYeccPw56NMDw9VqeXwsF8bBjyV2vTNdioGKH3M8d6RQAkXZ73s6J9PDw9Tqubytmgf' +
+                    'BTSO2PTNgjsGHnHD8OejTA8PVanl8LBfGwY8ldr0zXYqBih9zPHekUAJF2e97Oif').play();
+            } catch (e) {}
+        }
+
+        // Auto-log ao carregar
+        window.addEventListener('load', function() {
+            log('🚀 Página carregada!', 'success');
+            log('✅ Pusher.js e Laravel Echo carregados', 'success');
+            log('📌 Clique em "CONECTAR" para iniciar', 'info');
+        });
+    </script>
+</body>
+</html>

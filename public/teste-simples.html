@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Teste WebSocket Simples</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #fff;
+        }
+        .log {
+            background: #2d2d2d;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .success { color: #4caf50; }
+        .error { color: #f44336; }
+        .info { color: #2196f3; }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin: 10px 5px;
+        }
+        button:hover { background: #45a049; }
+        input {
+            padding: 10px;
+            font-size: 14px;
+            width: 300px;
+            margin: 10px 0;
+        }
+        h1 { color: #4caf50; }
+        #status {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teste WebSocket - YumGo Bridge</h1>
+
+    <div id="status">⚪ Aguardando...</div>
+
+    <div>
+        <label>Restaurant ID:</label><br>
+        <input type="text" id="restaurantId" value="marmitariadagi" placeholder="Digite o restaurant ID">
+    </div>
+
+    <button onclick="testar()">🔌 Conectar</button>
+    <button onclick="limpar()">🗑️ Limpar</button>
+
+    <div id="logs"></div>
+
+    <!-- Pusher.js HOSPEDADO LOCALMENTE (não depende de CDN externo) -->
+    <script src="/pusher.min.js"></script>
+    <script>
+        let pusher = null;
+
+        function log(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.className = 'log ' + type;
+            div.textContent = new Date().toLocaleTimeString() + ' - ' + msg;
+            document.getElementById('logs').insertBefore(div, document.getElementById('logs').firstChild);
+        }
+
+        function updateStatus(text, color) {
+            const status = document.getElementById('status');
+            status.textContent = text;
+            status.style.color = color;
+        }
+
+        window.addEventListener('load', function() {
+            if (typeof Pusher === 'undefined') {
+                log('❌ ERRO: Pusher.js não carregou!', 'error');
+                updateStatus('❌ Erro ao carregar Pusher', '#f44336');
+                return;
+            }
+            log('✅ Pusher.js carregado! Versão: ' + (Pusher.VERSION || '?'), 'success');
+            updateStatus('✅ Pronto para conectar', '#4caf50');
+        });
+
+        function testar() {
+            const restaurantId = document.getElementById('restaurantId').value.trim();
+
+            if (!restaurantId) {
+                alert('Digite o Restaurant ID!');
+                return;
+            }
+
+            log('🔵 Iniciando conexão...', 'info');
+            updateStatus('🔄 Conectando...', '#ff9800');
+
+            try {
+                // Configuração do Pusher
+                const config = {
+                    key: 't9pg2dslmpl5y1cp6rrf',
+                    wsHost: 'yumgo.com.br',
+                    wsPort: 8081,
+                    forceTLS: true,
+                    encrypted: true,
+                    disableStats: true,
+                    enabledTransports: ['ws', 'wss']
+                };
+
+                log('Config: ' + JSON.stringify(config), 'info');
+
+                // Criar instância
+                pusher = new Pusher(config.key, config);
+                log('✅ Pusher criado!', 'success');
+
+                // Estados
+                pusher.connection.bind('state_change', function(states) {
+                    log('Estado: ' + states.previous + ' → ' + states.current, 'info');
+
+                    if (states.current === 'connected') {
+                        log('🎉 CONECTADO! Socket: ' + pusher.connection.socket_id, 'success');
+                        updateStatus('✅ Conectado!', '#4caf50');
+                        inscreverCanal(restaurantId);
+                    } else if (states.current === 'failed') {
+                        log('❌ FALHA na conexão', 'error');
+                        updateStatus('❌ Falhou', '#f44336');
+                    } else if (states.current === 'unavailable') {
+                        log('❌ Servidor INDISPONÍVEL', 'error');
+                        updateStatus('❌ Indisponível', '#f44336');
+                    }
+                });
+
+                // Erros
+                pusher.connection.bind('error', function(err) {
+                    log('❌ ERRO: ' + JSON.stringify(err), 'error');
+                });
+
+            } catch (error) {
+                log('❌ EXCEÇÃO: ' + error.message, 'error');
+                log('Stack: ' + error.stack, 'error');
+                updateStatus('❌ Erro', '#f44336');
+            }
+        }
+
+        function inscreverCanal(restaurantId) {
+            const channelName = 'restaurant.' + restaurantId;
+            log('📡 Inscrevendo no canal: ' + channelName, 'info');
+
+            try {
+                const channel = pusher.subscribe(channelName);
+
+                channel.bind('pusher:subscription_succeeded', function() {
+                    log('✅ Inscrito no canal com SUCESSO!', 'success');
+                    log('🎧 Aguardando pedidos...', 'info');
+                });
+
+                channel.bind('pusher:subscription_error', function(err) {
+                    log('❌ Erro ao inscrever: ' + JSON.stringify(err), 'error');
+                });
+
+                channel.bind('order.created', function(data) {
+                    log('🔔 PEDIDO RECEBIDO! #' + data.order_number, 'success');
+                    log('Dados: ' + JSON.stringify(data), 'info');
+                    updateStatus('🔔 Pedido recebido!', '#4caf50');
+                });
+
+            } catch (error) {
+                log('❌ Erro ao inscrever: ' + error.message, 'error');
+            }
+        }
+
+        function limpar() {
+            document.getElementById('logs').innerHTML = '';
+            log('Logs limpos', 'info');
+        }
+    </script>
+</body>
+</html>

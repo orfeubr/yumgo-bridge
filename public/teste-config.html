@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Teste Configurações WebSocket</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #fff;
+        }
+        .log {
+            background: #2d2d2d;
+            padding: 6px;
+            margin: 3px 0;
+            border-radius: 3px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+        }
+        .success { color: #4caf50; }
+        .error { color: #f44336; }
+        .info { color: #2196f3; }
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin: 5px;
+        }
+        h1 { color: #4caf50; }
+        h3 { color: #2196f3; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🔬 Teste de Configurações - Pusher</h1>
+    <p>Vamos testar diferentes configurações para descobrir qual funciona!</p>
+
+    <h3>Configurações para Testar:</h3>
+    <button onclick="config1()">Config 1: Básico cluster</button>
+    <button onclick="config2()">Config 2: wsHost SEM cluster</button>
+    <button onclick="config3()">Config 3: httpHost + httpPath</button>
+    <button onclick="config4()">Config 4: Reverb direto (porta 8081)</button>
+    <button onclick="config5()">Config 5: authorizer custom</button>
+    <button onclick="config6()">Config 6: Laravel Echo</button>
+    <button onclick="limpar()">🗑️ Limpar</button>
+
+    <div id="logs"></div>
+
+    <script src="/pusher.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.16.1/dist/echo.iife.js"></script>
+    <script>
+        function log(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.className = 'log ' + type;
+            div.innerHTML = '<strong>' + new Date().toLocaleTimeString() + '</strong> - ' + msg;
+            document.getElementById('logs').insertBefore(div, document.getElementById('logs').firstChild);
+            console.log('[' + type.toUpperCase() + '] ' + msg);
+        }
+
+        function limpar() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        function testar(nome, config) {
+            log('=== ' + nome + ' ===', 'info');
+            log('Config: ' + JSON.stringify(config, null, 2), 'info');
+
+            try {
+                const p = new Pusher('t9pg2dslmpl5y1cp6rrf', config);
+                log('✅ SUCESSO! Pusher criado!', 'success');
+                log('Estado: ' + p.connection.state, 'success');
+
+                p.connection.bind('state_change', function(states) {
+                    log('[' + nome + '] Estado: ' + states.previous + ' → ' + states.current,
+                        states.current === 'connected' ? 'success' : 'info');
+
+                    if (states.current === 'connected') {
+                        log('🎉 [' + nome + '] CONECTOU!!! Socket: ' + p.connection.socket_id, 'success');
+                    }
+                });
+
+                p.connection.bind('error', function(err) {
+                    log('[' + nome + '] Erro: ' + JSON.stringify(err), 'error');
+                });
+
+                setTimeout(() => {
+                    log('[' + nome + '] Estado após 5s: ' + p.connection.state, 'info');
+                }, 5000);
+
+                return p;
+
+            } catch (e) {
+                log('❌ ERRO: ' + e.message, 'error');
+                log('Nome: ' + e.name, 'error');
+                log('Stack: ' + e.stack, 'error');
+                return null;
+            }
+        }
+
+        // CONFIG 1: Básico com cluster (sabemos que funciona)
+        function config1() {
+            testar('Config 1: Básico cluster', {
+                cluster: 'mt1'
+            });
+        }
+
+        // CONFIG 2: wsHost SEM cluster (importante!)
+        function config2() {
+            testar('Config 2: wsHost SEM cluster', {
+                wsHost: 'yumgo.com.br',
+                wsPort: 443,
+                wssPort: 443,
+                forceTLS: true,
+                enabledTransports: ['ws', 'wss'],
+                disableStats: true,
+                cluster: undefined  // IMPORTANTE: remover cluster ao usar wsHost
+            });
+        }
+
+        // CONFIG 3: httpHost + httpPath (configuração alternativa)
+        function config3() {
+            testar('Config 3: httpHost + httpPath', {
+                httpHost: 'yumgo.com.br',
+                httpPort: 443,
+                httpPath: '/app',
+                wsHost: 'yumgo.com.br',
+                wsPort: 443,
+                wssPort: 443,
+                enabledTransports: ['ws', 'wss'],
+                forceTLS: true,
+                disableStats: true
+            });
+        }
+
+        // CONFIG 4: Reverb direto porta 8081
+        function config4() {
+            testar('Config 4: Reverb direto (8081)', {
+                wsHost: window.location.hostname,
+                wsPort: 8081,
+                forceTLS: false,
+                enabledTransports: ['ws'],
+                disableStats: true,
+                cluster: undefined
+            });
+        }
+
+        // CONFIG 5: authorizer custom (para canais privados)
+        function config5() {
+            testar('Config 5: Com authorizer', {
+                wsHost: 'yumgo.com.br',
+                wsPort: 443,
+                forceTLS: true,
+                disableStats: true,
+                authorizer: function(channel, options) {
+                    return {
+                        authorize: function(socketId, callback) {
+                            callback(null, {auth: ''});
+                        }
+                    };
+                }
+            });
+        }
+
+        // CONFIG 6: Laravel Echo approach
+        function config6() {
+            log('=== Config 6: Testando Laravel Echo ===', 'info');
+
+            // Verificar se Echo existe
+            if (typeof window.Echo !== 'undefined') {
+                log('✅ Laravel Echo disponível', 'success');
+                try {
+                    const config = {
+                        broadcaster: 'reverb',
+                        key: 't9pg2dslmpl5y1cp6rrf',
+                        wsHost: 'yumgo.com.br',
+                        wsPort: 443,
+                        wssPort: 443,
+                        forceTLS: true,
+                        enabledTransports: ['ws', 'wss'],
+                        disableStats: true
+                    };
+
+                    log('Config Echo: ' + JSON.stringify(config, null, 2), 'info');
+
+                    const echo = new window.Echo(config);
+                    log('✅ Echo criado!', 'success');
+
+                    // Tentar conectar em um canal
+                    const channel = echo.channel('restaurant.marmitariadagi');
+                    log('✅ Canal criado', 'success');
+
+                    channel.listen('order.created', (data) => {
+                        log('🔔 PEDIDO VIA ECHO! #' + data.order_number, 'success');
+                    });
+
+                } catch (e) {
+                    log('❌ Erro no Echo: ' + e.message, 'error');
+                    log('Stack: ' + e.stack, 'error');
+                }
+            } else {
+                log('❌ Laravel Echo não carregado', 'warn');
+                log('Tentando criar manualmente...', 'info');
+
+                // Tentar abordagem manual
+                try {
+                    window.Pusher = Pusher;
+                    log('✅ Pusher global definido', 'success');
+                } catch (e) {
+                    log('❌ Erro: ' + e.message, 'error');
+                }
+            }
+        }
+
+        window.addEventListener('load', function() {
+            log('🚀 Página carregada!', 'success');
+            log('Clique nos botões acima para testar cada configuração', 'info');
+        });
+    </script>
+</body>
+</html>
