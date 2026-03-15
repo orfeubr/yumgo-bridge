@@ -9,6 +9,10 @@ on:
       - '.github/workflows/electron-build.yml'
   workflow_dispatch: # Permite execução manual
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   build-windows:
     name: Build Windows Installer
