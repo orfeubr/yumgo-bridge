@@ -98,13 +98,83 @@ class OrderResource extends Resource
                             ->default('delivery'),
                     ])->columns(2),
 
+                Forms\Components\Section::make('Itens do Pedido')
+                    ->schema([
+                        Forms\Components\Repeater::make('items')
+                            ->label('')
+                            ->relationship('items')
+                            ->schema([
+                                Forms\Components\Select::make('product_id')
+                                    ->label('Produto')
+                                    ->relationship('product', 'name')
+                                    ->required()
+                                    ->reactive()
+                                    ->afterStateUpdated(function ($state, callable $set) {
+                                        if ($state) {
+                                            $product = \App\Models\Product::find($state);
+                                            if ($product) {
+                                                $set('product_name', $product->name);
+                                                $set('unit_price', $product->price);
+                                                $set('quantity', 1);
+                                            }
+                                        }
+                                    })
+                                    ->searchable()
+                                    ->columnSpan(3),
+
+                                Forms\Components\Hidden::make('product_name'),
+
+                                Forms\Components\TextInput::make('quantity')
+                                    ->label('Qtd')
+                                    ->required()
+                                    ->numeric()
+                                    ->default(1)
+                                    ->minValue(1)
+                                    ->reactive()
+                                    ->columnSpan(1),
+
+                                Forms\Components\TextInput::make('unit_price')
+                                    ->label('Preço Unit.')
+                                    ->required()
+                                    ->numeric()
+                                    ->prefix('R$')
+                                    ->reactive()
+                                    ->columnSpan(2),
+
+                                Forms\Components\Placeholder::make('subtotal_calc')
+                                    ->label('Subtotal')
+                                    ->content(function (Forms\Get $get): string {
+                                        $qty = $get('quantity') ?? 0;
+                                        $price = $get('unit_price') ?? 0;
+                                        $subtotal = $qty * $price;
+                                        return 'R$ ' . number_format($subtotal, 2, ',', '.');
+                                    })
+                                    ->columnSpan(1),
+
+                                Forms\Components\Textarea::make('notes')
+                                    ->label('Observações')
+                                    ->rows(2)
+                                    ->columnSpanFull(),
+                            ])
+                            ->columns(7)
+                            ->defaultItems(0)
+                            ->addActionLabel('Adicionar Produto')
+                            ->reorderable()
+                            ->collapsible()
+                            ->itemLabel(fn (array $state): ?string => $state['product_name'] ?? 'Novo Item')
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsible()
+                    ->collapsed(false),
+
                 Forms\Components\Section::make('Valores')
                     ->schema([
                         Forms\Components\TextInput::make('subtotal')
                             ->label('Subtotal')
                             ->numeric()
                             ->prefix('R$')
-                            ->required(),
+                            ->default(0)
+                            ->helperText('Calculado automaticamente baseado nos items'),
 
                         Forms\Components\TextInput::make('delivery_fee')
                             ->label('Taxa de Entrega')
@@ -128,7 +198,8 @@ class OrderResource extends Resource
                             ->label('Total')
                             ->numeric()
                             ->prefix('R$')
-                            ->required(),
+                            ->default(0)
+                            ->helperText('Subtotal + Taxa - Descontos - Cashback'),
 
                         Forms\Components\TextInput::make('cashback_earned')
                             ->label('Cashback Ganho')
