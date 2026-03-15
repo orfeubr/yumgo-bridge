@@ -152,20 +152,47 @@ class OrderResource extends Resource
                             ->rows(2)
                             ->columnSpan(2)
                             ->helperText('Preenche automaticamente ao selecionar cliente'),
-                        
-                        Forms\Components\Select::make('delivery_neighborhood')
-                            ->label('Bairro')
+
+                        Forms\Components\Select::make('delivery_city')
+                            ->label('Cidade')
                             ->options(function () {
                                 return \App\Models\Neighborhood::where('is_active', true)
+                                    ->select('city')
+                                    ->distinct()
+                                    ->orderBy('city')
+                                    ->pluck('city', 'city');
+                            })
+                            ->searchable()
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                // Limpa o bairro ao trocar de cidade
+                                $set('delivery_neighborhood', null);
+                                $set('delivery_fee', 0);
+                            })
+                            ->helperText('Selecione a cidade (apenas cidades com bairros ativos)'),
+
+                        Forms\Components\Select::make('delivery_neighborhood')
+                            ->label('Bairro')
+                            ->options(function (callable $get) {
+                                $city = $get('delivery_city');
+                                if (!$city) {
+                                    return [];
+                                }
+                                return \App\Models\Neighborhood::where('is_active', true)
+                                    ->where('city', $city)
                                     ->orderBy('name')
                                     ->pluck('name', 'name');
                             })
                             ->searchable()
                             ->required()
                             ->live()
-                            ->afterStateUpdated(function ($state, callable $set) {
+                            ->disabled(fn (callable $get) => !$get('delivery_city'))
+                            ->afterStateUpdated(function ($state, callable $get, callable $set) {
                                 if ($state) {
-                                    $neighborhood = \App\Models\Neighborhood::where('name', $state)
+                                    $city = $get('delivery_city');
+                                    $neighborhood = \App\Models\Neighborhood::where('city', $city)
+                                        ->where('name', $state)
                                         ->where('is_active', true)
                                         ->first();
                                     if ($neighborhood) {
@@ -179,7 +206,7 @@ class OrderResource extends Resource
                                     }
                                 }
                             })
-                            ->helperText('Selecione o bairro de entrega'),
+                            ->helperText('Selecione o bairro de entrega (primeiro escolha a cidade)'),
                         
                         Forms\Components\Select::make('delivery_type')
                             ->label('Tipo de Entrega')
