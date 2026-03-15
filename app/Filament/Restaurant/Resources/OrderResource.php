@@ -154,7 +154,6 @@ class OrderResource extends Resource
                                 return $customer->id;
                             })
                             ->createOptionModalHeading('Cadastrar Novo Cliente')
-                            ->createOptionModalSubmitActionLabel('Cadastrar Cliente')
                             ->createOptionModalWidth('3xl'),
 
                         Forms\Components\Select::make('status')
