@@ -286,7 +286,7 @@ function connectWebSocket(restaurantId, token) {
 
     // Configurar URLs baseado no ambiente
     const baseUrl = isDev ? 'http://localhost:8000' : 'https://yumgo.com.br';
-    const wsHost = isDev ? 'localhost' : 'yumgo.com.br';  // v3.2.3: Usar domínio principal (já tem proxy WS)
+    const wsHost = isDev ? 'localhost' : 'ws.yumgo.com.br';  // v3.2.4: ws.yumgo.com.br DNS-only FUNCIONA!
     const wsPort = isDev ? 8081 : 443;  // HTTPS/443 em produção
     const wsPath = '';  // Empty - Pusher adds /app/{key} automatically
 
