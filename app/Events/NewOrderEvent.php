@@ -78,7 +78,7 @@ class NewOrderEvent implements ShouldBroadcastNow
                     return [
                         'quantity' => $item->quantity,
                         'name' => $item->product_name,
-                        'price' => (float) $item->price,
+                        'unit_price' => (float) $item->unit_price,  // ⭐ CORRIGIDO
                         'subtotal' => (float) $item->subtotal,
                         'variations' => $item->variations,
                         'addons' => $item->addons,
