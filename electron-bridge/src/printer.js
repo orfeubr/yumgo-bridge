@@ -891,13 +891,13 @@ class ThermalPrinter {
     }
 
     /**
-     * Imprimir em impressora do sistema (Windows/macOS/Linux) - v3.7.0
-     * ⭐ PROFISSIONAL: 4 métodos de fallback para térmicas
+     * Imprimir em impressora do sistema (Windows/macOS/Linux) - v3.13.0
+     * ⭐ PROFISSIONAL: Fallback automático com driver genérico
      */
     async printSystemPrinter(orderData, location, copies) {
         const printerObj = this.printers[location];
         const { config } = printerObj;
-        const printerName = config.printerName;
+        let printerName = config.printerName;
 
         // ⭐ SOLUÇÃO PROFISSIONAL: Detectar térmicas e usar ESC/POS
         if (this.isThermalPrinter(printerName)) {
@@ -914,33 +914,36 @@ class ThermalPrinter {
                 log.warn(`⚠️ [Método 1] ESC/POS USB falhou: ${error.message}`);
             }
 
-            // MÉTODO 2: PowerShell Out-Printer (FUNCIONAVA antes) ⭐
+            // MÉTODO 2: Comando PRINT simples ⭐
             if (process.platform === 'win32') {
-                log.info(`🔧 [Método 2] Tentando PowerShell Out-Printer (método original)...`);
+                log.info(`🔧 [Método 2] Tentando comando PRINT...`);
                 try {
                     return await this.printOutPrinter(orderData, location, copies, printerName);
-                } catch (outError) {
-                    log.warn(`⚠️ [Método 2] Out-Printer falhou: ${outError.message}`);
+                } catch (printError) {
+                    log.warn(`⚠️ [Método 2] PRINT falhou: ${printError.message}`);
                 }
             }
 
-            // MÉTODO 3: Copiar direto na porta (Windows)
+            // MÉTODO 3: Driver Generic/Text Only (AUTO-INSTALL) 🔥
             if (process.platform === 'win32') {
-                log.info(`🔧 [Método 3] Tentando porta direta...`);
+                log.info(`🔧 [Método 3] Tentando driver Generic/Text Only...`);
                 try {
+                    const { autoInstallGenericFallback } = require('./printers/generic-driver');
                     const port = await this.getPrinterPort(printerName);
-                    if (port && (port.startsWith('USB') || port.startsWith('COM'))) {
-                        log.info(`🎯 Porta encontrada: ${port}. Copiando...`);
-                        return await this.printToPort(orderData, location, copies, printerName, port);
-                    } else {
-                        log.warn(`⚠️ Porta "${port}" não é USB/COM.`);
-                    }
-                } catch (portError) {
-                    log.warn(`⚠️ [Método 3] Porta direta falhou: ${portError.message}`);
+
+                    // Instala driver genérico automaticamente
+                    const genericPrinter = await autoInstallGenericFallback(port);
+                    log.info(`✅ Driver genérico instalado: ${genericPrinter}`);
+
+                    // Tenta imprimir com driver genérico
+                    return await this.printOutPrinter(orderData, location, copies, genericPrinter);
+
+                } catch (genericError) {
+                    log.warn(`⚠️ [Método 3] Driver genérico falhou: ${genericError.message}`);
                 }
             }
 
-            log.info(`🔧 [Método 4] Fallback: comando do sistema...`);
+            log.info(`🔧 [Método 4] Fallback final: comando do sistema...`);
         }
 
         // FALLBACK: Comando do sistema (para impressoras comuns)
