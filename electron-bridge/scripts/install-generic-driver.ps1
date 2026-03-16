@@ -8,15 +8,30 @@ param(
 
 Write-Host "Instalando driver Generic/Text Only para $PrinterName..."
 
-# Comando para instalar impressora com driver genérico
-$command = "rundll32 printui.dll,PrintUIEntry /if /b `"$PrinterName`" /f %windir%\inf\ntprint.inf /r `"$PortName`" /m `"Generic / Text Only`""
+# Caminho correto do .inf (PowerShell precisa de $env:)
+$infPath = "$env:windir\inf\ntprint.inf"
 
+# Verifica se arquivo existe
+if (-not (Test-Path $infPath)) {
+    Write-Host "❌ Arquivo ntprint.inf não encontrado: $infPath"
+    exit 1
+}
+
+Write-Host "Usando arquivo: $infPath"
+
+# Comando para instalar impressora com driver genérico
 try {
-    Invoke-Expression $command
-    Write-Host "✅ Driver genérico instalado: $PrinterName"
-    Write-Host "   Porta: $PortName"
-    Write-Host "   Driver: Generic / Text Only"
-    exit 0
+    $proc = Start-Process -FilePath "rundll32.exe" -ArgumentList "printui.dll,PrintUIEntry /if /b `"$PrinterName`" /f `"$infPath`" /r `"$PortName`" /m `"Generic / Text Only`"" -Wait -PassThru -WindowStyle Hidden
+
+    if ($proc.ExitCode -eq 0) {
+        Write-Host "✅ Driver genérico instalado: $PrinterName"
+        Write-Host "   Porta: $PortName"
+        Write-Host "   Driver: Generic / Text Only"
+        exit 0
+    } else {
+        Write-Host "❌ Erro ao instalar driver. Exit code: $($proc.ExitCode)"
+        exit 1
+    }
 } catch {
     Write-Host "❌ Erro ao instalar driver: $_"
     exit 1

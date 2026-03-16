@@ -918,19 +918,27 @@ class ThermalPrinter {
             // Pulando direto para Método 3 (driver genérico)
             log.info(`⚠️ [Método 2] PULADO - forçando driver genérico...`);
 
-            // MÉTODO 3: Driver Generic/Text Only (AUTO-INSTALL) 🔥
+            // MÉTODO 3: Driver Generic/Text Only (USA SE EXISTIR) 🔥
             if (process.platform === 'win32') {
-                log.info(`🔧 [Método 3] Tentando driver Generic/Text Only...`);
+                log.info(`🔧 [Método 3] Verificando driver Generic/Text Only...`);
                 try {
-                    const { autoInstallGenericFallback } = require('./printers/generic-driver');
-                    const port = await this.getPrinterPort(printerName);
+                    const { hasGenericPrinter } = require('./printers/generic-driver');
 
-                    // Instala driver genérico automaticamente
-                    const genericPrinter = await autoInstallGenericFallback(port);
-                    log.info(`✅ Driver genérico instalado: ${genericPrinter}`);
+                    // Verifica se POS58-Generic já existe (NÃO tenta instalar - evita erro de caminho)
+                    const exists = await hasGenericPrinter('POS58-Generic');
 
-                    // Tenta imprimir com driver genérico
-                    return await this.printOutPrinter(orderData, location, copies, genericPrinter);
+                    if (exists) {
+                        log.info(`✅ POS58-Generic encontrada! Usando driver genérico...`);
+
+                        // ⭐ ATUALIZA CONFIG para usar impressora genérica permanentemente
+                        this.printers[location].config.printerName = 'POS58-Generic';
+                        log.info(`🔄 Config atualizada: ${location} → POS58-Generic`);
+
+                        // Tenta imprimir com driver genérico
+                        return await this.printOutPrinter(orderData, location, copies, 'POS58-Generic');
+                    } else {
+                        log.warn(`⚠️ POS58-Generic não encontrada. Configure manualmente ou instale usando install-generic-driver.ps1`);
+                    }
 
                 } catch (genericError) {
                     log.warn(`⚠️ [Método 3] Driver genérico falhou: ${genericError.message}`);
