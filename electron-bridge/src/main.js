@@ -553,16 +553,33 @@ function connectWebSocket(restaurantId, token) {
                 // Imprimir em todas as impressoras configuradas
                 if (printerManager && order.print_locations) {
                     for (const location of order.print_locations) {
-                        // ⭐ Verificar se tem impressora configurada para essa localização
-                        if (printerManager.printers[location]) {
-                            try {
-                                await printerManager.printOrder(order, location);
-                                log.info(`✅ Impresso com sucesso em: ${location}`);
-                            } catch (error) {
-                                log.error(`❌ Erro ao imprimir em ${location}:`, error.message);
-                            }
-                        } else {
+                        const printer = printerManager.printers[location];
+
+                        // ⭐ Validação rigorosa: verificar se impressora existe E está configurada
+                        if (!printer) {
                             log.warn(`⚠️ Impressora "${location}" não configurada. Pulando impressão.`);
+                            continue;
+                        }
+
+                        // ⭐ Validação extra: verificar se tipo é válido e tem nome (para "system")
+                        const config = printer.config;
+                        if (!config || config.type === 'none') {
+                            log.warn(`⚠️ Impressora "${location}" configurada como "none". Pulando impressão.`);
+                            continue;
+                        }
+
+                        // ⭐ Para impressoras "system", verificar se tem nome
+                        if (config.type === 'system' && (!config.printerName || config.printerName === '' || config.printerName === 'none')) {
+                            log.warn(`⚠️ Impressora "${location}" sem nome definido. Pulando impressão.`);
+                            continue;
+                        }
+
+                        // ✅ Impressora válida, pode imprimir
+                        try {
+                            await printerManager.printOrder(order, location);
+                            log.info(`✅ Impresso com sucesso em: ${location}`);
+                        } catch (error) {
+                            log.error(`❌ Erro ao imprimir em ${location}:`, error.message);
                         }
                     }
                 }
@@ -1142,6 +1159,18 @@ app.whenReady().then(() => {
         printerManager = new ThermalPrinter();
         Object.entries(printers).forEach(async ([location, config]) => {
             try {
+                // ⭐ Validar se configuração é válida antes de restaurar
+                if (!config || config.type === 'none') {
+                    log.warn(`⚠️ Impressora ${location} configurada como "none". Ignorando.`);
+                    return;
+                }
+
+                // ⭐ Para "system", verificar se tem nome
+                if (config.type === 'system' && (!config.printerName || config.printerName === '' || config.printerName === 'none')) {
+                    log.warn(`⚠️ Impressora ${location} sem nome definido. Ignorando.`);
+                    return;
+                }
+
                 await printerManager.configurePrinter(location, config);
                 log.info(`Impressora ${location} restaurada`);
             } catch (error) {
