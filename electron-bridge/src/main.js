@@ -448,8 +448,8 @@ function connectWebSocket(restaurantId, token) {
             // Notificação
             showNotification('Conectado', 'YumGo Bridge conectado com sucesso!');
 
-            // ⭐ Heartbeat desabilitado (endpoint não existe)
-            // startHeartbeat(baseUrl, token);
+            // ⭐ Heartbeat habilitado (API de monitoramento implementada)
+            startHeartbeat(baseUrl, token);
         });
 
         pusher.connection.bind('disconnected', () => {
@@ -604,11 +604,76 @@ function connectWebSocket(restaurantId, token) {
                         }
 
                         // ✅ Impressora válida, pode imprimir
-                        try {
-                            await printerManager.printOrder(order, location);
-                            log.info(`✅ Impresso com sucesso em: ${location} (${config.printerName})`);
-                        } catch (error) {
-                            log.error(`❌ Erro ao imprimir em ${location}:`, error.message);
+                        let printSuccess = false;
+                        let lastError = null;
+                        const maxRetries = 3;
+
+                        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                            try {
+                                log.info(`🖨️ Tentativa ${attempt}/${maxRetries} de impressão em: ${location}`);
+                                await printerManager.printOrder(order, location);
+                                log.info(`✅ Impresso com sucesso em: ${location} (${config.printerName})`);
+                                printSuccess = true;
+
+                                // ⭐ Reportar sucesso para o servidor
+                                try {
+                                    await axios.post(`${baseUrl}/api/v1/bridge/print-success`, {
+                                        order_id: orderId,
+                                        location: location,
+                                        timestamp: new Date().toISOString(),
+                                    }, {
+                                        headers: {
+                                            'Authorization': `Bearer ${currentToken}`,
+                                            'Content-Type': 'application/json',
+                                        }
+                                    });
+                                    log.info(`📊 Sucesso de impressão reportado ao servidor`);
+                                } catch (reportError) {
+                                    log.error(`⚠️ Erro ao reportar sucesso (não crítico):`, reportError.message);
+                                }
+
+                                break; // Sucesso, sair do loop
+                            } catch (error) {
+                                lastError = error;
+                                log.error(`❌ Erro na tentativa ${attempt}/${maxRetries} em ${location}:`, error.message);
+
+                                if (attempt < maxRetries) {
+                                    // Aguardar antes de tentar novamente (1min, 2min, 5min)
+                                    const delayMs = attempt === 1 ? 60000 : (attempt === 2 ? 120000 : 300000);
+                                    log.info(`⏳ Aguardando ${delayMs/1000}s antes da próxima tentativa...`);
+                                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                                }
+                            }
+                        }
+
+                        // Se todas as tentativas falharam, reportar falha
+                        if (!printSuccess && lastError) {
+                            log.error(`💥 Todas as ${maxRetries} tentativas falharam para ${location}`);
+
+                            // ⭐ Reportar falha para o servidor
+                            try {
+                                await axios.post(`${baseUrl}/api/v1/bridge/print-failed`, {
+                                    order_id: orderId,
+                                    location: location,
+                                    error: lastError.message,
+                                    attempts: maxRetries,
+                                    timestamp: new Date().toISOString(),
+                                }, {
+                                    headers: {
+                                        'Authorization': `Bearer ${currentToken}`,
+                                        'Content-Type': 'application/json',
+                                    }
+                                });
+                                log.info(`📊 Falha de impressão reportada ao servidor`);
+                            } catch (reportError) {
+                                log.error(`⚠️ Erro ao reportar falha (não crítico):`, reportError.message);
+                            }
+
+                            // Notificar usuário
+                            showNotification(
+                                `⚠️ Falha na Impressão`,
+                                `Pedido #${order.order_number}\nImpressora: ${location}\nErro: ${lastError.message}`
+                            );
                         }
                     }
                 }

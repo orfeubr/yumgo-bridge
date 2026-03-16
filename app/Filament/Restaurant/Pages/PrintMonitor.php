@@ -2,8 +2,13 @@
 
 namespace App\Filament\Restaurant\Pages;
 
+use App\Events\NewOrderEvent;
+use App\Models\BridgeStatus;
+use App\Models\Order;
+use Filament\Actions\Action;
 use Filament\Pages\Page;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Collection;
+use Livewire\Attributes\Computed;
 
 class PrintMonitor extends Page
 {
@@ -15,101 +20,274 @@ class PrintMonitor extends Page
     protected static ?int $navigationSort = 95;
     protected static ?string $navigationGroup = '⚙️ Configurações';
 
-    public function mount(): void
+    /**
+     * Polling: atualiza a cada 5 segundos
+     */
+    protected function getRefreshInterval(): ?int
     {
-        // Atualizar timestamp de visualização
-        Cache::put('print_monitor_last_view_' . tenant('id'), now(), 3600);
+        return 5;
     }
 
     /**
-     * Status do Bridge (online/offline)
+     * ⭐ Status do Bridge (do banco de dados)
      */
-    public function getBridgeStatus(): array
+    #[Computed]
+    public function bridgeStatus(): array
     {
-        $tenantId = tenant('id');
-        $lastHeartbeat = Cache::get("bridge_heartbeat_{$tenantId}");
+        $bridge = BridgeStatus::first();
 
-        if (!$lastHeartbeat) {
+        if (!$bridge) {
             return [
                 'status' => 'offline',
-                'message' => 'Bridge não conectado',
-                'color' => 'danger',
+                'message' => 'Bridge nunca conectado',
+                'color' => 'gray',
+                'icon' => 'heroicon-o-x-circle',
+                'version' => null,
+                'last_seen' => null,
+                'printers' => [],
             ];
         }
 
-        $secondsAgo = now()->diffInSeconds($lastHeartbeat);
-
-        if ($secondsAgo < 60) {
-            return [
-                'status' => 'online',
-                'message' => 'Conectado há ' . $secondsAgo . 's',
-                'color' => 'success',
-            ];
-        }
+        $isOnline = $bridge->isOnline();
 
         return [
-            'status' => 'stale',
-            'message' => 'Última conexão há ' . round($secondsAgo / 60) . ' minutos',
-            'color' => 'warning',
+            'status' => $isOnline ? 'online' : 'offline',
+            'message' => $isOnline
+                ? 'Conectado (' . $bridge->last_seen . ')'
+                : 'Offline (' . $bridge->last_seen . ')',
+            'color' => $isOnline ? 'success' : 'danger',
+            'icon' => $isOnline ? 'heroicon-o-check-circle' : 'heroicon-o-x-circle',
+            'version' => $bridge->version,
+            'last_seen' => $bridge->last_seen,
+            'printers' => $bridge->printers ?? [],
         ];
     }
 
     /**
-     * Impressoras configuradas
+     * ⭐ Pedidos com falha de impressão (últimas 24h)
      */
-    public function getPrinters(): array
+    #[Computed]
+    public function failedPrints(): Collection
     {
-        return Cache::get("bridge_printers_" . tenant('id'), []);
+        return Order::printFailed()
+            ->with(['customer'])
+            ->where('created_at', '>=', now()->subDay())
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get()
+            ->map(function ($order) {
+                return [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'customer' => $order->customer->name ?? 'N/A',
+                    'total' => 'R$ ' . number_format($order->total, 2, ',', '.'),
+                    'error' => $order->print_error,
+                    'attempts' => $order->print_attempts,
+                    'created_at' => $order->created_at->format('d/m/Y H:i'),
+                ];
+            });
     }
 
     /**
-     * Últimas impressões (histórico)
+     * ⭐ Pedidos pendentes de impressão (últimas 24h)
      */
-    public function getPrintHistory(): array
+    #[Computed]
+    public function pendingPrints(): Collection
     {
-        $history = Cache::get("print_history_" . tenant('id'), []);
-        return array_slice($history, -50); // Últimas 50
+        return Order::where('print_status', 'pending')
+            ->with(['customer'])
+            ->where('created_at', '>=', now()->subDay())
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get()
+            ->map(function ($order) {
+                return [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'customer' => $order->customer->name ?? 'N/A',
+                    'total' => 'R$ ' . number_format($order->total, 2, ',', '.'),
+                    'created_at' => $order->created_at->format('d/m/Y H:i'),
+                ];
+            });
     }
 
     /**
-     * Disparar impressão de teste
+     * ⭐ Histórico recente (últimas 20 impressões bem-sucedidas)
      */
-    public function testPrint(): void
+    #[Computed]
+    public function recentPrints(): Collection
     {
-        $tenantId = tenant('id');
-
-        // Criar evento de teste
-        event(new \App\Events\TestPrintEvent($tenantId));
-
-        \Filament\Notifications\Notification::make()
-            ->title('Evento de teste disparado!')
-            ->body('Verifique se o Bridge imprimiu.')
-            ->success()
-            ->send();
+        return Order::where('print_status', 'printed')
+            ->with(['customer'])
+            ->orderBy('printed_at', 'desc')
+            ->limit(20)
+            ->get()
+            ->map(function ($order) {
+                return [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'customer' => $order->customer->name ?? 'N/A',
+                    'total' => 'R$ ' . number_format($order->total, 2, ',', '.'),
+                    'printed_at' => $order->printed_at?->format('d/m/Y H:i'),
+                ];
+            });
     }
 
     /**
-     * Limpar cache
+     * ⭐ Estatísticas (últimas 24h)
      */
-    public function clearCache(): void
+    #[Computed]
+    public function stats(): array
     {
-        $tenantId = tenant('id');
+        $yesterday = now()->subDay();
 
-        Cache::forget("bridge_heartbeat_{$tenantId}");
-        Cache::forget("bridge_printers_{$tenantId}");
-        Cache::forget("print_history_{$tenantId}");
-
-        \Filament\Notifications\Notification::make()
-            ->title('Cache limpo!')
-            ->success()
-            ->send();
+        return [
+            'total' => Order::where('created_at', '>=', $yesterday)->count(),
+            'printed' => Order::where('print_status', 'printed')
+                ->where('created_at', '>=', $yesterday)
+                ->count(),
+            'pending' => Order::where('print_status', 'pending')
+                ->where('created_at', '>=', $yesterday)
+                ->count(),
+            'failed' => Order::printFailed()
+                ->where('created_at', '>=', $yesterday)
+                ->count(),
+        ];
     }
 
     /**
-     * Polling para atualizar status em tempo real
+     * ⭐ Badge no menu mostrando falhas
      */
-    protected function getRefreshInterval(): ?int
+    public static function getNavigationBadge(): ?string
     {
-        return 5; // Atualiza a cada 5 segundos
+        $failedCount = Order::printFailed()
+            ->where('created_at', '>=', now()->subDay())
+            ->count();
+
+        return $failedCount > 0 ? (string) $failedCount : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'danger';
+    }
+
+    /**
+     * ⭐ Actions (botões no topo da página)
+     */
+    protected function getHeaderActions(): array
+    {
+        return [
+            // Reimprimir pedido específico
+            Action::make('reprint')
+                ->label('Reimprimir Pedido')
+                ->icon('heroicon-o-arrow-path')
+                ->color('warning')
+                ->form([
+                    \Filament\Forms\Components\TextInput::make('order_number')
+                        ->label('Número do Pedido')
+                        ->required()
+                        ->placeholder('Ex: 1234'),
+                ])
+                ->action(function (array $data) {
+                    $order = Order::where('order_number', $data['order_number'])->first();
+
+                    if (!$order) {
+                        \Filament\Notifications\Notification::make()
+                            ->title('Pedido não encontrado')
+                            ->danger()
+                            ->send();
+                        return;
+                    }
+
+                    // Disparar evento de reimpressão
+                    event(new NewOrderEvent($order, true)); // true = forceReprint
+
+                    \Filament\Notifications\Notification::make()
+                        ->title('Reimpressão solicitada')
+                        ->body("Pedido #{$order->order_number} será reimpresso")
+                        ->success()
+                        ->send();
+                }),
+
+            // Reimprimir TODOS os pedidos com falha
+            Action::make('reprint_all_failed')
+                ->label('Reimprimir Todas Falhas')
+                ->icon('heroicon-o-arrow-path-rounded-square')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->modalHeading('Reimprimir todos os pedidos com falha?')
+                ->modalDescription('Isso vai reimprimir TODOS os pedidos que falharam nas últimas 24h.')
+                ->action(function () {
+                    $failedOrders = Order::printFailed()
+                        ->where('created_at', '>=', now()->subDay())
+                        ->get();
+
+                    foreach ($failedOrders as $order) {
+                        event(new NewOrderEvent($order, true)); // true = forceReprint
+                    }
+
+                    \Filament\Notifications\Notification::make()
+                        ->title('Reimpressão em massa iniciada')
+                        ->body("{$failedOrders->count()} pedidos serão reimpressos")
+                        ->success()
+                        ->send();
+                }),
+
+            // Marcar falhas como vistas
+            Action::make('mark_as_seen')
+                ->label('Marcar Falhas como Vistas')
+                ->icon('heroicon-o-eye')
+                ->color('gray')
+                ->action(function () {
+                    // Marcar como "printing" para não aparecer mais na lista
+                    Order::printFailed()
+                        ->where('created_at', '>=', now()->subDay())
+                        ->update(['print_status' => 'printing']);
+
+                    \Filament\Notifications\Notification::make()
+                        ->title('Falhas marcadas como vistas')
+                        ->success()
+                        ->send();
+                }),
+
+            // Testar impressora
+            Action::make('test_print')
+                ->label('Testar Impressora')
+                ->icon('heroicon-o-printer')
+                ->color('info')
+                ->form([
+                    \Filament\Forms\Components\Select::make('order_id')
+                        ->label('Selecione um Pedido para Teste')
+                        ->options(
+                            Order::where('created_at', '>=', now()->subDay())
+                                ->orderBy('created_at', 'desc')
+                                ->limit(50)
+                                ->pluck('order_number', 'id')
+                        )
+                        ->required()
+                        ->searchable(),
+                ])
+                ->action(function (array $data) {
+                    $order = Order::find($data['order_id']);
+
+                    if (!$order) {
+                        \Filament\Notifications\Notification::make()
+                            ->title('Pedido não encontrado')
+                            ->danger()
+                            ->send();
+                        return;
+                    }
+
+                    // Disparar evento de impressão de teste (força reimpressão)
+                    event(new NewOrderEvent($order, true));
+
+                    \Filament\Notifications\Notification::make()
+                        ->title('Impressão de teste disparada')
+                        ->body("Pedido #{$order->order_number}")
+                        ->success()
+                        ->send();
+                }),
+        ];
     }
 }

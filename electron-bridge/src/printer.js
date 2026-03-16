@@ -1175,6 +1175,13 @@ class ThermalPrinter {
             text += alignPrice('', `R$ ${total.toFixed(2)}`) + '\n';
         }
 
+        // ===== OBSERVAÇÕES DO PEDIDO (se houver) =====
+        if (order.notes) {
+            text += '\n' + line('-') + '\n';
+            text += 'OBSERVACOES DO CLIENTE:\n';
+            text += clean(order.notes) + '\n';
+        }
+
         // ===== RODAPÉ =====
         const restaurantDomain = order.restaurant?.domain || 'yumgo.com.br';
         text += '\n' + line('-') + '\n';

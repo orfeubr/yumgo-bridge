@@ -27,6 +27,10 @@ class Order extends Model
         'status',
         'payment_status',
         'payment_method',
+        'print_status', // ✅ Status de impressão
+        'printed_at', // ✅ Timestamp da impressão
+        'print_error', // ✅ Erro de impressão
+        'print_attempts', // ✅ Tentativas de impressão
         'delivery_type',
         'delivery_address',
         'delivery_city',
@@ -57,6 +61,7 @@ class Order extends Model
         'cashback_earned' => 'decimal:2',
         'cashback_percentage' => 'decimal:2',
         'expires_at' => 'datetime',
+        'printed_at' => 'datetime',
     ];
 
     /**
@@ -277,5 +282,61 @@ class Order extends Model
     public function getDeliveryTypeNameAttribute(): string
     {
         return $this->delivery_type === 'delivery' ? 'Entrega' : 'Retirada';
+    }
+
+    /**
+     * Marca impressão como bem-sucedida
+     */
+    public function markPrintSuccess(string $location): void
+    {
+        $this->print_status = 'printed';
+        $this->printed_at = now();
+        $this->print_error = null;
+        $this->print_attempts = ($this->print_attempts ?? 0) + 1;
+        $this->save();
+    }
+
+    /**
+     * Marca impressão como falha
+     */
+    public function markPrintFailed(string $location, string $error): void
+    {
+        $this->print_status = 'failed';
+        $this->print_error = $error;
+        $this->print_attempts = ($this->print_attempts ?? 0) + 1;
+        $this->save();
+    }
+
+    /**
+     * Marca que impressão está em andamento
+     */
+    public function markPrinting(): void
+    {
+        $this->print_status = 'printing';
+        $this->save();
+    }
+
+    /**
+     * Scope pedidos não impressos
+     */
+    public function scopeNotPrinted($query)
+    {
+        return $query->where('print_status', '!=', 'printed');
+    }
+
+    /**
+     * Scope pedidos com falha de impressão
+     */
+    public function scopePrintFailed($query)
+    {
+        return $query->where('print_status', 'failed');
+    }
+
+    /**
+     * Verifica se precisa reimprimir
+     */
+    public function needsReprint(): bool
+    {
+        return in_array($this->print_status, ['pending', 'failed']);
     }
 }
