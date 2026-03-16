@@ -47,9 +47,17 @@ const PRINT_COOLDOWN = 5 * 60 * 1000; // 5 minutos
 
 // ===== AUTO-UPDATER (v1.7.0) =====
 
+// Evento: Verificando atualização (NOVO)
+autoUpdater.on('checking-for-update', () => {
+    log.info('🔍 Iniciando verificação de atualizações...');
+    log.info(`📌 Versão atual: ${app.getVersion()}`);
+    log.info(`🌐 Feed URL: https://github.com/orfeubr/yumgo/releases`);
+});
+
 // Evento: Atualização disponível
 autoUpdater.on('update-available', (info) => {
     log.info('🔄 Atualização disponível:', info.version);
+    log.info(`📦 Arquivos disponíveis:`, info.files);
 
     dialog.showMessageBox({
         type: 'info',
@@ -72,11 +80,24 @@ autoUpdater.on('update-available', (info) => {
 // Evento: Nenhuma atualização disponível
 autoUpdater.on('update-not-available', (info) => {
     log.info('✅ App está atualizado:', info.version);
+    log.info(`📌 Versão checada: ${info.version}`);
 });
 
 // Evento: Erro ao verificar atualização
 autoUpdater.on('error', (err) => {
     log.error('❌ Erro ao verificar atualização:', err);
+    log.error('❌ Stack trace:', err.stack);
+    log.error('❌ Mensagem:', err.message);
+
+    // Mostrar erro para usuário
+    if (mainWindow) {
+        dialog.showMessageBox(mainWindow, {
+            type: 'error',
+            title: 'Erro de Atualização',
+            message: 'Erro ao verificar atualizações',
+            detail: err.message || 'Erro desconhecido'
+        });
+    }
 });
 
 // Evento: Download em progresso
@@ -128,8 +149,20 @@ function checkForUpdates() {
         return;
     }
 
-    log.info('Verificando atualizações...');
-    autoUpdater.checkForUpdates();
+    log.info('═══════════════════════════════════════════════════════');
+    log.info('🔎 VERIFICAÇÃO DE ATUALIZAÇÃO INICIADA');
+    log.info(`📌 Versão instalada: ${app.getVersion()}`);
+    log.info(`🌐 Repositório: orfeubr/yumgo`);
+    log.info(`📡 URL: https://github.com/orfeubr/yumgo/releases/latest`);
+    log.info('═══════════════════════════════════════════════════════');
+
+    autoUpdater.checkForUpdates()
+        .then(result => {
+            log.info('✅ Verificação completada:', result);
+        })
+        .catch(err => {
+            log.error('❌ Erro na verificação:', err.message);
+        });
 }
 
 // ===== INICIALIZAÇÃO =====
