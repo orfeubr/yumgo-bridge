@@ -1093,10 +1093,11 @@ class ThermalPrinter {
 
                 // NOME + QTD + PREÇO (se balcão)
                 const unitPrice = item.unit_price || item.price || 0;
+                const isCounter = ['counter', 'balcao', 'balcão'].includes(location);
 
-                log.info(`💰 Unit price: ${unitPrice}, Location: ${location}`);
+                log.info(`💰 Unit price: ${unitPrice}, Location: ${location}, isCounter: ${isCounter}`);
 
-                if (location === 'counter' && unitPrice > 0) {
+                if (isCounter && unitPrice > 0) {
                     const itemTotal = (item.quantity * unitPrice).toFixed(2);
                     const itemLine = `${item.quantity}x ${clean(item.name)}`;
                     const price = `R$ ${itemTotal}`;
@@ -1139,7 +1140,9 @@ class ThermalPrinter {
         }
 
         // TOTAIS (apenas balcão)
-        if (location === 'counter') {
+        const isCounter = ['counter', 'balcao', 'balcão'].includes(location);
+
+        if (isCounter) {
             text += line('-') + '\n';
 
             const subtotal = order.totals?.subtotal || order.subtotal || 0;

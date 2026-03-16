@@ -15,6 +15,11 @@ const ThermalPrinter = require('./printer');
 const store = new Store();
 const isDev = process.argv.includes('--dev');
 
+// ⭐ Fix para notificações do Windows mostrarem corretamente
+if (process.platform === 'win32') {
+    app.setAppUserModelId('com.yumgo.bridge');
+}
+
 // Auto-launch (Iniciar com Windows)
 const autoLauncher = new AutoLaunch({
     name: 'YumGo Bridge',
@@ -443,8 +448,8 @@ function connectWebSocket(restaurantId, token) {
             // Notificação
             showNotification('Conectado', 'YumGo Bridge conectado com sucesso!');
 
-            // ⭐ Iniciar heartbeat para o Monitor de Impressão
-            startHeartbeat(baseUrl, token);
+            // ⭐ Heartbeat desabilitado (endpoint não existe)
+            // startHeartbeat(baseUrl, token);
         });
 
         pusher.connection.bind('disconnected', () => {
