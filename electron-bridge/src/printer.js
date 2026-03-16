@@ -1091,8 +1091,18 @@ class ThermalPrinter {
 
                 log.info(`✅ Imprimindo item: ${item.name}`);
 
-                // NOME + QTD
-                text += `${item.quantity}x ${clean(item.name)}\n`;
+                // NOME + QTD + PREÇO (se balcão)
+                if (location === 'counter' && item.unit_price) {
+                    const itemTotal = (item.quantity * item.unit_price).toFixed(2);
+                    const itemLine = `${item.quantity}x ${clean(item.name)}`;
+                    const price = `R$ ${itemTotal}`;
+
+                    // Alinha preço à direita
+                    const spaces = Math.max(1, charsPerLine - itemLine.length - price.length);
+                    text += itemLine + ' '.repeat(spaces) + price + '\n';
+                } else {
+                    text += `${item.quantity}x ${clean(item.name)}\n`;
+                }
 
                 // VARIAÇÕES
                 if (item.variations) {
