@@ -1124,14 +1124,19 @@ class ThermalPrinter {
         // TOTAIS (apenas balcão)
         if (location === 'counter') {
             text += line('-') + '\n';
-            text += `Subtotal:        R$ ${(order.subtotal || 0).toFixed(2)}\n`;
 
-            if (order.delivery_fee > 0) {
-                text += `Taxa Entrega:     R$ ${order.delivery_fee.toFixed(2)}\n`;
+            const subtotal = order.totals?.subtotal || order.subtotal || 0;
+            const deliveryFee = order.totals?.delivery_fee || order.delivery_fee || 0;
+            const total = order.totals?.total || order.total || 0;
+
+            text += `Subtotal:        R$ ${subtotal.toFixed(2)}\n`;
+
+            if (deliveryFee > 0) {
+                text += `Taxa Entrega:     R$ ${deliveryFee.toFixed(2)}\n`;
             }
 
             text += line('=') + '\n';
-            text += center(`TOTAL: R$ ${(order.total || 0).toFixed(2)}`) + '\n';
+            text += center(`TOTAL: R$ ${total.toFixed(2)}`) + '\n';
             text += line('=') + '\n';
 
             // PAGAMENTO (sem símbolos Unicode!)
@@ -1141,10 +1146,14 @@ class ThermalPrinter {
                 'debit_card': 'Cartao Debito',
                 'cash': 'Dinheiro'
             };
-            const paymentName = paymentMap[order.payment_method] || 'N/A';
-            const paymentStatus = order.payment_status === 'paid' ? 'PAGO' : 'PENDENTE';
 
-            text += `\nPAGAMENTO: ${paymentName} - ${paymentStatus}\n`;
+            const paymentMethod = order.payment?.method || order.payment_method;
+            const paymentStatus = order.payment?.status || order.payment_status;
+
+            const paymentName = paymentMap[paymentMethod] || paymentMethod || 'N/A';
+            const statusText = paymentStatus === 'paid' ? 'PAGO' : 'PENDENTE';
+
+            text += `\nPAGAMENTO: ${paymentName} - ${statusText}\n`;
         }
 
         // RODAPÉ
