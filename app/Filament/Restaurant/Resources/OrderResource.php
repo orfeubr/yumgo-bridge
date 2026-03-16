@@ -671,8 +671,8 @@ class OrderResource extends Resource
                                 'credit_card' => 'Cartão de Crédito',
                                 'debit_card' => 'Cartão de Débito',
                                 'cash' => 'Dinheiro',
-                                'bank_transfer' => 'Transferência Bancária',
                             ])
+                            ->default('cash')
                             ->required()
                             ->native(false),
                     ])
@@ -690,7 +690,6 @@ class OrderResource extends Resource
                             'credit_card' => 'Cartão de Crédito',
                             'debit_card' => 'Cartão de Débito',
                             'cash' => 'Dinheiro',
-                            'bank_transfer' => 'Transferência Bancária',
                             default => $data['payment_method'],
                         };
 
