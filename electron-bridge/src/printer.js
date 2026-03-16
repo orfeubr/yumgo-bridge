@@ -1180,6 +1180,7 @@ class ThermalPrinter {
         text += '\n' + line('-') + '\n';
         text += center('Obrigado pela preferencia!') + '\n';
         text += center(restaurantDomain) + '\n';
+        text += center('Powered by YumGo') + '\n';
         text += line('-') + '\n\n\n';
 
         return text;
