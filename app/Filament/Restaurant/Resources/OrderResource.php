@@ -657,6 +657,26 @@ class OrderResource extends Resource
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
 
+                // Action para marcar como pago
+                Tables\Actions\Action::make('mark_as_paid')
+                    ->label('Marcar como Pago')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->visible(fn (Order $record) => $record->payment_status !== 'paid')
+                    ->requiresConfirmation()
+                    ->modalHeading('Marcar Pedido como Pago')
+                    ->modalDescription(fn (Order $record) => "Confirma que o pedido #{$record->order_number} foi pago?")
+                    ->modalSubmitActionLabel('Sim, Marcar como Pago')
+                    ->action(function (Order $record) {
+                        $record->update(['payment_status' => 'paid']);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Pedido marcado como pago!')
+                            ->success()
+                            ->body("O pedido #{$record->order_number} foi marcado como pago.")
+                            ->send();
+                    }),
+
                 // Action para reimprimir pedido (v1.7.0)
                 Tables\Actions\Action::make('reprint')
                     ->label('Reimprimir')
