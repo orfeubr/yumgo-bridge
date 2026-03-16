@@ -486,7 +486,7 @@ function connectWebSocket(restaurantId, token) {
 
     } catch (error) {
         log.error('Erro ao inicializar Pusher.js:', error);
-        mainWindow.webContents.send('status', 'error');
+        mainWindow.webContents.send('connection-status', 'error');
     }
 }
 
@@ -851,12 +851,20 @@ ipcMain.handle('connect', async (event, { restaurantId, token }) => {
         // Salvar configuração
         store.set('config', { restaurantId, token });
 
+        // Feedback imediato: conectando
+        if (mainWindow) {
+            mainWindow.webContents.send('connection-status', 'reconnecting');
+        }
+
         // Conectar
         connectWebSocket(restaurantId, token);
 
         return { success: true };
     } catch (error) {
         log.error('Erro ao conectar:', error);
+        if (mainWindow) {
+            mainWindow.webContents.send('connection-status', 'error');
+        }
         throw error;
     }
 });

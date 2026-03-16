@@ -672,6 +672,8 @@ ipcRenderer.on('connection-status', (event, status) => {
     const dot = document.querySelector('.status-dot');
     const text = document.querySelector('.connection-status span');
     const homeStatus = document.getElementById('homeConnectionStatus');
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
 
     dot.className = 'status-dot';
 
@@ -680,12 +682,22 @@ ipcRenderer.on('connection-status', (event, status) => {
         text.textContent = 'Conectado';
         homeStatus.textContent = 'Conectado ✅';
         homeStatus.style.color = 'var(--success)';
+
+        // Alternar botões
+        if (connectBtn) connectBtn.classList.add('hidden');
+        if (disconnectBtn) disconnectBtn.classList.remove('hidden');
+
         addLog('info', '✅ Conectado ao servidor YumGo');
     } else if (status === 'disconnected') {
         dot.classList.add('disconnected');
         text.textContent = 'Desconectado';
         homeStatus.textContent = 'Desconectado';
         homeStatus.style.color = 'var(--error)';
+
+        // Alternar botões
+        if (connectBtn) connectBtn.classList.remove('hidden');
+        if (disconnectBtn) disconnectBtn.classList.add('hidden');
+
         addLog('warn', 'Desconectado do servidor');
     } else if (status === 'reconnecting') {
         dot.classList.add('reconnecting');
