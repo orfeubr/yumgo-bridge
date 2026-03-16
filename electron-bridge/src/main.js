@@ -308,7 +308,7 @@ function connectWebSocket(restaurantId, token) {
             key: 't9pg2dslmpl5y1cp6rrf',
             wsHost: wsHost,
             wsPort: wsPort,
-            // cluster: 'mt1',  // ⭐ TESTE: Remover cluster para ver se resolve
+            cluster: 'mt1',  // ⭐ Obrigatório pelo SDK (Reverb ignora)
             forceTLS: !isDev,
             enabledTransports: isDev ? ['ws'] : ['wss'],
             disableStats: true,
