@@ -273,11 +273,23 @@
                 elements.totalAmount.textContent = 'R$ ' + parseFloat(paymentData.amount).toFixed(2).replace('.', ',');
                 document.getElementById('pay-amount').textContent = elements.totalAmount.textContent;
 
+                // ⭐ Se for pagamento na entrega (cash/debit_card), redirecionar para confirmação
+                if (paymentData.method === 'cash' || paymentData.method === 'on_delivery') {
+                    console.log('🔄 Pagamento na entrega detectado - redirecionando para confirmação...');
+                    window.location.href = `/pedido/${ORDER_NUMBER}/confirmado`;
+                    return;
+                }
+
                 // Mostrar seção correta
                 if (paymentData.method === 'pix') {
                     showPixSection();
                 } else if (paymentData.method === 'credit_card' || paymentData.method === 'debit_card') {
                     showCardSection();
+                } else {
+                    // Método de pagamento não suportado nesta página
+                    console.warn('⚠️ Método de pagamento não suportado:', paymentData.method);
+                    window.location.href = `/pedido/${ORDER_NUMBER}/confirmado`;
+                    return;
                 }
 
                 // Esconder loading
