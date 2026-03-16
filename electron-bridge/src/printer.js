@@ -914,15 +914,9 @@ class ThermalPrinter {
                 log.warn(`⚠️ [Método 1] ESC/POS USB falhou: ${error.message}`);
             }
 
-            // MÉTODO 2: Comando PRINT simples ⭐
-            if (process.platform === 'win32') {
-                log.info(`🔧 [Método 2] Tentando comando PRINT...`);
-                try {
-                    return await this.printOutPrinter(orderData, location, copies, printerName);
-                } catch (printError) {
-                    log.warn(`⚠️ [Método 2] PRINT falhou: ${printError.message}`);
-                }
-            }
+            // MÉTODO 2: DESABILITADO (não imprime fisicamente)
+            // Pulando direto para Método 3 (driver genérico)
+            log.info(`⚠️ [Método 2] PULADO - forçando driver genérico...`);
 
             // MÉTODO 3: Driver Generic/Text Only (AUTO-INSTALL) 🔥
             if (process.platform === 'win32') {
