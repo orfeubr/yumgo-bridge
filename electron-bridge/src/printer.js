@@ -657,10 +657,10 @@ class ThermalPrinter {
                 let printsCompleted = 0;
 
                 for (let i = 0; i < copies; i++) {
-                    // PowerShell Out-Printer (ORIGINAL que funcionava)
-                    const psCmd = `powershell.exe -Command "Out-Printer -Name '${printerName}' -InputObject (Get-Content -Path '${tempFile}' -Encoding UTF8 -Raw)"`;
+                    // Comando PRINT do Windows (mais básico, não quebra texto)
+                    const printCmd = `PRINT /D:"${printerName}" "${tempFile}"`;
 
-                    exec(psCmd, (error, stdout, stderr) => {
+                    exec(printCmd, (error, stdout, stderr) => {
                         if (error) {
                             log.error(`Erro Out-Printer: ${error.message}`);
                             reject(error);
