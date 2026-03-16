@@ -654,8 +654,28 @@ function clearHistory() {
 
 // ===== HOME STATUS =====
 function updateHomeStatus() {
-    // Atualizar contadores
-    const printersConfigured = Object.values(printerConfigs).filter(c => c !== null).length;
+    // ⭐ Filtrar apenas impressoras VÁLIDAS (não-PDF, não-OneNote, etc)
+    const isValidPrinter = (config) => {
+        if (!config) return false;
+        if (config.type === 'none') return false;
+
+        // Para "system", verificar se não é impressora virtual
+        if (config.type === 'system') {
+            const printerName = (config.printerName || '').toLowerCase();
+            if (!printerName) return false;
+
+            const invalidPrinters = [
+                'pdf', 'print to pdf', 'onenote', 'one note', 'fax',
+                'xps', 'pdfcreator', 'pdf architect', 'foxit', 'adobe pdf'
+            ];
+
+            return !invalidPrinters.some(invalid => printerName.includes(invalid));
+        }
+
+        return true; // USB/Network são sempre válidas
+    };
+
+    const printersConfigured = Object.values(printerConfigs).filter(isValidPrinter).length;
     document.getElementById('homePrintersStatus').textContent = `${printersConfigured} configuradas`;
 
     const ordersToday = orderHistory.filter(o => {
