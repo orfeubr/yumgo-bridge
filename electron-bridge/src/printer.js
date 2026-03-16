@@ -113,14 +113,249 @@ class ThermalPrinter {
     }
 
     /**
-     * Imprimir em impressora do sistema (Windows/macOS/Linux) - v2.1.0
-     * Usa comandos nativos do SO (sem dependências node-gyp)
+     * Detectar se impressora é térmica (POS, RP, TM, etc)
+     */
+    isThermalPrinter(printerName) {
+        const thermalPrefixes = ['pos', 'rp', 'tm', 'xp', 'mp', 'ep', 'tp'];
+        const nameLower = printerName.toLowerCase();
+        return thermalPrefixes.some(prefix => nameLower.startsWith(prefix));
+    }
+
+    /**
+     * Tentar encontrar impressora térmica USB automaticamente
+     */
+    async findUSBThermalPrinter() {
+        try {
+            const devices = USB.findPrinter();
+            if (devices && devices.length > 0) {
+                log.info(`🔍 ${devices.length} impressora(s) USB térmica(s) detectada(s)`);
+                return devices[0]; // Retorna primeira encontrada
+            }
+            return null;
+        } catch (error) {
+            log.warn(`Erro ao buscar impressoras USB: ${error.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * Imprimir usando ESC/POS nativo (PROFISSIONAL) - v3.5.0
+     */
+    async printESCPOS(orderData, location, copies, device) {
+        return new Promise((resolve, reject) => {
+            device.open((error) => {
+                if (error) {
+                    log.error(`Erro ao abrir device USB: ${error.message}`);
+                    reject(error);
+                    return;
+                }
+
+                try {
+                    const printer = new escpos.Printer(device);
+                    const { config } = this.printers[location];
+
+                    // Determinar largura do papel
+                    const paperWidth = config.paperWidth || 58;
+                    let charsPerLine;
+                    if (paperWidth <= 58) {
+                        charsPerLine = 32;
+                    } else if (paperWidth <= 80) {
+                        charsPerLine = 48;
+                    } else {
+                        charsPerLine = 42;
+                    }
+
+                    // Função auxiliar para remover acentos
+                    const removeAccents = (text) => {
+                        if (!text) return '';
+                        return text
+                            .normalize('NFD')
+                            .replace(/[\u0300-\u036f]/g, '')
+                            .replace(/[^\x00-\x7F]/g, '');
+                    };
+
+                    // Função para centralizar texto
+                    const center = (text) => {
+                        const clean = removeAccents(text);
+                        const padding = Math.max(0, Math.floor((charsPerLine - clean.length) / 2));
+                        return ' '.repeat(padding) + clean;
+                    };
+
+                    // Função para linha de separação
+                    const separator = () => '='.repeat(charsPerLine);
+
+                    // Imprimir múltiplas cópias
+                    for (let copy = 0; copy < copies; copy++) {
+                        // CABEÇALHO
+                        printer
+                            .align('ct')
+                            .style('bu')
+                            .size(1, 1)
+                            .text(center('YUMGO - PEDIDO'))
+                            .style('normal')
+                            .text(separator())
+                            .text('')
+                            .align('lt');
+
+                        // NÚMERO DO PEDIDO
+                        printer
+                            .style('b')
+                            .size(1, 1)
+                            .text(removeAccents(`Pedido: #${orderData.order_number}`))
+                            .style('normal')
+                            .text('');
+
+                        // LOCAL DE IMPRESSÃO
+                        const locationNames = {
+                            counter: 'BALCAO',
+                            kitchen: 'COZINHA',
+                            bar: 'BAR'
+                        };
+                        printer.text(removeAccents(`Local: ${locationNames[location] || location.toUpperCase()}`));
+                        printer.text('');
+
+                        // CLIENTE
+                        printer.text(separator());
+                        printer.text(removeAccents(`Cliente: ${orderData.customer?.name || 'N/A'}`));
+                        if (orderData.customer?.phone) {
+                            printer.text(removeAccents(`Tel: ${orderData.customer.phone}`));
+                        }
+                        printer.text('');
+
+                        // TIPO DE ENTREGA
+                        const deliveryType = orderData.delivery?.type === 'delivery' ? 'ENTREGA' : 'RETIRADA';
+                        printer.text(removeAccents(`Tipo: ${deliveryType}`));
+
+                        if (orderData.delivery?.type === 'delivery' && orderData.delivery?.address) {
+                            printer.text(removeAccents(`End: ${orderData.delivery.address}`));
+                            if (orderData.delivery.neighborhood) {
+                                printer.text(removeAccents(`Bairro: ${orderData.delivery.neighborhood}`));
+                            }
+                        }
+                        printer.text('');
+
+                        // ITENS DO PEDIDO
+                        printer.text(separator());
+                        printer.style('b').text('ITENS:').style('normal');
+                        printer.text('');
+
+                        orderData.items?.forEach((item) => {
+                            // Nome e quantidade
+                            printer.text(removeAccents(`${item.quantity}x ${item.name}`));
+
+                            // Variações (ex: tamanho, sabor)
+                            if (item.variations && typeof item.variations === 'object') {
+                                Object.entries(item.variations).forEach(([key, value]) => {
+                                    printer.text(removeAccents(`  - ${key}: ${value}`));
+                                });
+                            }
+
+                            // Adicionais
+                            if (item.addons && Array.isArray(item.addons)) {
+                                item.addons.forEach((addon) => {
+                                    printer.text(removeAccents(`  + ${addon.name || addon}`));
+                                });
+                            }
+
+                            // Observações do item
+                            if (item.notes) {
+                                printer.text(removeAccents(`  Obs: ${item.notes}`));
+                            }
+
+                            printer.text('');
+                        });
+
+                        // OBSERVAÇÕES GERAIS
+                        if (orderData.notes) {
+                            printer.text(separator());
+                            printer.style('b').text('OBSERVACOES GERAIS:').style('normal');
+                            printer.text(removeAccents(orderData.notes));
+                            printer.text('');
+                        }
+
+                        // TOTAIS
+                        printer.text(separator());
+                        printer.text(removeAccents(`Subtotal: R$ ${orderData.totals?.subtotal?.toFixed(2) || '0.00'}`));
+                        if (orderData.totals?.delivery_fee > 0) {
+                            printer.text(removeAccents(`Taxa Entrega: R$ ${orderData.totals.delivery_fee.toFixed(2)}`));
+                        }
+                        if (orderData.totals?.discount > 0) {
+                            printer.text(removeAccents(`Desconto: -R$ ${orderData.totals.discount.toFixed(2)}`));
+                        }
+                        printer.style('b').size(1, 1).text(removeAccents(`TOTAL: R$ ${orderData.totals?.total?.toFixed(2) || '0.00'}`)).style('normal').size(0, 0);
+                        printer.text('');
+
+                        // PAGAMENTO
+                        printer.text(separator());
+                        const paymentMethod = {
+                            credit_card: 'CARTAO CREDITO',
+                            debit_card: 'CARTAO DEBITO',
+                            pix: 'PIX',
+                            money: 'DINHEIRO'
+                        }[orderData.payment?.method] || orderData.payment?.method?.toUpperCase() || 'N/A';
+
+                        printer.text(removeAccents(`Pagamento: ${paymentMethod}`));
+                        printer.text('');
+
+                        // DATA/HORA
+                        printer.text(separator());
+                        const createdAt = new Date(orderData.created_at);
+                        printer.text(removeAccents(`Data: ${createdAt.toLocaleDateString('pt-BR')}`));
+                        printer.text(removeAccents(`Hora: ${createdAt.toLocaleTimeString('pt-BR')}`));
+                        printer.text('');
+
+                        // RODAPÉ
+                        printer.text(separator());
+                        printer.align('ct').text(center('Obrigado pela preferencia!'));
+                        printer.text('').text('');
+
+                        // Cortar papel
+                        printer.cut();
+                    }
+
+                    // Fechar conexão
+                    printer.close();
+                    device.close();
+
+                    log.info(`✅ ${copies} cópia(s) impressa(s) via ESC/POS em ${location}`);
+                    resolve();
+
+                } catch (printError) {
+                    log.error(`Erro ao imprimir ESC/POS: ${printError.message}`);
+                    device.close();
+                    reject(printError);
+                }
+            });
+        });
+    }
+
+    /**
+     * Imprimir em impressora do sistema (Windows/macOS/Linux) - v3.5.0
+     * ⭐ PROFISSIONAL: Auto-detecta térmicas USB e usa ESC/POS
      */
     async printSystemPrinter(orderData, location, copies) {
         const printerObj = this.printers[location];
         const { config } = printerObj;
         const printerName = config.printerName;
 
+        // ⭐ SOLUÇÃO PROFISSIONAL: Detectar térmicas e usar ESC/POS
+        if (this.isThermalPrinter(printerName)) {
+            log.info(`🔥 "${printerName}" detectada como térmica. Tentando ESC/POS...`);
+
+            try {
+                const device = await this.findUSBThermalPrinter();
+                if (device) {
+                    log.info(`✅ Device USB encontrado! Usando ESC/POS nativo.`);
+                    return await this.printESCPOS(orderData, location, copies, device);
+                } else {
+                    log.warn(`⚠️ Device USB não encontrado. Fallback para comando do sistema.`);
+                }
+            } catch (error) {
+                log.warn(`⚠️ Erro ao usar ESC/POS: ${error.message}. Fallback para comando do sistema.`);
+            }
+        }
+
+        // FALLBACK: Comando do sistema (para impressoras comuns)
         return new Promise((resolve, reject) => {
             try {
                 // Gerar texto formatado do pedido
@@ -137,14 +372,10 @@ class ThermalPrinter {
                 let printCommand;
 
                 if (process.platform === 'win32') {
-                    // Windows: usar comando PRINT direto (melhor para térmicas)
-                    // ⭐ PowerShell Out-Printer quebra texto em térmicas!
                     printCommand = `PRINT /D:"${printerName}" "${tempFile}"`;
                 } else if (process.platform === 'darwin') {
-                    // macOS: usar lp
                     printCommand = `lp -d "${printerName}" "${tempFile}"`;
                 } else {
-                    // Linux: usar lp ou lpr
                     printCommand = `lp -d "${printerName}" "${tempFile}"`;
                 }
 
