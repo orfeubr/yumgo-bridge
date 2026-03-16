@@ -965,7 +965,8 @@ class ThermalPrinter {
                 let printCommand;
 
                 if (process.platform === 'win32') {
-                    printCommand = `PRINT /D:"${printerName}" "${tempFile}"`;
+                    // ⭐ MÉTODO QUE FUNCIONA: Copy-Item RAW mode (testado e aprovado!)
+                    printCommand = `powershell.exe -Command "Copy-Item -Path '${tempFile}' -Destination '\\\\localhost\\${printerName}'"`;
                 } else if (process.platform === 'darwin') {
                     printCommand = `lp -d "${printerName}" "${tempFile}"`;
                 } else {
