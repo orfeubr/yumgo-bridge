@@ -1363,7 +1363,7 @@ class ThermalPrinter {
             }
 
             // Adicionais
-            if (item.addons && item.addons.length > 0) {
+            if (item.addons && Array.isArray(item.addons) && item.addons.length > 0) {
                 item.addons.forEach(addon => {
                     const addonName = typeof addon === 'object' ? addon.name : addon;
                     printer.text(formatText(`  + ${addonName}`));

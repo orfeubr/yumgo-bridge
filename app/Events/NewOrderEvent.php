@@ -91,8 +91,8 @@ class NewOrderEvent implements ShouldBroadcastNow
                         'name' => $item->product_name,
                         'unit_price' => (float) $item->unit_price,  // ⭐ CORRIGIDO
                         'subtotal' => (float) $item->subtotal,
-                        'variations' => $item->variations,
-                        'addons' => $item->addons,
+                        'variations' => $item->variations ?? [],
+                        'addons' => is_array($item->addons) ? $item->addons : [], // ⭐ GARANTIR ARRAY
                         'notes' => $item->notes,
                         'print_location' => $item->product->print_location ?? 'kitchen',
                     ];
