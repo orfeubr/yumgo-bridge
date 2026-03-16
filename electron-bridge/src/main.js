@@ -146,7 +146,7 @@ function createWindow() {
             enableRemoteModule: true
         },
         icon: path.join(__dirname, '../assets/icon.png'),
-        title: 'YumGo Bridge - Impressão Local',
+        title: `YumGo Bridge v${app.getVersion()} - Impressão Local`,
         show: false,
         backgroundColor: '#ffffff'
     });
@@ -1262,13 +1262,21 @@ ipcMain.on('save-preferences', (event, prefs) => {
 // ===== APP LIFECYCLE =====
 
 app.whenReady().then(() => {
+    // Log de inicialização bem visível
+    log.info('═══════════════════════════════════════════════════════');
+    log.info(`🚀 YumGo Bridge v${app.getVersion()} iniciado com sucesso!`);
+    log.info(`📅 Data: ${new Date().toLocaleString('pt-BR')}`);
+    log.info(`🖥️ Plataforma: ${process.platform}`);
+    log.info(`⚙️ Modo: ${isDev ? 'Desenvolvimento' : 'Produção'}`);
+    log.info('═══════════════════════════════════════════════════════');
+
     createWindow();
 
     // Verificar atualizações ao iniciar (v1.7.0)
     if (!isDev) {
         // Aguarda 3 segundos antes de verificar (app já inicializou)
         setTimeout(() => {
-            log.info('Verificando atualizações automaticamente...');
+            log.info('🔍 Verificando atualizações automaticamente...');
             autoUpdater.checkForUpdates();
         }, 3000);
     }
