@@ -553,7 +553,17 @@ function connectWebSocket(restaurantId, token) {
                 // Imprimir em todas as impressoras configuradas
                 if (printerManager && order.print_locations) {
                     for (const location of order.print_locations) {
-                        await printerManager.printOrder(order, location);
+                        // ⭐ Verificar se tem impressora configurada para essa localização
+                        if (printerManager.printers[location]) {
+                            try {
+                                await printerManager.printOrder(order, location);
+                                log.info(`✅ Impresso com sucesso em: ${location}`);
+                            } catch (error) {
+                                log.error(`❌ Erro ao imprimir em ${location}:`, error.message);
+                            }
+                        } else {
+                            log.warn(`⚠️ Impressora "${location}" não configurada. Pulando impressão.`);
+                        }
                     }
                 }
 
@@ -1049,6 +1059,13 @@ ipcMain.handle('test-print-all', async () => {
 
         const results = [];
         for (const location of locations) {
+            // ⭐ Verificar se tem impressora configurada
+            if (!printerManager.printers[location]) {
+                results.push({ location, success: false, error: 'Impressora não configurada' });
+                log.warn(`⚠️ Impressora "${location}" não configurada. Pulando teste.`);
+                continue;
+            }
+
             try {
                 await printerManager.printOrder(testOrder, location);
                 results.push({ location, success: true });
