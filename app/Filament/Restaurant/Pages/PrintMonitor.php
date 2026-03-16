@@ -184,13 +184,42 @@ class PrintMonitor extends Page
                 ->icon('heroicon-o-arrow-path')
                 ->color('warning')
                 ->form([
-                    \Filament\Forms\Components\TextInput::make('order_number')
-                        ->label('Número do Pedido')
+                    \Filament\Forms\Components\Select::make('order_id')
+                        ->label('Selecione o Pedido')
+                        ->placeholder('Digite número, cliente ou valor...')
                         ->required()
-                        ->placeholder('Ex: 1234'),
+                        ->searchable()
+                        ->getSearchResultsUsing(function (string $search): array {
+                            // Busca por: número do pedido, nome do cliente ou valor
+                            return Order::with('customer')
+                                ->where(function ($query) use ($search) {
+                                    $query->where('order_number', 'LIKE', "%{$search}%")
+                                        ->orWhereHas('customer', function ($q) use ($search) {
+                                            $q->where('name', 'LIKE', "%{$search}%");
+                                        })
+                                        ->orWhere('total', 'LIKE', "%{$search}%");
+                                })
+                                ->orderBy('created_at', 'desc')
+                                ->limit(50)
+                                ->get()
+                                ->mapWithKeys(function ($order) {
+                                    $label = "#{$order->order_number} - {$order->customer->name} - R$ " .
+                                             number_format($order->total, 2, ',', '.') .
+                                             " - " . $order->created_at->format('d/m/Y H:i');
+                                    return [$order->id => $label];
+                                })
+                                ->toArray();
+                        })
+                        ->getOptionLabelUsing(function ($value): ?string {
+                            $order = Order::with('customer')->find($value);
+                            if (!$order) return null;
+                            return "#{$order->order_number} - {$order->customer->name} - R$ " .
+                                   number_format($order->total, 2, ',', '.') .
+                                   " - " . $order->created_at->format('d/m/Y H:i');
+                        }),
                 ])
                 ->action(function (array $data) {
-                    $order = Order::where('order_number', $data['order_number'])->first();
+                    $order = Order::find($data['order_id']);
 
                     if (!$order) {
                         \Filament\Notifications\Notification::make()
