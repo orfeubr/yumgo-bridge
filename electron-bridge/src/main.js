@@ -286,8 +286,8 @@ function connectWebSocket(restaurantId, token) {
 
     // Configurar URLs baseado no ambiente
     const baseUrl = isDev ? 'http://localhost:8000' : 'https://yumgo.com.br';
-    const wsHost = isDev ? 'localhost' : 'yumgo.com.br';  // ⭐ TESTE: domínio principal
-    const wsPort = isDev ? 8081 : 8081;  // ⭐ TESTE: porta 8081 diretamente
+    const wsHost = isDev ? 'localhost' : 'ws.yumgo.com.br';  // WebSocket subdomain
+    const wsPort = isDev ? 8081 : 443;  // HTTPS/443 em produção
     const wsPath = '';  // Empty - Pusher adds /app/{key} automatically
 
     // ⭐ v3.2.7: Removido Pusher.Runtime.createXHR - deixar Pusher usar XMLHttpRequest nativo do Chromium
