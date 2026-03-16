@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'temp.auth' => \App\Http\Middleware\TempAuthMiddleware::class,
             'block.card.data' => \App\Http\Middleware\BlockSensitiveCardData::class, // 🔒 Segurança PCI-DSS
+            'csp' => \App\Http\Middleware\AddContentSecurityPolicy::class, // 🔒 Content Security Policy
         ]);
 
         // Exceções CSRF para webhooks
@@ -36,6 +37,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // EXCETO para domínios centrais
         $middleware->web(prepend: [
             \App\Http\Middleware\InitializeTenancyByDomainOrSkip::class,
+        ]);
+
+        // 🔒 CSP (Content Security Policy) - Aplicar globalmente
+        $middleware->web(append: [
+            \App\Http\Middleware\AddContentSecurityPolicy::class,
         ]);
 
         // Tenancy middleware priority (when used)

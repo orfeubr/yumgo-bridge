@@ -372,3 +372,9 @@ Route::get('/download/bridge', function () {
 // 📥 Download Template de Importação de Produtos
 Route::get('/download/template/products', [\App\Http\Controllers\TemplateController::class, 'products'])
     ->name('download.template.products');
+
+// Rota de teste CSP
+Route::get('/test-csp', function () {
+    return response('CSP Test - Check headers')
+        ->header('X-CSP-Test', 'Laravel');
+});
