@@ -742,15 +742,69 @@ ipcRenderer.on('restore-config', (event, config) => {
 });
 
 ipcRenderer.on('restore-printers', (event, configs) => {
-    printerConfigs = configs;
+    // ⭐ IMPORTANTE: Só restaurar locais válidos (counter, kitchen, bar)
+    const validLocations = ['counter', 'kitchen', 'bar'];
+
+    // Limpar configs antigas
+    printerConfigs = {
+        kitchen: null,
+        bar: null,
+        counter: null
+    };
+
+    // Restaurar apenas locais válidos
+    validLocations.forEach(location => {
+        if (configs[location]) {
+            printerConfigs[location] = configs[location];
+
+            // Restaurar valores nos selects
+            restorePrinterUI(location, configs[location]);
+        }
+    });
 
     // Atualizar badges de status de cada impressora
-    Object.keys(printerConfigs).forEach(location => {
+    validLocations.forEach(location => {
         updatePrinterStatusBadge(location);
     });
 
     updateHomeStatus();
 });
+
+// ⭐ Nova função: Restaurar UI da impressora
+function restorePrinterUI(location, config) {
+    if (!config || !config.type) return;
+
+    const typeSelect = document.getElementById(`${location}Type`);
+    if (typeSelect) {
+        typeSelect.value = config.type;
+        updatePrinterFields(location);
+
+        // Restaurar campos específicos baseado no tipo
+        setTimeout(() => {
+            if (config.type === 'system' && config.printerName) {
+                const select = document.getElementById(`${location}PrinterSelect`);
+                if (select) {
+                    const option = document.createElement('option');
+                    option.value = config.printerName;
+                    option.textContent = config.printerName;
+                    option.selected = true;
+                    select.appendChild(option);
+                }
+            } else if (config.type === 'network') {
+                const ipInput = document.getElementById(`${location}Ip`);
+                const portInput = document.getElementById(`${location}Port`);
+                if (ipInput) ipInput.value = config.ip || '';
+                if (portInput) portInput.value = config.port || 9100;
+            }
+
+            // Restaurar configurações avançadas
+            const charsInput = document.getElementById(`${location}Chars`);
+            const spacingInput = document.getElementById(`${location}Spacing`);
+            if (charsInput) charsInput.value = config.charsPerLine || 42;
+            if (spacingInput) spacingInput.value = config.spacing || 1;
+        }, 100);
+    }
+}
 
 ipcRenderer.on('restore-preferences', (event, prefs) => {
     document.getElementById('soundEnabledCheckbox').checked = prefs.soundEnabled !== false;
@@ -786,3 +840,41 @@ window.findSystemPrinters = findSystemPrinters;
 window.findUSBPrinters = findUSBPrinters;
 window.savePrinter = savePrinter;
 window.testPrinter = testPrinter;
+
+// ⭐ Limpar TODAS as configurações de impressoras
+async function clearAllPrinters() {
+    if (!confirm('⚠️ Isso vai LIMPAR TODAS as configurações de impressoras!\n\nDeseja continuar?')) {
+        return;
+    }
+
+    try {
+        // Limpar no backend
+        await ipcRenderer.invoke('cleanup-invalid-printers');
+
+        // Limpar localmente
+        printerConfigs = {
+            kitchen: null,
+            bar: null,
+            counter: null
+        };
+
+        // Resetar UI
+        ['counter', 'kitchen', 'bar'].forEach(location => {
+            const typeSelect = document.getElementById(`${location}Type`);
+            if (typeSelect) typeSelect.value = '';
+
+            updatePrinterFields(location);
+            updatePrinterStatusBadge(location);
+        });
+
+        updateHomeStatus();
+
+        addLog('success', '✅ Todas as configurações de impressoras foram limpas');
+        alert('✅ Configurações limpas com sucesso!\n\nConfigure novamente apenas as impressoras que você usa.');
+
+    } catch (error) {
+        addLog('error', `Erro ao limpar configurações: ${error.message}`);
+        alert(`❌ Erro: ${error.message}`);
+    }
+}
+window.clearAllPrinters = clearAllPrinters;
