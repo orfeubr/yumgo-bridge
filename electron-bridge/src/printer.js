@@ -1044,7 +1044,10 @@ class ThermalPrinter {
         let text = '';
 
         // ===== CABEÇALHO ESTILO IFOOD =====
-        text += line('-') + '\n';
+        const restaurantName = order.restaurant?.name || 'RESTAURANTE';
+        text += line('=') + '\n';
+        text += center(clean(restaurantName).toUpperCase()) + '\n';
+        text += line('=') + '\n';
         text += center('** NOVO PEDIDO **') + '\n';
         text += line('-') + '\n\n';
 
@@ -1173,9 +1176,10 @@ class ThermalPrinter {
         }
 
         // ===== RODAPÉ =====
+        const restaurantDomain = order.restaurant?.domain || 'yumgo.com.br';
         text += '\n' + line('-') + '\n';
         text += center('Obrigado pela preferencia!') + '\n';
-        text += center('YumGo Delivery') + '\n';
+        text += center(restaurantDomain) + '\n';
         text += line('-') + '\n\n\n';
 
         return text;
