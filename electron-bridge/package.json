@@ -1,7 +1,7 @@
 {
   "name": "yumgo-bridge",
-  "productName": "YumGo Bridge",
-  "version": "3.27.0",
+  "productName": "YumGo-Bridge",
+  "version": "3.27.1",
   "description": "App local para impressão automática de pedidos YumGo",
   "main": "src/main.js",
   "author": "YumGo",
@@ -45,7 +45,7 @@
   },
   "build": {
     "appId": "com.yumgo.bridge",
-    "productName": "YumGo Bridge",
+    "productName": "YumGo-Bridge",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "copyright": "Copyright © 2026 YumGo",
     "generateUpdatesFilesForAllChannels": false,
