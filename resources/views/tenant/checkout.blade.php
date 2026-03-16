@@ -1333,9 +1333,12 @@
                     localStorage.removeItem('yumgo_cart');
                     localStorage.removeItem('yumgo_delivery');
 
-                    // Redirecionar baseado no método de pagamento usando ORDER_NUMBER
+                    // ⭐ Redirecionar baseado no método de pagamento REAL (não on_delivery)
                     const orderNumber = data.order.order_number; // Ex: 20260226-3CF56E
-                    if (this.paymentMethod === 'cash') {
+
+                    // Se for cash ou debit_card, vai direto para confirmado
+                    // Se for pix ou credit_card, vai para página de pagamento
+                    if (finalPaymentMethod === 'cash' || finalPaymentMethod === 'debit_card') {
                         window.location.href = `/pedido/${orderNumber}/confirmado`;
                     } else {
                         window.location.href = `/pedido/${orderNumber}/pagamento`;
