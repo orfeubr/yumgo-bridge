@@ -137,9 +137,9 @@ class ThermalPrinter {
                 let printCommand;
 
                 if (process.platform === 'win32') {
-                    // Windows: usar PowerShell Out-Printer (mais confiável que PRINT)
-                    // ⭐ Força encoding UTF8 para evitar problemas com acentos
-                    printCommand = `powershell.exe -Command "Out-Printer -Name '${printerName}' -InputObject (Get-Content -Path '${tempFile}' -Encoding UTF8 -Raw)"`;
+                    // Windows: usar comando PRINT direto (melhor para térmicas)
+                    // ⭐ PowerShell Out-Printer quebra texto em térmicas!
+                    printCommand = `PRINT /D:"${printerName}" "${tempFile}"`;
                 } else if (process.platform === 'darwin') {
                     // macOS: usar lp
                     printCommand = `lp -d "${printerName}" "${tempFile}"`;
