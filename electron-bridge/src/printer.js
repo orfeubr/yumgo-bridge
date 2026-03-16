@@ -357,145 +357,148 @@ class ThermalPrinter {
     }
 
     /**
-     * Gerar comandos ESC/POS binários (sem device físico) - v3.7.0
+     * Gerar comandos ESC/POS MINIMALISTAS (máxima compatibilidade) - v3.10.0
      */
     async generateESCPOSBuffer(orderData, location) {
         return new Promise((resolve, reject) => {
             try {
-                const device = new BufferDevice();
-                device.open((error) => {
-                    if (error) {
-                        reject(error);
-                        return;
+                // Buffer manual - comandos ESC/POS crus (máxima compatibilidade)
+                const ESC = 0x1B;
+                const GS = 0x1D;
+                const LF = 0x0A;
+
+                let buffer = [];
+
+                // Inicializar impressora (ESC @)
+                buffer.push(ESC, 0x40);
+
+                // Função limpar texto
+                const clean = (text) => {
+                    if (!text) return '';
+                    return text
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[^\x00-\x7F]/g, '');
+                };
+
+                // Função adicionar texto
+                const addText = (text) => {
+                    const cleaned = clean(text);
+                    for (let i = 0; i < cleaned.length; i++) {
+                        buffer.push(cleaned.charCodeAt(i));
                     }
+                    buffer.push(LF);
+                };
 
-                    try {
-                        const printer = new escpos.Printer(device);
-                        const { config } = this.printers[location];
+                // Separador
+                const addSep = () => {
+                    addText('================================');
+                };
 
-                        // Determinar largura
-                        const paperWidth = config.paperWidth || 58;
-                        let charsPerLine = paperWidth <= 58 ? 32 : 48;
+                // CABEÇALHO
+                addText('        YUMGO - PEDIDO');
+                addSep();
+                addText('');
 
-                        // Função auxiliar para remover acentos
-                        const clean = (text) => {
-                            if (!text) return '';
-                            return text
-                                .normalize('NFD')
-                                .replace(/[\u0300-\u036f]/g, '')
-                                .replace(/[^\x00-\x7F]/g, '');
-                        };
+                // PEDIDO
+                addText(`Pedido: #${orderData.order_number}`);
+                addText('');
 
-                        const center = (text) => {
-                            const t = clean(text);
-                            const padding = Math.max(0, Math.floor((charsPerLine - t.length) / 2));
-                            return ' '.repeat(padding) + t;
-                        };
+                // CLIENTE
+                addSep();
+                addText(`Cliente: ${orderData.customer?.name || 'N/A'}`);
+                if (orderData.customer?.phone) {
+                    addText(`Tel: ${orderData.customer.phone}`);
+                }
+                addText('');
 
-                        const sep = () => '='.repeat(charsPerLine);
+                // ENTREGA
+                const deliveryType = orderData.delivery?.type === 'delivery' ? 'ENTREGA' : 'RETIRADA';
+                addText(`Tipo: ${deliveryType}`);
 
-                        // Gerar recibo
-                        printer
-                            .align('ct')
-                            .style('bu')
-                            .size(1, 1)
-                            .text(center('YUMGO - PEDIDO'))
-                            .style('normal')
-                            .text(sep())
-                            .text('')
-                            .align('lt')
-                            .style('b')
-                            .text(clean(`Pedido: #${orderData.order_number}`))
-                            .style('normal')
-                            .text('')
-                            .text(sep())
-                            .text(clean(`Cliente: ${orderData.customer?.name || 'N/A'}`));
+                if (orderData.delivery?.type === 'delivery' && orderData.delivery?.address) {
+                    addText(`End: ${orderData.delivery.address}`);
+                    if (orderData.delivery.neighborhood) {
+                        addText(`Bairro: ${orderData.delivery.neighborhood}`);
+                    }
+                }
+                addText('');
 
-                        if (orderData.customer?.phone) {
-                            printer.text(clean(`Tel: ${orderData.customer.phone}`));
-                        }
+                // ITENS
+                addSep();
+                addText('ITENS:');
+                addText('');
 
-                        printer.text('');
+                orderData.items?.forEach((item) => {
+                    addText(`${item.quantity}x ${item.name}`);
 
-                        const deliveryType = orderData.delivery?.type === 'delivery' ? 'ENTREGA' : 'RETIRADA';
-                        printer.text(clean(`Tipo: ${deliveryType}`));
-
-                        if (orderData.delivery?.type === 'delivery' && orderData.delivery?.address) {
-                            printer.text(clean(`End: ${orderData.delivery.address}`));
-                            if (orderData.delivery.neighborhood) {
-                                printer.text(clean(`Bairro: ${orderData.delivery.neighborhood}`));
-                            }
-                        }
-
-                        printer.text('').text(sep()).style('b').text('ITENS:').style('normal').text('');
-
-                        orderData.items?.forEach((item) => {
-                            printer.text(clean(`${item.quantity}x ${item.name}`));
-
-                            if (item.variations && typeof item.variations === 'object') {
-                                Object.entries(item.variations).forEach(([key, value]) => {
-                                    printer.text(clean(`  - ${key}: ${value}`));
-                                });
-                            }
-
-                            if (item.addons && Array.isArray(item.addons)) {
-                                item.addons.forEach((addon) => {
-                                    printer.text(clean(`  + ${addon.name || addon}`));
-                                });
-                            }
-
-                            if (item.notes) {
-                                printer.text(clean(`  Obs: ${item.notes}`));
-                            }
-
-                            printer.text('');
+                    if (item.variations && typeof item.variations === 'object') {
+                        Object.entries(item.variations).forEach(([key, value]) => {
+                            addText(`  - ${key}: ${value}`);
                         });
-
-                        if (orderData.notes) {
-                            printer.text(sep()).style('b').text('OBSERVACOES GERAIS:').style('normal');
-                            printer.text(clean(orderData.notes)).text('');
-                        }
-
-                        printer.text(sep());
-                        printer.text(clean(`Subtotal: R$ ${orderData.totals?.subtotal?.toFixed(2) || '0.00'}`));
-                        if (orderData.totals?.delivery_fee > 0) {
-                            printer.text(clean(`Taxa Entrega: R$ ${orderData.totals.delivery_fee.toFixed(2)}`));
-                        }
-                        if (orderData.totals?.discount > 0) {
-                            printer.text(clean(`Desconto: -R$ ${orderData.totals.discount.toFixed(2)}`));
-                        }
-                        printer.style('b').size(1, 1);
-                        printer.text(clean(`TOTAL: R$ ${orderData.totals?.total?.toFixed(2) || '0.00'}`));
-                        printer.style('normal').size(0, 0).text('');
-
-                        printer.text(sep());
-                        const paymentMethod = {
-                            credit_card: 'CARTAO CREDITO',
-                            debit_card: 'CARTAO DEBITO',
-                            pix: 'PIX',
-                            money: 'DINHEIRO'
-                        }[orderData.payment?.method] || orderData.payment?.method?.toUpperCase() || 'N/A';
-
-                        printer.text(clean(`Pagamento: ${paymentMethod}`)).text('');
-
-                        printer.text(sep());
-                        const createdAt = new Date(orderData.created_at);
-                        printer.text(clean(`Data: ${createdAt.toLocaleDateString('pt-BR')}`));
-                        printer.text(clean(`Hora: ${createdAt.toLocaleTimeString('pt-BR')}`)).text('');
-
-                        printer.text(sep());
-                        printer.align('ct').text(center('Obrigado pela preferencia!'));
-                        printer.text('').text('');
-
-                        printer.cut();
-                        printer.close();
-
-                        resolve(device.getBuffer());
-
-                    } catch (err) {
-                        reject(err);
                     }
+
+                    if (item.addons && Array.isArray(item.addons)) {
+                        item.addons.forEach((addon) => {
+                            addText(`  + ${addon.name || addon}`);
+                        });
+                    }
+
+                    if (item.notes) {
+                        addText(`  Obs: ${item.notes}`);
+                    }
+
+                    addText('');
                 });
+
+                // OBSERVAÇÕES
+                if (orderData.notes) {
+                    addSep();
+                    addText('OBSERVACOES GERAIS:');
+                    addText(orderData.notes);
+                    addText('');
+                }
+
+                // TOTAIS
+                addSep();
+                addText(`Subtotal: R$ ${orderData.totals?.subtotal?.toFixed(2) || '0.00'}`);
+                if (orderData.totals?.delivery_fee > 0) {
+                    addText(`Taxa Entrega: R$ ${orderData.totals.delivery_fee.toFixed(2)}`);
+                }
+                if (orderData.totals?.discount > 0) {
+                    addText(`Desconto: -R$ ${orderData.totals.discount.toFixed(2)}`);
+                }
+                addText(`TOTAL: R$ ${orderData.totals?.total?.toFixed(2) || '0.00'}`);
+                addText('');
+
+                // PAGAMENTO
+                addSep();
+                const paymentMethod = {
+                    credit_card: 'CARTAO CREDITO',
+                    debit_card: 'CARTAO DEBITO',
+                    pix: 'PIX',
+                    money: 'DINHEIRO'
+                }[orderData.payment?.method] || orderData.payment?.method?.toUpperCase() || 'N/A';
+                addText(`Pagamento: ${paymentMethod}`);
+                addText('');
+
+                // DATA/HORA
+                addSep();
+                const createdAt = new Date(orderData.created_at);
+                addText(`Data: ${createdAt.toLocaleDateString('pt-BR')}`);
+                addText(`Hora: ${createdAt.toLocaleTimeString('pt-BR')}`);
+                addText('');
+
+                // RODAPÉ
+                addSep();
+                addText('   Obrigado pela preferencia!');
+                addText('');
+                addText('');
+
+                // Corte parcial (mais compatível que total)
+                buffer.push(GS, 0x56, 0x01);
+
+                resolve(Buffer.from(buffer));
 
             } catch (error) {
                 reject(error);
