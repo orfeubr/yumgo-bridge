@@ -663,17 +663,41 @@ class OrderResource extends Resource
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->visible(fn (Order $record) => $record->payment_status !== 'paid')
-                    ->requiresConfirmation()
+                    ->form([
+                        Forms\Components\Select::make('payment_method')
+                            ->label('Forma de Pagamento')
+                            ->options([
+                                'pix' => 'PIX',
+                                'credit_card' => 'Cartão de Crédito',
+                                'debit_card' => 'Cartão de Débito',
+                                'cash' => 'Dinheiro',
+                                'bank_transfer' => 'Transferência Bancária',
+                            ])
+                            ->required()
+                            ->native(false),
+                    ])
                     ->modalHeading('Marcar Pedido como Pago')
-                    ->modalDescription(fn (Order $record) => "Confirma que o pedido #{$record->order_number} foi pago?")
-                    ->modalSubmitActionLabel('Sim, Marcar como Pago')
-                    ->action(function (Order $record) {
-                        $record->update(['payment_status' => 'paid']);
+                    ->modalDescription(fn (Order $record) => "Pedido #{$record->order_number}")
+                    ->modalSubmitActionLabel('Confirmar Pagamento')
+                    ->action(function (Order $record, array $data) {
+                        $record->update([
+                            'payment_status' => 'paid',
+                            'payment_method' => $data['payment_method'],
+                        ]);
+
+                        $paymentMethodLabel = match($data['payment_method']) {
+                            'pix' => 'PIX',
+                            'credit_card' => 'Cartão de Crédito',
+                            'debit_card' => 'Cartão de Débito',
+                            'cash' => 'Dinheiro',
+                            'bank_transfer' => 'Transferência Bancária',
+                            default => $data['payment_method'],
+                        };
 
                         \Filament\Notifications\Notification::make()
                             ->title('Pedido marcado como pago!')
                             ->success()
-                            ->body("O pedido #{$record->order_number} foi marcado como pago.")
+                            ->body("Pedido #{$record->order_number} pago via {$paymentMethodLabel}.")
                             ->send();
                     }),
 
