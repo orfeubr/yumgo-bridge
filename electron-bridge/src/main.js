@@ -290,15 +290,8 @@ function connectWebSocket(restaurantId, token) {
     const wsPort = isDev ? 8081 : 443;  // HTTPS/443 em produção
     const wsPath = '';  // Empty - Pusher adds /app/{key} automatically
 
-    // FIX: Configurar Pusher para Node.js/Electron environment
-    if (!global.Pusher.Runtime) {
-        global.Pusher.Runtime = {
-            createXHR: function() {
-                const xhr = require('https').request ||  require('http').request;
-                return xhr;
-            }
-        };
-    }
+    // ⭐ v3.2.7: Removido Pusher.Runtime.createXHR - deixar Pusher usar XMLHttpRequest nativo do Chromium
+    // O Electron já tem XMLHttpRequest disponível via Chromium, não precisamos configurar manualmente
 
     log.info(`📡 Configuração WebSocket:`);
     log.info(`   - baseUrl: ${baseUrl}`);
@@ -315,10 +308,14 @@ function connectWebSocket(restaurantId, token) {
             key: 't9pg2dslmpl5y1cp6rrf',
             wsHost: wsHost,
             wsPort: wsPort,
-            cluster: 'mt1',  // ⭐ CRÍTICO: Parâmetro obrigatório para Pusher.js
+            // cluster: 'mt1',  // ⭐ TESTE: Remover cluster para ver se resolve
             forceTLS: !isDev,
             enabledTransports: isDev ? ['ws'] : ['wss'],
-            disableStats: true
+            disableStats: true,
+            // Electron-specific options
+            activityTimeout: 120000,
+            pongTimeout: 30000,
+            unavailableTimeout: 10000
         };
 
         // Log config
