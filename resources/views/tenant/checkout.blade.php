@@ -1259,17 +1259,22 @@
                     // Montar endereço completo
                     const fullAddress = `${this.deliveryStreet}, ${this.deliveryNumber}${this.deliveryComplement ? ' - ' + this.deliveryComplement : ''}${this.deliveryReference ? ' (' + this.deliveryReference + ')' : ''}`;
 
+                    // ⭐ Se selecionou "pagar na entrega", usar o tipo específico (cash ou debit_card)
+                    const finalPaymentMethod = this.paymentMethod === 'on_delivery'
+                        ? this.deliveryPaymentType
+                        : this.paymentMethod;
+
                     // Preparar payload
                     const payload = {
                         items: items,
                         delivery_address: fullAddress,
                         delivery_city: this.selectedCity,
                         delivery_neighborhood: this.selectedNeighborhood,
-                        payment_method: this.paymentMethod,
+                        payment_method: finalPaymentMethod, // ⭐ CORRIGIDO: usa deliveryPaymentType se for on_delivery
                         use_cashback: this.useCashback, // ⭐ Boolean toggle (true = usar todo saldo)
                         coupon_code: this.appliedCoupon ? this.appliedCoupon.code : null, // ⭐ Cupom de desconto
                         notes: this.notes,
-                        change_for: this.paymentMethod === 'cash' ? this.changeFor : null
+                        change_for: finalPaymentMethod === 'cash' ? this.changeFor : null // ⭐ CORRIGIDO: usa finalPaymentMethod
                     };
 
                     console.log('📦 Payload do pedido:', payload);
