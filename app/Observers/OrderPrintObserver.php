@@ -17,10 +17,9 @@ class OrderPrintObserver
     public function created(Order $order): void
     {
         // ⭐ Dispara impressão se:
-        // 1. Já está pago (PIX instantâneo, cartão aprovado na hora)
-        // 2. OU é pagamento na entrega (cash, debit_card)
-        $shouldPrint = $order->payment_status === 'paid'
-            || in_array($order->payment_method, ['cash', 'debit_card']);
+        // 1. Já está pago (PIX, cartão confirmado)
+        // 2. OU está aguardando pagamento na entrega
+        $shouldPrint = in_array($order->payment_status, ['paid', 'awaiting_delivery']);
 
         if ($shouldPrint) {
             $this->dispatchPrintEvent($order);
@@ -32,8 +31,9 @@ class OrderPrintObserver
      */
     public function updated(Order $order): void
     {
-        // Se mudou para "pago", disparar impressão
-        if ($order->wasChanged('payment_status') && $order->payment_status === 'paid') {
+        // Se mudou para "pago" ou "aguardando entrega", disparar impressão
+        if ($order->wasChanged('payment_status')
+            && in_array($order->payment_status, ['paid', 'awaiting_delivery'])) {
             $this->dispatchPrintEvent($order);
         }
     }
@@ -44,9 +44,11 @@ class OrderPrintObserver
     private function dispatchPrintEvent(Order $order): void
     {
         try {
-            $reason = $order->payment_status === 'paid'
-                ? 'pedido pago'
-                : 'pagamento na entrega (' . $order->payment_method . ')';
+            $reason = match($order->payment_status) {
+                'paid' => 'pedido pago',
+                'awaiting_delivery' => 'aguardando pagamento na entrega (' . $order->payment_method . ')',
+                default => 'status: ' . $order->payment_status
+            };
 
             Log::info("🖨️ Disparando impressão automática para pedido #{$order->id} - Motivo: {$reason}");
 

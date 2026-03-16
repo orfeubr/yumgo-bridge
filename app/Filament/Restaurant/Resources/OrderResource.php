@@ -291,6 +291,7 @@ class OrderResource extends Resource
                             ->label('Pagamento')
                             ->options([
                                 'pending' => 'Pendente',
+                                'awaiting_delivery' => 'Pagar na Entrega', // ⭐ Novo status
                                 'paid' => 'Pago',
                                 'failed' => 'Falhou',
                                 'refunded' => 'Reembolsado',
@@ -584,12 +585,14 @@ class OrderResource extends Resource
                     ->label('Pagamento')
                     ->colors([
                         'warning' => 'pending',
+                        'info' => 'awaiting_delivery', // ⭐ Azul para aguardando entrega
                         'success' => 'paid',
                         'danger' => 'failed',
                         'secondary' => 'refunded',
                     ])
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'pending' => 'Pendente',
+                        'awaiting_delivery' => 'Pagar na Entrega', // ⭐ Novo status
                         'paid' => 'Pago',
                         'failed' => 'Falhou',
                         'refunded' => 'Reembolsado',
@@ -630,6 +633,7 @@ class OrderResource extends Resource
                     ->label('Pagamento')
                     ->options([
                         'pending' => 'Pendente',
+                        'awaiting_delivery' => 'Pagar na Entrega', // ⭐ Novo status
                         'paid' => 'Pago',
                         'failed' => 'Falhou',
                     ]),
@@ -677,7 +681,12 @@ class OrderResource extends Resource
                             ->native(false),
                     ])
                     ->modalHeading('Marcar Pedido como Pago')
-                    ->modalDescription(fn (Order $record) => "Pedido #{$record->order_number}")
+                    ->modalDescription(fn (Order $record) =>
+                        "Pedido #{$record->order_number}" .
+                        ($record->payment_status === 'awaiting_delivery'
+                            ? " - Confirme o recebimento do pagamento na entrega"
+                            : "")
+                    )
                     ->modalSubmitActionLabel('Confirmar Pagamento')
                     ->action(function (Order $record, array $data) {
                         $record->update([

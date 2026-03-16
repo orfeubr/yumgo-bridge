@@ -236,6 +236,12 @@ class OrderService
             $deliveryAddress = json_encode($deliveryAddress, JSON_UNESCAPED_UNICODE);
         }
 
+        // ⭐ Define payment_status baseado no método de pagamento
+        $paymentMethod = $data['payment_method'] ?? null;
+        $paymentStatus = in_array($paymentMethod, ['cash', 'debit_card'])
+            ? 'awaiting_delivery' // Pagar na entrega - imprime mas não pago ainda
+            : 'pending'; // PIX, cartão - aguarda confirmação de pagamento
+
         return [
             'order_number' => $this->generateOrderNumber(),
             'customer_id' => $customer->id,
@@ -246,8 +252,8 @@ class OrderService
             'cashback_used' => $cashbackUsed,
             'total' => $totals['total'],
             'status' => 'pending',
-            'payment_status' => 'pending',
-            'payment_method' => $data['payment_method'] ?? null,
+            'payment_status' => $paymentStatus, // ⭐ 'awaiting_delivery' ou 'pending'
+            'payment_method' => $paymentMethod,
             'delivery_type' => $data['delivery_type'] ?? 'delivery',
             'delivery_address' => $deliveryAddress,
             'delivery_city' => $data['delivery_city'] ?? null,
