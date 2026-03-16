@@ -146,18 +146,29 @@
                         </svg>
                         Seu Pedido
                     </h2>
-                    <div class="space-y-3">
+                    <div class="space-y-4">
                         <template x-for="item in cart" :key="item.cartId">
-                            <div class="flex gap-3 pb-3 border-b border-gray-100 last:border-0">
-                                <div class="flex-1">
-                                    <p class="font-semibold text-gray-900 text-[15px]" x-text="item.name"></p>
-                                    <p class="text-xs text-gray-500 mt-1" x-show="item.details" x-text="item.details"></p>
-                                    <p class="text-sm text-primary font-semibold mt-1">
-                                        <span x-text="item.quantity"></span>x R$ <span x-text="item.price.toFixed(2).replace('.', ',')"></span>
-                                    </p>
+                            <div class="pb-4 border-b border-gray-100 last:border-0">
+                                <div class="flex gap-3">
+                                    <div class="flex-1">
+                                        <p class="font-semibold text-gray-900 text-[15px]" x-text="item.name"></p>
+                                        <p class="text-xs text-gray-500 mt-1" x-show="item.details" x-text="item.details"></p>
+                                        <p class="text-sm text-primary font-semibold mt-1">
+                                            <span x-text="item.quantity"></span>x R$ <span x-text="item.price.toFixed(2).replace('.', ',')"></span>
+                                        </p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="font-bold text-lg text-gray-900" x-text="'R$ ' + (item.price * item.quantity).toFixed(2).replace('.', ',')"></p>
+                                    </div>
                                 </div>
-                                <div class="text-right">
-                                    <p class="font-bold text-lg text-gray-900" x-text="'R$ ' + (item.price * item.quantity).toFixed(2).replace('.', ',')"></p>
+
+                                <!-- ⭐ Campo de observação por item -->
+                                <div class="mt-3">
+                                    <input
+                                        type="text"
+                                        x-model="item.notes"
+                                        class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition"
+                                        placeholder="Observação para este item (ex: sem cebola, sem molho...)">
                                 </div>
                             </div>
                         </template>
@@ -1242,7 +1253,7 @@
                         quantity: item.quantity,
                         variation_id: item.variationId || null,
                         addons: item.addons || [],
-                        notes: item.details || ''
+                        notes: item.notes || '' // ⭐ Observação por item
                     }));
 
                     // Montar endereço completo

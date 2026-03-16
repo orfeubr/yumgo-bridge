@@ -157,7 +157,7 @@ class OrderController extends Controller
                 'payment_method' => $request->payment_method, // Validado pelo validator
                 'cashback_used' => $useCashback, // ⭐ CORRIGIDO: era 'use_cashback'
                 'coupon_code' => $couponCode, // ⭐ Cupom validado
-                'notes' => htmlspecialchars(substr($request->notes ?? '', 0, 1000), ENT_QUOTES, 'UTF-8'),
+                'customer_notes' => htmlspecialchars(substr($request->notes ?? '', 0, 1000), ENT_QUOTES, 'UTF-8'), // ⭐ Observação geral do pedido
             ]);
 
             $response = [
