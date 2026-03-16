@@ -49,6 +49,11 @@ class NewOrderEvent implements ShouldBroadcastNow
         // Determinar onde imprimir baseado nos produtos
         $printLocations = $this->determinePrintLocations();
 
+        // Pegar nome e domínio do restaurante (tenant)
+        $tenant = tenancy()->tenant;
+        $restaurantName = $tenant?->name ?? 'Restaurante';
+        $restaurantDomain = $tenant?->id ?? 'restaurante';
+
         // Bridge espera dados dentro de 'order'
         return [
             'order' => [
@@ -56,6 +61,12 @@ class NewOrderEvent implements ShouldBroadcastNow
                 'order_number' => $this->order->order_number,
                 'status' => $this->order->status,
                 'payment_status' => $this->order->payment_status,
+
+                // ⭐ Dados do restaurante
+                'restaurant' => [
+                    'name' => $restaurantName,
+                    'domain' => "{$restaurantDomain}.yumgo.com.br",
+                ],
 
                 // Cliente
                 'customer' => [
