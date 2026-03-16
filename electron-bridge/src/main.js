@@ -568,16 +568,40 @@ function connectWebSocket(restaurantId, token) {
                             continue;
                         }
 
-                        // ⭐ Para impressoras "system", verificar se tem nome
-                        if (config.type === 'system' && (!config.printerName || config.printerName === '' || config.printerName === 'none')) {
-                            log.warn(`⚠️ Impressora "${location}" sem nome definido. Pulando impressão.`);
-                            continue;
+                        // ⭐ Para impressoras "system", validações rigorosas
+                        if (config.type === 'system') {
+                            const printerName = config.printerName || '';
+
+                            // 1. Verificar se tem nome
+                            if (!printerName || printerName === '' || printerName === 'none') {
+                                log.warn(`⚠️ Impressora "${location}" sem nome definido. Pulando impressão.`);
+                                continue;
+                            }
+
+                            // 2. ⭐ IGNORAR impressoras virtuais (PDF, OneNote, Fax, etc)
+                            const invalidPrinters = [
+                                'pdf', 'print to pdf', 'microsoft print to pdf',
+                                'onenote', 'one note',
+                                'fax', 'faxworks',
+                                'xps', 'microsoft xps',
+                                'pdfcreator', 'pdf architect', 'pdf creator',
+                                'foxit', 'adobe pdf',
+                                'cutepdf', 'primopdf', 'novapdf'
+                            ];
+
+                            const printerNameLower = printerName.toLowerCase();
+                            const isInvalidPrinter = invalidPrinters.some(invalid => printerNameLower.includes(invalid));
+
+                            if (isInvalidPrinter) {
+                                log.warn(`⚠️ Impressora "${location}" é virtual/PDF (${printerName}). Pulando impressão.`);
+                                continue;
+                            }
                         }
 
                         // ✅ Impressora válida, pode imprimir
                         try {
                             await printerManager.printOrder(order, location);
-                            log.info(`✅ Impresso com sucesso em: ${location}`);
+                            log.info(`✅ Impresso com sucesso em: ${location} (${config.printerName})`);
                         } catch (error) {
                             log.error(`❌ Erro ao imprimir em ${location}:`, error.message);
                         }
@@ -1191,16 +1215,40 @@ app.whenReady().then(() => {
                     return;
                 }
 
-                // ⭐ Para "system", verificar se tem nome
-                if (config.type === 'system' && (!config.printerName || config.printerName === '' || config.printerName === 'none')) {
-                    log.warn(`⚠️ Impressora ${location} sem nome definido. Ignorando.`);
-                    return;
+                // ⭐ Para "system", validações rigorosas
+                if (config.type === 'system') {
+                    const printerName = config.printerName || '';
+
+                    // 1. Verificar se tem nome
+                    if (!printerName || printerName === '' || printerName === 'none') {
+                        log.warn(`⚠️ Impressora ${location} sem nome definido. Ignorando.`);
+                        return;
+                    }
+
+                    // 2. ⭐ IGNORAR impressoras virtuais (PDF, OneNote, Fax, etc)
+                    const invalidPrinters = [
+                        'pdf', 'print to pdf', 'microsoft print to pdf',
+                        'onenote', 'one note',
+                        'fax', 'faxworks',
+                        'xps', 'microsoft xps',
+                        'pdfcreator', 'pdf architect', 'pdf creator',
+                        'foxit', 'adobe pdf',
+                        'cutepdf', 'primopdf', 'novapdf'
+                    ];
+
+                    const printerNameLower = printerName.toLowerCase();
+                    const isInvalidPrinter = invalidPrinters.some(invalid => printerNameLower.includes(invalid));
+
+                    if (isInvalidPrinter) {
+                        log.warn(`⚠️ Impressora ${location} é virtual/PDF (${printerName}). Ignorando.`);
+                        return;
+                    }
                 }
 
                 await printerManager.configurePrinter(location, config);
-                log.info(`Impressora ${location} restaurada`);
+                log.info(`✅ Impressora ${location} restaurada: ${config.printerName || config.type}`);
             } catch (error) {
-                log.error(`Erro ao restaurar impressora ${location}:`, error);
+                log.error(`❌ Erro ao restaurar impressora ${location}:`, error);
             }
         });
     }
