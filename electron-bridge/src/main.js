@@ -356,15 +356,28 @@ function connectWebSocket(restaurantId, token) {
 
         // Capturar erro no nível de transporte
         pusher.connection.bind('error', (error) => {
-            log.error('❌ [CONNECTION ERROR]', JSON.stringify(error, null, 2));
+            log.error('❌ [CONNECTION ERROR] DETALHADO:');
+            log.error('   → Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+
             if (error.error) {
-                log.error('   → Error object:', JSON.stringify(error.error, null, 2));
+                log.error('   → error.error:', JSON.stringify(error.error, Object.getOwnPropertyNames(error.error), 2));
             }
             if (error.type) {
-                log.error('   → Error type:', error.type);
+                log.error('   → error.type:', error.type);
             }
             if (error.data) {
-                log.error('   → Error data:', JSON.stringify(error.data, null, 2));
+                log.error('   → error.data:', JSON.stringify(error.data, null, 2));
+            }
+            if (error.message) {
+                log.error('   → error.message:', error.message);
+            }
+            if (error.code) {
+                log.error('   → error.code:', error.code);
+            }
+
+            // Mostrar erro na UI
+            if (mainWindow) {
+                mainWindow.webContents.send('connection-status', 'error');
             }
         });
 
@@ -386,6 +399,16 @@ function connectWebSocket(restaurantId, token) {
             isConnected = false;
 
             mainWindow.webContents.send('connection-status', 'disconnected');
+            updateTrayStatus(false);
+        });
+
+        pusher.connection.bind('failed', () => {
+            log.error('💥 FALHA PERMANENTE NA CONEXÃO!');
+            log.error('   → Pusher não conseguiu conectar após todas as tentativas');
+            log.error('   → Verifique: firewall, antivírus, proxy, certificado SSL');
+            isConnected = false;
+
+            mainWindow.webContents.send('connection-status', 'error');
             updateTrayStatus(false);
         });
 
