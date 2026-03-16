@@ -639,6 +639,190 @@ class ThermalPrinter {
     }
 
     /**
+     * PowerShell Out-Printer (método original que funcionava) - v3.11.0
+     */
+    async printOutPrinter(orderData, location, copies, printerName) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                // Gerar texto formatado com largura CORRETA
+                const receiptText = this.generateTextReceipt(orderData, location);
+
+                // Salvar em arquivo
+                const tempDir = os.tmpdir();
+                const tempFile = path.join(tempDir, `yumgo-${orderData.order_number}-${Date.now()}.txt`);
+
+                fs.writeFileSync(tempFile, receiptText, 'utf8');
+                log.info(`📄 Arquivo texto criado: ${tempFile}`);
+
+                let printsCompleted = 0;
+
+                for (let i = 0; i < copies; i++) {
+                    // PowerShell Out-Printer (ORIGINAL que funcionava)
+                    const psCmd = `powershell.exe -Command "Out-Printer -Name '${printerName}' -InputObject (Get-Content -Path '${tempFile}' -Encoding UTF8 -Raw)"`;
+
+                    exec(psCmd, (error, stdout, stderr) => {
+                        if (error) {
+                            log.error(`Erro Out-Printer: ${error.message}`);
+                            reject(error);
+                            return;
+                        }
+
+                        printsCompleted++;
+                        log.info(`✅ Cópia ${printsCompleted}/${copies} via Out-Printer`);
+
+                        if (printsCompleted === copies) {
+                            setTimeout(() => {
+                                try {
+                                    fs.unlinkSync(tempFile);
+                                    log.info(`🗑️ Arquivo removido`);
+                                } catch (e) {}
+                            }, 2000);
+
+                            log.info(`✅ ${copies} cópia(s) via PowerShell Out-Printer!`);
+                            resolve();
+                        }
+                    });
+                }
+
+            } catch (error) {
+                log.error(`Erro Out-Printer: ${error.message}`);
+                reject(error);
+            }
+        });
+    }
+
+    /**
+     * Gerar recibo em texto puro com largura CORRETA
+     */
+    generateTextReceipt(order, location) {
+        const config = this.printers[location]?.config || {};
+        const paperWidth = config.paperWidth || 58;
+
+        // ⭐ CORRIGIDO: 32 colunas para 58mm (não 48!)
+        const charsPerLine = paperWidth <= 58 ? 32 : 48;
+
+        // Remover acentos
+        const clean = (text) => {
+            if (!text) return '';
+            return text
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^\x00-\x7F]/g, '');
+        };
+
+        const center = (text) => {
+            const t = clean(text);
+            const padding = Math.max(0, Math.floor((charsPerLine - t.length) / 2));
+            return ' '.repeat(padding) + t;
+        };
+
+        const sep = () => '='.repeat(charsPerLine);
+
+        let receipt = [];
+
+        // CABEÇALHO
+        receipt.push(center('YUMGO - PEDIDO'));
+        receipt.push(sep());
+        receipt.push('');
+        receipt.push(clean(`Pedido: #${order.order_number}`));
+        receipt.push('');
+
+        // CLIENTE
+        receipt.push(sep());
+        receipt.push(clean(`Cliente: ${order.customer?.name || 'N/A'}`));
+        if (order.customer?.phone) {
+            receipt.push(clean(`Tel: ${order.customer.phone}`));
+        }
+        receipt.push('');
+
+        // ENTREGA
+        const deliveryType = order.delivery?.type === 'delivery' ? 'ENTREGA' : 'RETIRADA';
+        receipt.push(clean(`Tipo: ${deliveryType}`));
+
+        if (order.delivery?.type === 'delivery' && order.delivery?.address) {
+            receipt.push(clean(`End: ${order.delivery.address}`));
+            if (order.delivery.neighborhood) {
+                receipt.push(clean(`Bairro: ${order.delivery.neighborhood}`));
+            }
+        }
+        receipt.push('');
+
+        // ITENS
+        receipt.push(sep());
+        receipt.push('ITENS:');
+        receipt.push('');
+
+        order.items?.forEach((item) => {
+            receipt.push(clean(`${item.quantity}x ${item.name}`));
+
+            if (item.variations && typeof item.variations === 'object') {
+                Object.entries(item.variations).forEach(([key, value]) => {
+                    receipt.push(clean(`  - ${key}: ${value}`));
+                });
+            }
+
+            if (item.addons && Array.isArray(item.addons)) {
+                item.addons.forEach((addon) => {
+                    receipt.push(clean(`  + ${addon.name || addon}`));
+                });
+            }
+
+            if (item.notes) {
+                receipt.push(clean(`  Obs: ${item.notes}`));
+            }
+
+            receipt.push('');
+        });
+
+        // OBSERVAÇÕES
+        if (order.notes) {
+            receipt.push(sep());
+            receipt.push('OBSERVACOES GERAIS:');
+            receipt.push(clean(order.notes));
+            receipt.push('');
+        }
+
+        // TOTAIS
+        receipt.push(sep());
+        receipt.push(clean(`Subtotal: R$ ${order.totals?.subtotal?.toFixed(2) || '0.00'}`));
+        if (order.totals?.delivery_fee > 0) {
+            receipt.push(clean(`Taxa Entrega: R$ ${order.totals.delivery_fee.toFixed(2)}`));
+        }
+        if (order.totals?.discount > 0) {
+            receipt.push(clean(`Desconto: -R$ ${order.totals.discount.toFixed(2)}`));
+        }
+        receipt.push(clean(`TOTAL: R$ ${order.totals?.total?.toFixed(2) || '0.00'}`));
+        receipt.push('');
+
+        // PAGAMENTO
+        receipt.push(sep());
+        const paymentMethod = {
+            credit_card: 'CARTAO CREDITO',
+            debit_card: 'CARTAO DEBITO',
+            pix: 'PIX',
+            money: 'DINHEIRO'
+        }[order.payment?.method] || order.payment?.method?.toUpperCase() || 'N/A';
+        receipt.push(clean(`Pagamento: ${paymentMethod}`));
+        receipt.push('');
+
+        // DATA/HORA
+        receipt.push(sep());
+        const createdAt = new Date(order.created_at);
+        receipt.push(clean(`Data: ${createdAt.toLocaleDateString('pt-BR')}`));
+        receipt.push(clean(`Hora: ${createdAt.toLocaleTimeString('pt-BR')}`));
+        receipt.push('');
+
+        // RODAPÉ
+        receipt.push(sep());
+        receipt.push(center('Obrigado pela preferencia!'));
+        receipt.push('');
+        receipt.push('');
+        receipt.push('');
+
+        return receipt.join('\n');
+    }
+
+    /**
      * Buscar porta da impressora no Windows (USB001, COM1, etc)
      */
     async getPrinterPort(printerName) {
@@ -730,13 +914,13 @@ class ThermalPrinter {
                 log.warn(`⚠️ [Método 1] ESC/POS USB falhou: ${error.message}`);
             }
 
-            // MÉTODO 2: RAW printing via Winspool API (Windows) - PROFISSIONAL ⭐
+            // MÉTODO 2: PowerShell Out-Printer (FUNCIONAVA antes) ⭐
             if (process.platform === 'win32') {
-                log.info(`🔧 [Método 2] Tentando RAW Winspool API (OpenPrinter/WritePrinter)...`);
+                log.info(`🔧 [Método 2] Tentando PowerShell Out-Printer (método original)...`);
                 try {
-                    return await this.printRawWinspool(orderData, location, copies, printerName);
-                } catch (rawError) {
-                    log.warn(`⚠️ [Método 2] RAW Winspool falhou: ${rawError.message}`);
+                    return await this.printOutPrinter(orderData, location, copies, printerName);
+                } catch (outError) {
+                    log.warn(`⚠️ [Método 2] Out-Printer falhou: ${outError.message}`);
                 }
             }
 
