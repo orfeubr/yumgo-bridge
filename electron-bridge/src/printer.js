@@ -127,7 +127,8 @@ class ThermalPrinter {
 
                 if (process.platform === 'win32') {
                     // Windows: usar PowerShell Out-Printer (mais confiável que PRINT)
-                    printCommand = `powershell.exe -Command "Out-Printer -Name '${printerName}' -InputObject (Get-Content -Path '${tempFile}' -Raw)"`;
+                    // ⭐ Força encoding UTF8 para evitar problemas com acentos
+                    printCommand = `powershell.exe -Command "Out-Printer -Name '${printerName}' -InputObject (Get-Content -Path '${tempFile}' -Encoding UTF8 -Raw)"`;
                 } else if (process.platform === 'darwin') {
                     // macOS: usar lp
                     printCommand = `lp -d "${printerName}" "${tempFile}"`;
@@ -183,11 +184,20 @@ class ThermalPrinter {
         const config = this.printers[location]?.config || {};
         const paperWidth = config.paperWidth || 80;
 
+        // ⭐ Helper para remover acentos (evita problemas com PowerShell/Windows)
+        const removeAccents = (text) => {
+            if (!text) return '';
+            return text
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '') // Remove diacríticos
+                .replace(/[^\x00-\x7F]/g, ''); // Remove não-ASCII
+        };
+
         // Cálculo dinâmico de caracteres por linha
-        // 58mm ~= 48 chars | 80mm ~= 48 chars | Outros tamanhos proporcionais
+        // 58mm = 32 chars | 80mm = 48 chars | Outros proporcionais
         let charsPerLine;
         if (paperWidth <= 58) {
-            charsPerLine = 48; // 58mm - largura máxima (fonte pequena)
+            charsPerLine = 32; // ⭐ 58mm - ajustado para não quebrar (era 48)
         } else if (paperWidth <= 80) {
             charsPerLine = 48; // 80mm padrão
         } else {
@@ -200,7 +210,7 @@ class ThermalPrinter {
         // ═══ CABEÇALHO PROFISSIONAL ═══
         text += this.line(charsPerLine, '=') + '\n';
 
-        const title = this.getLocationTitle(location).replace(/=/g, '').trim();
+        const title = removeAccents(this.getLocationTitle(location).replace(/=/g, '').trim());
         text += this.centerText(`** NOVO PEDIDO - ${title} **`, charsPerLine) + '\n';
 
         text += this.line(charsPerLine, '=') + '\n';
@@ -215,7 +225,7 @@ class ThermalPrinter {
         text += '\n';
 
         // Cliente + Telefone
-        text += `Cliente: ${order.customer.name}\n`;
+        text += `Cliente: ${removeAccents(order.customer.name)}\n`;
         if (order.customer.phone) {
             text += `Tel: ${order.customer.phone}\n`;
         }
@@ -225,15 +235,15 @@ class ThermalPrinter {
         text += '\n';
         text += `${deliveryType}`;
         if (order.delivery.neighborhood) {
-            text += ` - Bairro: ${order.delivery.neighborhood}`;
+            text += ` - Bairro: ${removeAccents(order.delivery.neighborhood)}`;
         }
         text += '\n';
 
         // Endereço (se delivery)
         if (order.delivery.method === 'delivery' && order.delivery.address) {
-            text += `End: ${order.delivery.address}\n`;
+            text += `End: ${removeAccents(order.delivery.address)}\n`;
             if (order.delivery.reference) {
-                text += `Ref: ${order.delivery.reference}\n`;
+                text += `Ref: ${removeAccents(order.delivery.reference)}\n`;
             }
         }
 
@@ -254,7 +264,7 @@ class ThermalPrinter {
             }
 
             // Nome do produto com quantidade
-            const itemName = `${item.quantity}x ${item.name.toUpperCase()}`;
+            const itemName = removeAccents(`${item.quantity}x ${item.name.toUpperCase()}`);
 
             // Preço do item (se houver)
             if (location === 'counter' && item.price) {
@@ -267,7 +277,7 @@ class ThermalPrinter {
             // Variações
             if (item.variations && Object.keys(item.variations).length > 0) {
                 Object.entries(item.variations).forEach(([key, value]) => {
-                    text += `   - ${key}: ${value}\n`;
+                    text += `   - ${removeAccents(key)}: ${removeAccents(value)}\n`;
                 });
             }
 
@@ -275,13 +285,13 @@ class ThermalPrinter {
             if (item.addons && item.addons.length > 0) {
                 item.addons.forEach(addon => {
                     const addonName = typeof addon === 'object' ? addon.name : addon;
-                    text += `   + ${addonName}\n`;
+                    text += `   + ${removeAccents(addonName)}\n`;
                 });
             }
 
             // Observações (destacado)
             if (item.notes) {
-                text += `   >> OBS: ${item.notes}\n`;
+                text += `   >> OBS: ${removeAccents(item.notes)}\n`;
             }
 
             text += '\n';
