@@ -124,12 +124,17 @@ class NewOrderEvent implements ShouldBroadcastNow
     {
         $locations = collect();
 
+        // ⭐ Adicionar locations específicas dos produtos (se definidas)
         foreach ($this->order->items as $item) {
-            $printLocation = $item->product->print_location ?? 'kitchen';
-            $locations->push($printLocation);
+            $printLocation = $item->product->print_location ?? null;
+
+            // Apenas adiciona se explicitamente configurado (não usa padrão)
+            if ($printLocation && $printLocation !== 'counter') {
+                $locations->push($printLocation);
+            }
         }
 
-        // Sempre imprimir no balcão (recibo completo)
+        // ⭐ Sempre imprimir no balcão por último (recibo completo)
         $locations->push('counter');
 
         return $locations->unique()->values()->toArray();
