@@ -19,12 +19,12 @@
     --text-secondary: #6b7280;
     --border: #e5e7eb;
 
-    /* Spacing */
+    /* Spacing (Compacto) */
     --spacing-xs: 4px;
-    --spacing-sm: 8px;
-    --spacing-md: 16px;
-    --spacing-lg: 24px;
-    --spacing-xl: 32px;
+    --spacing-sm: 6px;
+    --spacing-md: 12px;
+    --spacing-lg: 16px;
+    --spacing-xl: 20px;
 
     /* Border Radius */
     --radius-sm: 4px;
@@ -188,14 +188,14 @@ body {
 }
 
 h1 {
-    font-size: 28px;
+    font-size: 22px;
     font-weight: 700;
-    margin-bottom: var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
     color: var(--text-primary);
 }
 
 h2 {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 600;
     margin-bottom: var(--spacing-md);
     color: var(--text-primary);

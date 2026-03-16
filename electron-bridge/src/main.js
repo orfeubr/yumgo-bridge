@@ -169,10 +169,10 @@ function checkForUpdates() {
 
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 500,
-        height: 700,
-        minWidth: 400,
-        minHeight: 600,
+        width: 900,
+        height: 650,
+        minWidth: 800,
+        minHeight: 550,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
@@ -181,7 +181,8 @@ function createWindow() {
         icon: path.join(__dirname, '../assets/icon.png'),
         title: `YumGo Bridge v${app.getVersion()} - Impressão Local`,
         show: false,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        resizable: true // Permite redimensionar
     });
 
     mainWindow.loadFile(path.join(__dirname, 'index.html'));
