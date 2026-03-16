@@ -504,9 +504,10 @@ class ThermalPrinter {
     }
 
     /**
-     * Imprimir usando comandos ESC/POS binários via PowerShell - v3.8.0
+     * RAW printing via Winspool (API nativa Windows) - PROFISSIONAL v3.9.0
+     * Usa OpenPrinter + WritePrinter via .NET Framework (PowerShell)
      */
-    async printESCPOSBuffer(orderData, location, copies, printerName, port) {
+    async printRawWinspool(orderData, location, copies, printerName) {
         return new Promise(async (resolve, reject) => {
             try {
                 // Gerar buffer ESC/POS
@@ -517,23 +518,101 @@ class ThermalPrinter {
                 const tempFile = path.join(tempDir, `yumgo-${orderData.order_number}-${Date.now()}.bin`);
 
                 fs.writeFileSync(tempFile, buffer);
-                log.info(`🔥 ESC/POS criado: ${tempFile} (${buffer.length} bytes)`);
+                log.info(`🔥 ESC/POS RAW criado: ${tempFile} (${buffer.length} bytes)`);
 
                 let printsCompleted = 0;
 
                 for (let i = 0; i < copies; i++) {
-                    // PowerShell: Copiar bytes direto para porta (LPT1, COM1, USB001, etc)
-                    const psCmd = `powershell -Command "Get-Content '${tempFile}' -Encoding Byte -ReadCount 0 | Set-Content '\\\\\\\\.\\\\${port}' -Encoding Byte"`;
+                    // PowerShell: RAW printing via .NET Framework (Winspool API)
+                    const psScript = `
+                    Add-Type -TypeDefinition @"
+                    using System;
+                    using System.IO;
+                    using System.Runtime.InteropServices;
 
-                    exec(psCmd, (error, stdout, stderr) => {
+                    public class RawPrinter {
+                        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+                        public class DOCINFOA {
+                            [MarshalAs(UnmanagedType.LPStr)] public string pDocName;
+                            [MarshalAs(UnmanagedType.LPStr)] public string pOutputFile;
+                            [MarshalAs(UnmanagedType.LPStr)] public string pDataType;
+                        }
+
+                        [DllImport("winspool.Drv", EntryPoint = "OpenPrinterA", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+                        public static extern bool OpenPrinter([MarshalAs(UnmanagedType.LPStr)] string szPrinter, out IntPtr hPrinter, IntPtr pd);
+
+                        [DllImport("winspool.Drv", EntryPoint = "ClosePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+                        public static extern bool ClosePrinter(IntPtr hPrinter);
+
+                        [DllImport("winspool.Drv", EntryPoint = "StartDocPrinterA", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+                        public static extern bool StartDocPrinter(IntPtr hPrinter, int level, [In, MarshalAs(UnmanagedType.LPStruct)] DOCINFOA di);
+
+                        [DllImport("winspool.Drv", EntryPoint = "EndDocPrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+                        public static extern bool EndDocPrinter(IntPtr hPrinter);
+
+                        [DllImport("winspool.Drv", EntryPoint = "StartPagePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+                        public static extern bool StartPagePrinter(IntPtr hPrinter);
+
+                        [DllImport("winspool.Drv", EntryPoint = "EndPagePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+                        public static extern bool EndPagePrinter(IntPtr hPrinter);
+
+                        [DllImport("winspool.Drv", EntryPoint = "WritePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+                        public static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBytes, int dwCount, out int dwWritten);
+
+                        public static bool SendBytesToPrinter(string szPrinterName, byte[] pBytes) {
+                            IntPtr pUnmanagedBytes = IntPtr.Zero;
+                            int nLength = pBytes.Length;
+                            DOCINFOA di = new DOCINFOA();
+                            di.pDocName = "YumGo Receipt";
+                            di.pDataType = "RAW";
+
+                            IntPtr hPrinter = IntPtr.Zero;
+                            if (!OpenPrinter(szPrinterName, out hPrinter, IntPtr.Zero)) {
+                                return false;
+                            }
+
+                            if (!StartDocPrinter(hPrinter, 1, di)) {
+                                ClosePrinter(hPrinter);
+                                return false;
+                            }
+
+                            if (!StartPagePrinter(hPrinter)) {
+                                EndDocPrinter(hPrinter);
+                                ClosePrinter(hPrinter);
+                                return false;
+                            }
+
+                            pUnmanagedBytes = Marshal.AllocCoTaskMem(nLength);
+                            Marshal.Copy(pBytes, 0, pUnmanagedBytes, nLength);
+
+                            int dwWritten = 0;
+                            bool bSuccess = WritePrinter(hPrinter, pUnmanagedBytes, nLength, out dwWritten);
+
+                            Marshal.FreeCoTaskMem(pUnmanagedBytes);
+
+                            EndPagePrinter(hPrinter);
+                            EndDocPrinter(hPrinter);
+                            ClosePrinter(hPrinter);
+
+                            return bSuccess && (dwWritten == nLength);
+                        }
+                    }
+"@
+                    $bytes = [System.IO.File]::ReadAllBytes('${tempFile}');
+                    $result = [RawPrinter]::SendBytesToPrinter('${printerName}', $bytes);
+                    if ($result) { exit 0 } else { exit 1 }
+                    `;
+
+                    exec(`powershell -Command "${psScript}"`, (error, stdout, stderr) => {
                         if (error) {
-                            log.error(`Erro ao enviar para porta ${port}: ${error.message}`);
+                            log.error(`Erro RAW Winspool: ${error.message}`);
+                            if (stderr) log.error(`stderr: ${stderr}`);
                             reject(error);
                             return;
                         }
 
                         printsCompleted++;
-                        log.info(`✅ Cópia ${printsCompleted}/${copies} → porta ${port}`);
+                        log.info(`✅ Cópia ${printsCompleted}/${copies} via RAW Winspool`);
 
                         if (printsCompleted === copies) {
                             setTimeout(() => {
@@ -543,14 +622,14 @@ class ThermalPrinter {
                                 } catch (e) {}
                             }, 2000);
 
-                            log.info(`✅ ${copies} cópia(s) via ESC/POS binário!`);
+                            log.info(`✅ ${copies} cópia(s) impressa(s) via RAW Winspool API!`);
                             resolve();
                         }
                     });
                 }
 
             } catch (error) {
-                log.error(`Erro ESC/POS binário: ${error.message}`);
+                log.error(`Erro RAW Winspool: ${error.message}`);
                 reject(error);
             }
         });
@@ -648,19 +727,13 @@ class ThermalPrinter {
                 log.warn(`⚠️ [Método 1] ESC/POS USB falhou: ${error.message}`);
             }
 
-            // MÉTODO 2: ESC/POS binário via PowerShell (Windows)
+            // MÉTODO 2: RAW printing via Winspool API (Windows) - PROFISSIONAL ⭐
             if (process.platform === 'win32') {
-                log.info(`🔧 [Método 2] Tentando ESC/POS binário via PowerShell...`);
+                log.info(`🔧 [Método 2] Tentando RAW Winspool API (OpenPrinter/WritePrinter)...`);
                 try {
-                    const port = await this.getPrinterPort(printerName);
-                    if (port && (port.startsWith('USB') || port.startsWith('COM') || port.startsWith('LPT'))) {
-                        log.info(`🎯 Porta ${port} detectada. Usando ESC/POS binário...`);
-                        return await this.printESCPOSBuffer(orderData, location, copies, printerName, port);
-                    } else {
-                        log.warn(`⚠️ Porta "${port}" não suportada para ESC/POS binário.`);
-                    }
-                } catch (bufferError) {
-                    log.warn(`⚠️ [Método 2] ESC/POS binário falhou: ${bufferError.message}`);
+                    return await this.printRawWinspool(orderData, location, copies, printerName);
+                } catch (rawError) {
+                    log.warn(`⚠️ [Método 2] RAW Winspool falhou: ${rawError.message}`);
                 }
             }
 
