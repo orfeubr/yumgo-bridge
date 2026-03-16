@@ -54,6 +54,7 @@ jobs:
           name: YumGo-Bridge-v${{ steps.version.outputs.VERSION }}-Windows
           path: |
             electron-bridge/dist/*.exe
+            electron-bridge/dist/*.yml
           retention-days: 90
 
       - name: Create Release (se for push para master)
@@ -93,6 +94,7 @@ jobs:
             **Data:** ${{ github.event.head_commit.timestamp }}
           files: |
             electron-bridge/dist/*.exe
+            electron-bridge/dist/*.yml
           draft: false
           prerelease: false
         env:
