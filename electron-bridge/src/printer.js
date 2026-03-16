@@ -1089,19 +1089,26 @@ class ThermalPrinter {
                     }
                 }
 
-                log.info(`✅ Imprimindo item: ${item.name}`);
+                log.info(`✅ Imprimindo item: ${item.name} (location: ${location})`);
 
                 // NOME + QTD + PREÇO (se balcão)
-                if (location === 'counter' && item.unit_price) {
-                    const itemTotal = (item.quantity * item.unit_price).toFixed(2);
+                const unitPrice = item.unit_price || item.price || 0;
+
+                log.info(`💰 Unit price: ${unitPrice}, Location: ${location}`);
+
+                if (location === 'counter' && unitPrice > 0) {
+                    const itemTotal = (item.quantity * unitPrice).toFixed(2);
                     const itemLine = `${item.quantity}x ${clean(item.name)}`;
                     const price = `R$ ${itemTotal}`;
 
                     // Alinha preço à direita
                     const spaces = Math.max(1, charsPerLine - itemLine.length - price.length);
                     text += itemLine + ' '.repeat(spaces) + price + '\n';
+
+                    log.info(`✅ Preço adicionado: ${price}`);
                 } else {
                     text += `${item.quantity}x ${clean(item.name)}\n`;
+                    log.info(`⚠️ Sem preço (location=${location}, unitPrice=${unitPrice})`);
                 }
 
                 // VARIAÇÕES
