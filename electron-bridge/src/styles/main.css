@@ -470,6 +470,9 @@ small {
     padding: var(--spacing-md);
     border-radius: var(--radius-md);
     font-size: 14px;
+    white-space: pre-line; /* Preserva quebras de linha */
+    font-family: 'Courier New', monospace;
+    line-height: 1.6;
 }
 
 .test-result.success {

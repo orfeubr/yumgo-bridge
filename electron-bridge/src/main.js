@@ -1215,18 +1215,26 @@ ipcMain.handle('disconnect', async () => {
 ipcMain.handle('test-websocket', async () => {
     try {
         if (!isConnected) {
-            throw new Error('Bridge não está conectado');
+            throw new Error('Bridge não está conectado. Vá em "Conexão" e clique em "Conectar"');
         }
 
         if (!echo || !echo.pusher) {
-            throw new Error('WebSocket não inicializado');
+            throw new Error('WebSocket não inicializado. Tente reconectar');
         }
+
+        const socketId = echo.pusher.connection.socket_id || 'N/A';
+        const channelName = `restaurant.${currentRestaurantId}`;
 
         return {
             success: true,
+            message: `Conectado com sucesso!\n\n` +
+                     `🏪 Restaurante: ${currentRestaurantId}\n` +
+                     `🔌 Socket ID: ${socketId}\n` +
+                     `📡 Canal: ${channelName}\n` +
+                     `✅ Status: Aguardando pedidos`,
             connected: isConnected,
             restaurantId: currentRestaurantId,
-            socketId: echo.pusher.connection.socket_id || null
+            socketId: socketId
         };
 
     } catch (error) {
