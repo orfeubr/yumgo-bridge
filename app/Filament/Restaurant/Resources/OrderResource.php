@@ -331,6 +331,8 @@ class OrderResource extends Resource
                                                 $set('product_name', $product->name);
                                                 $set('unit_price', $product->price);
                                                 $set('quantity', 1);
+                                                // Calcula subtotal inicial
+                                                $set('subtotal', round($product->price * 1, 2));
                                             }
                                         }
                                     })
@@ -347,6 +349,12 @@ class OrderResource extends Resource
                                     ->minValue(1)
                                     ->required()
                                     ->live()
+                                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                        // Calcula subtotal automaticamente
+                                        $quantity = $state ?? 0;
+                                        $unitPrice = $get('unit_price') ?? 0;
+                                        $set('subtotal', round($quantity * $unitPrice, 2));
+                                    })
                                     ->columnSpan(1),
 
                                 Forms\Components\TextInput::make('unit_price')
@@ -355,8 +363,19 @@ class OrderResource extends Resource
                                     ->prefix('R$')
                                     ->required()
                                     ->live()
+                                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                        // Calcula subtotal automaticamente
+                                        $quantity = $get('quantity') ?? 0;
+                                        $unitPrice = $state ?? 0;
+                                        $set('subtotal', round($quantity * $unitPrice, 2));
+                                    })
                                     ->columnSpan(2),
-                                
+
+                                // Campo oculto que armazena o subtotal calculado
+                                Forms\Components\Hidden::make('subtotal')
+                                    ->default(0)
+                                    ->dehydrated(),
+
                                 Forms\Components\Placeholder::make('item_total')
                                     ->label('Total')
                                     ->content(fn (Forms\Get $get) => 'R$ ' . number_format(($get('quantity') ?? 0) * ($get('unit_price') ?? 0), 2, ',', '.'))
