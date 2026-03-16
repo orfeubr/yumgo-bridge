@@ -504,9 +504,9 @@ class ThermalPrinter {
     }
 
     /**
-     * Imprimir usando comandos ESC/POS binários via PowerShell
+     * Imprimir usando comandos ESC/POS binários via PowerShell - v3.8.0
      */
-    async printESCPOSBuffer(orderData, location, copies, printerName) {
+    async printESCPOSBuffer(orderData, location, copies, printerName, port) {
         return new Promise(async (resolve, reject) => {
             try {
                 // Gerar buffer ESC/POS
@@ -517,40 +517,40 @@ class ThermalPrinter {
                 const tempFile = path.join(tempDir, `yumgo-${orderData.order_number}-${Date.now()}.bin`);
 
                 fs.writeFileSync(tempFile, buffer);
-                log.info(`🔥 Arquivo ESC/POS binário criado: ${tempFile} (${buffer.length} bytes)`);
+                log.info(`🔥 ESC/POS criado: ${tempFile} (${buffer.length} bytes)`);
 
                 let printsCompleted = 0;
 
                 for (let i = 0; i < copies; i++) {
-                    // PowerShell: Ler arquivo binário e enviar para impressora
-                    const psCmd = `powershell -Command "$bytes = [System.IO.File]::ReadAllBytes('${tempFile}'); $stream = [System.IO.File]::Open('\\\\\\\\.\\\\${printerName}', 'Append'); $stream.Write($bytes, 0, $bytes.Length); $stream.Close()"`;
+                    // PowerShell: Copiar bytes direto para porta (LPT1, COM1, USB001, etc)
+                    const psCmd = `powershell -Command "Get-Content '${tempFile}' -Encoding Byte -ReadCount 0 | Set-Content '\\\\\\\\.\\\\${port}' -Encoding Byte"`;
 
                     exec(psCmd, (error, stdout, stderr) => {
                         if (error) {
-                            log.error(`Erro ao enviar ESC/POS binário: ${error.message}`);
+                            log.error(`Erro ao enviar para porta ${port}: ${error.message}`);
                             reject(error);
                             return;
                         }
 
                         printsCompleted++;
-                        log.info(`✅ Cópia ${printsCompleted}/${copies} enviada via ESC/POS binário`);
+                        log.info(`✅ Cópia ${printsCompleted}/${copies} → porta ${port}`);
 
                         if (printsCompleted === copies) {
                             setTimeout(() => {
                                 try {
                                     fs.unlinkSync(tempFile);
-                                    log.info(`🗑️ Arquivo binário removido`);
+                                    log.info(`🗑️ Arquivo removido`);
                                 } catch (e) {}
                             }, 2000);
 
-                            log.info(`✅ ${copies} cópia(s) impressa(s) via ESC/POS binário!`);
+                            log.info(`✅ ${copies} cópia(s) via ESC/POS binário!`);
                             resolve();
                         }
                     });
                 }
 
             } catch (error) {
-                log.error(`Erro ao imprimir ESC/POS binário: ${error.message}`);
+                log.error(`Erro ESC/POS binário: ${error.message}`);
                 reject(error);
             }
         });
@@ -652,7 +652,13 @@ class ThermalPrinter {
             if (process.platform === 'win32') {
                 log.info(`🔧 [Método 2] Tentando ESC/POS binário via PowerShell...`);
                 try {
-                    return await this.printESCPOSBuffer(orderData, location, copies, printerName);
+                    const port = await this.getPrinterPort(printerName);
+                    if (port && (port.startsWith('USB') || port.startsWith('COM') || port.startsWith('LPT'))) {
+                        log.info(`🎯 Porta ${port} detectada. Usando ESC/POS binário...`);
+                        return await this.printESCPOSBuffer(orderData, location, copies, printerName, port);
+                    } else {
+                        log.warn(`⚠️ Porta "${port}" não suportada para ESC/POS binário.`);
+                    }
                 } catch (bufferError) {
                     log.warn(`⚠️ [Método 2] ESC/POS binário falhou: ${bufferError.message}`);
                 }
