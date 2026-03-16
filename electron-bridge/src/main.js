@@ -1110,6 +1110,60 @@ ipcMain.handle('remove-printer', async (event, location) => {
     }
 });
 
+// ⭐ cleanup-invalid-printers: Limpar configurações inválidas/null
+ipcMain.handle('cleanup-invalid-printers', async () => {
+    try {
+        const printers = store.get('printers', {});
+        const cleaned = {};
+        let removedCount = 0;
+
+        // Filtrar apenas configurações válidas
+        Object.entries(printers).forEach(([location, config]) => {
+            if (config && config.type && config.type !== 'none') {
+                cleaned[location] = config;
+            } else {
+                removedCount++;
+                log.info(`🗑️ Removendo configuração inválida: ${location}`);
+            }
+        });
+
+        store.set('printers', cleaned);
+
+        log.info(`✅ Limpeza concluída. ${removedCount} configurações inválidas removidas`);
+        return {
+            success: true,
+            message: `${removedCount} configurações inválidas removidas`,
+            cleaned: cleaned
+        };
+    } catch (error) {
+        log.error('Erro ao limpar configurações:', error);
+        throw error;
+    }
+});
+
+// ⭐ get-printers-status: Retorna status detalhado de cada impressora
+ipcMain.handle('get-printers-status', async () => {
+    try {
+        const printers = store.get('printers', {});
+        const status = {};
+
+        ['counter', 'kitchen', 'bar'].forEach(location => {
+            const config = printers[location];
+            status[location] = {
+                configured: !!(config && config.type && config.type !== 'none'),
+                type: config?.type || null,
+                printerName: config?.printerName || config?.ip || null,
+                isActive: config?.isActive !== false
+            };
+        });
+
+        return { success: true, status };
+    } catch (error) {
+        log.error('Erro ao obter status:', error);
+        throw error;
+    }
+});
+
 // connect como handle (para uso com invoke)
 ipcMain.handle('connect', async (event, { restaurantId, token }) => {
     try {
