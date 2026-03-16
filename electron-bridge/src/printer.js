@@ -1034,92 +1034,92 @@ class ThermalPrinter {
             return ' '.repeat(pad) + text;
         };
 
-        const line = (char = '=') => char.repeat(charsPerLine);
+        const line = (char = '-') => char.repeat(charsPerLine);
+
+        const alignPrice = (itemText, price) => {
+            const spaces = Math.max(1, charsPerLine - itemText.length - price.length);
+            return itemText + ' '.repeat(spaces) + price;
+        };
 
         let text = '';
 
-        // CABEÇALHO LIMPO
-        text += line('=') + '\n';
-        const locationName = location === 'counter' ? 'BALCAO' : location === 'kitchen' ? 'COZINHA' : 'BAR';
-        text += center(`** ${locationName} **`) + '\n';
-        text += line('=') + '\n\n';
+        // ===== CABEÇALHO ESTILO IFOOD =====
+        text += line('-') + '\n';
+        text += center('** NOVO PEDIDO **') + '\n';
+        text += line('-') + '\n\n';
 
-        // PEDIDO + DATA
+        // NÚMERO DO PEDIDO (grande)
+        text += center(`PEDIDO #${order.order_number}`) + '\n';
+
+        // Data e hora
         const date = new Date(order.created_at || Date.now());
         const time = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        const dateStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        const dateStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        text += center(`${dateStr} ${time}`) + '\n';
+        text += line('-') + '\n\n';
 
-        text += `PEDIDO #${order.order_number}\n`;
-        text += `${time} - ${dateStr}\n\n`;
-
-        // CLIENTE
-        text += `Cliente: ${clean(order.customer?.name || 'N/A')}\n`;
+        // ===== CLIENTE =====
+        text += 'CLIENTE\n';
+        text += `${clean(order.customer?.name || 'N/A')}\n`;
         if (order.customer?.phone) {
             text += `Tel: ${order.customer.phone}\n`;
         }
-
-        // ENTREGA
-        const deliveryType = order.delivery?.type === 'delivery' ? 'ENTREGA' : 'RETIRADA';
-        text += `\n${deliveryType}`;
-        if (order.delivery?.neighborhood) {
-            text += ` - ${clean(order.delivery.neighborhood)}`;
-        }
         text += '\n';
 
-        if (order.delivery?.type === 'delivery' && order.delivery?.address) {
-            text += `End: ${clean(order.delivery.address)}\n`;
+        // ===== ENTREGA =====
+        const deliveryType = order.delivery?.type === 'delivery' ? 'ENTREGA' : 'RETIRADA';
+        text += `${deliveryType}\n`;
+
+        if (order.delivery?.type === 'delivery') {
+            if (order.delivery?.address) {
+                text += `${clean(order.delivery.address)}\n`;
+            }
+            if (order.delivery?.neighborhood) {
+                text += `Bairro: ${clean(order.delivery.neighborhood)}\n`;
+            }
+            if (order.delivery?.city) {
+                text += `Cidade: ${clean(order.delivery.city)}\n`;
+            }
         }
 
-        // ITENS
+        // ===== ITENS DO PEDIDO =====
         text += '\n' + line('-') + '\n';
-        text += center('ITENS') + '\n';
-        text += line('-') + '\n\n';
+        text += 'ITENS DO PEDIDO\n';
+        text += line('-') + '\n';
 
-        // ⭐ LOG para debug
-        log.info(`📦 Total de items no pedido: ${order.items?.length || 0}`);
+        log.info(`📦 Total de items: ${order.items?.length || 0}`);
 
         if (order.items && order.items.length > 0) {
             order.items.forEach(item => {
-                // Filtrar por localização (apenas para cozinha/bar, não para balcão)
-                if (location !== 'counter') {
+                // Filtrar por localização (cozinha/bar)
+                const isCounter = ['counter', 'balcao', 'balcão'].includes(location);
+                if (!isCounter) {
                     const itemLocation = item.print_location || 'kitchen';
                     if (itemLocation !== location && itemLocation !== 'both') {
-                        log.info(`⏭️ Item pulado: ${item.name} (location: ${itemLocation})`);
                         return;
                     }
                 }
 
-                log.info(`✅ Imprimindo item: ${item.name} (location: ${location})`);
-
-                // NOME + QTD + PREÇO (se balcão)
                 const unitPrice = item.unit_price || item.price || 0;
-                const isCounter = ['counter', 'balcao', 'balcão'].includes(location);
+                const itemTotal = (item.quantity * unitPrice).toFixed(2);
 
-                log.info(`💰 Unit price: ${unitPrice}, Location: ${location}, isCounter: ${isCounter}`);
+                // ITEM: Qtd + Nome + Preço (estilo iFood)
+                const itemLine = `${item.quantity} ${clean(item.name)}`;
 
                 if (isCounter && unitPrice > 0) {
-                    const itemTotal = (item.quantity * unitPrice).toFixed(2);
-                    const itemLine = `${item.quantity}x ${clean(item.name)}`;
-                    const price = `R$ ${itemTotal}`;
-
-                    // Alinha preço à direita
-                    const spaces = Math.max(1, charsPerLine - itemLine.length - price.length);
-                    text += itemLine + ' '.repeat(spaces) + price + '\n';
-
-                    log.info(`✅ Preço adicionado: ${price}`);
+                    text += alignPrice(itemLine, `R$ ${itemTotal}`) + '\n';
                 } else {
-                    text += `${item.quantity}x ${clean(item.name)}\n`;
-                    log.info(`⚠️ Sem preço (location=${location}, unitPrice=${unitPrice})`);
+                    text += itemLine + '\n';
                 }
 
-                // VARIAÇÕES
+                // Variações (ex: tamanho)
                 if (item.variations) {
                     Object.entries(item.variations).forEach(([key, value]) => {
-                        text += `  - ${clean(key)}: ${clean(value)}\n`;
+                        text += `  ${clean(key)}: ${clean(value)}\n`;
                     });
                 }
 
-                // ADICIONAIS
+                // Adicionais
                 if (item.addons && item.addons.length > 0) {
                     item.addons.forEach(addon => {
                         const name = typeof addon === 'object' ? addon.name : addon;
@@ -1127,19 +1127,16 @@ class ThermalPrinter {
                     });
                 }
 
-                // OBS
+                // Observações
                 if (item.notes) {
-                    text += `  OBS: ${clean(item.notes)}\n`;
+                    text += `  Obs: ${clean(item.notes)}\n`;
                 }
-
-                text += '\n';
             });
         } else {
-            text += '(Sem itens)\n\n';
-            log.warn('⚠️ Pedido sem itens!');
+            text += '(Sem itens)\n';
         }
 
-        // TOTAIS (apenas balcão)
+        // ===== TOTAIS (apenas balcão) =====
         const isCounter = ['counter', 'balcao', 'balcão'].includes(location);
 
         if (isCounter) {
@@ -1149,17 +1146,16 @@ class ThermalPrinter {
             const deliveryFee = order.totals?.delivery_fee || order.delivery_fee || 0;
             const total = order.totals?.total || order.total || 0;
 
-            text += `Subtotal:        R$ ${subtotal.toFixed(2)}\n`;
+            text += alignPrice('Subtotal:', `R$ ${subtotal.toFixed(2)}`) + '\n';
 
             if (deliveryFee > 0) {
-                text += `Taxa Entrega:     R$ ${deliveryFee.toFixed(2)}\n`;
+                text += alignPrice('+ Entrega:', `R$ ${deliveryFee.toFixed(2)}`) + '\n';
             }
 
-            text += line('=') + '\n';
-            text += center(`TOTAL: R$ ${total.toFixed(2)}`) + '\n';
-            text += line('=') + '\n';
+            text += alignPrice('TOTAL A PAGAR:', `R$ ${total.toFixed(2)}`) + '\n';
+            text += line('-') + '\n';
 
-            // PAGAMENTO (sem símbolos Unicode!)
+            // FORMA DE PAGAMENTO
             const paymentMap = {
                 'pix': 'PIX',
                 'credit_card': 'Cartao Credito',
@@ -1169,17 +1165,18 @@ class ThermalPrinter {
 
             const paymentMethod = order.payment?.method || order.payment_method;
             const paymentStatus = order.payment?.status || order.payment_status;
+            const paymentName = paymentMap[paymentMethod] || paymentMethod || 'A combinar';
+            const statusText = paymentStatus === 'paid' ? '- PAGO' : '- PENDENTE';
 
-            const paymentName = paymentMap[paymentMethod] || paymentMethod || 'N/A';
-            const statusText = paymentStatus === 'paid' ? 'PAGO' : 'PENDENTE';
-
-            text += `\nPAGAMENTO: ${paymentName} - ${statusText}\n`;
+            text += `\n${paymentName} ${statusText}\n`;
+            text += alignPrice('', `R$ ${total.toFixed(2)}`) + '\n';
         }
 
-        // RODAPÉ
-        text += '\n' + line('=') + '\n';
-        text += center('YumGo Bridge') + '\n';
-        text += line('=') + '\n\n\n';
+        // ===== RODAPÉ =====
+        text += '\n' + line('-') + '\n';
+        text += center('Obrigado pela preferencia!') + '\n';
+        text += center('YumGo Delivery') + '\n';
+        text += line('-') + '\n\n\n';
 
         return text;
     }
