@@ -957,6 +957,32 @@ ipcMain.handle('save-printer', async (event, location, config) => {
     }
 });
 
+// ⭐ remove-printer: Remover/limpar configuração de impressora
+ipcMain.handle('remove-printer', async (event, location) => {
+    try {
+        const printers = store.get('printers', {});
+
+        if (printers[location]) {
+            delete printers[location];
+            store.set('printers', printers);
+
+            // Remover do printerManager também
+            if (printerManager && printerManager.printers[location]) {
+                delete printerManager.printers[location];
+            }
+
+            log.info(`✅ Impressora ${location} removida com sucesso`);
+            return { success: true, message: 'Impressora removida' };
+        } else {
+            log.warn(`⚠️ Impressora ${location} não estava configurada`);
+            return { success: true, message: 'Impressora não estava configurada' };
+        }
+    } catch (error) {
+        log.error('Erro ao remover impressora:', error);
+        throw error;
+    }
+});
+
 // connect como handle (para uso com invoke)
 ipcMain.handle('connect', async (event, { restaurantId, token }) => {
     try {

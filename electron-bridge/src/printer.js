@@ -13,6 +13,17 @@ class ThermalPrinter {
     }
 
     /**
+     * Obter todas as impressoras configuradas (para heartbeat)
+     */
+    getAllPrinters() {
+        return Object.keys(this.printers).map(location => ({
+            location: location,
+            type: this.printers[location].config?.type,
+            name: this.printers[location].config?.printerName || 'N/A'
+        }));
+    }
+
+    /**
      * Configurar impressora
      */
     async configurePrinter(location, config) {
