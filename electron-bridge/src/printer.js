@@ -7,6 +7,33 @@ const { exec } = require('child_process'); // Impressão nativa via comandos do 
 const os = require('os');
 const path = require('path');
 
+/**
+ * Device virtual que captura comandos ESC/POS em Buffer
+ * (para gerar comandos binários sem device físico)
+ */
+class BufferDevice {
+    constructor() {
+        this.buffer = Buffer.alloc(0);
+    }
+
+    open(callback) {
+        callback(null, this);
+    }
+
+    write(data, callback) {
+        this.buffer = Buffer.concat([this.buffer, data]);
+        if (callback) callback(null);
+    }
+
+    close(callback) {
+        if (callback) callback(null);
+    }
+
+    getBuffer() {
+        return this.buffer;
+    }
+}
+
 class ThermalPrinter {
     constructor() {
         this.printers = {};
@@ -330,6 +357,206 @@ class ThermalPrinter {
     }
 
     /**
+     * Gerar comandos ESC/POS binários (sem device físico) - v3.7.0
+     */
+    async generateESCPOSBuffer(orderData, location) {
+        return new Promise((resolve, reject) => {
+            try {
+                const device = new BufferDevice();
+                device.open((error) => {
+                    if (error) {
+                        reject(error);
+                        return;
+                    }
+
+                    try {
+                        const printer = new escpos.Printer(device);
+                        const { config } = this.printers[location];
+
+                        // Determinar largura
+                        const paperWidth = config.paperWidth || 58;
+                        let charsPerLine = paperWidth <= 58 ? 32 : 48;
+
+                        // Função auxiliar para remover acentos
+                        const clean = (text) => {
+                            if (!text) return '';
+                            return text
+                                .normalize('NFD')
+                                .replace(/[\u0300-\u036f]/g, '')
+                                .replace(/[^\x00-\x7F]/g, '');
+                        };
+
+                        const center = (text) => {
+                            const t = clean(text);
+                            const padding = Math.max(0, Math.floor((charsPerLine - t.length) / 2));
+                            return ' '.repeat(padding) + t;
+                        };
+
+                        const sep = () => '='.repeat(charsPerLine);
+
+                        // Gerar recibo
+                        printer
+                            .align('ct')
+                            .style('bu')
+                            .size(1, 1)
+                            .text(center('YUMGO - PEDIDO'))
+                            .style('normal')
+                            .text(sep())
+                            .text('')
+                            .align('lt')
+                            .style('b')
+                            .text(clean(`Pedido: #${orderData.order_number}`))
+                            .style('normal')
+                            .text('')
+                            .text(sep())
+                            .text(clean(`Cliente: ${orderData.customer?.name || 'N/A'}`));
+
+                        if (orderData.customer?.phone) {
+                            printer.text(clean(`Tel: ${orderData.customer.phone}`));
+                        }
+
+                        printer.text('');
+
+                        const deliveryType = orderData.delivery?.type === 'delivery' ? 'ENTREGA' : 'RETIRADA';
+                        printer.text(clean(`Tipo: ${deliveryType}`));
+
+                        if (orderData.delivery?.type === 'delivery' && orderData.delivery?.address) {
+                            printer.text(clean(`End: ${orderData.delivery.address}`));
+                            if (orderData.delivery.neighborhood) {
+                                printer.text(clean(`Bairro: ${orderData.delivery.neighborhood}`));
+                            }
+                        }
+
+                        printer.text('').text(sep()).style('b').text('ITENS:').style('normal').text('');
+
+                        orderData.items?.forEach((item) => {
+                            printer.text(clean(`${item.quantity}x ${item.name}`));
+
+                            if (item.variations && typeof item.variations === 'object') {
+                                Object.entries(item.variations).forEach(([key, value]) => {
+                                    printer.text(clean(`  - ${key}: ${value}`));
+                                });
+                            }
+
+                            if (item.addons && Array.isArray(item.addons)) {
+                                item.addons.forEach((addon) => {
+                                    printer.text(clean(`  + ${addon.name || addon}`));
+                                });
+                            }
+
+                            if (item.notes) {
+                                printer.text(clean(`  Obs: ${item.notes}`));
+                            }
+
+                            printer.text('');
+                        });
+
+                        if (orderData.notes) {
+                            printer.text(sep()).style('b').text('OBSERVACOES GERAIS:').style('normal');
+                            printer.text(clean(orderData.notes)).text('');
+                        }
+
+                        printer.text(sep());
+                        printer.text(clean(`Subtotal: R$ ${orderData.totals?.subtotal?.toFixed(2) || '0.00'}`));
+                        if (orderData.totals?.delivery_fee > 0) {
+                            printer.text(clean(`Taxa Entrega: R$ ${orderData.totals.delivery_fee.toFixed(2)}`));
+                        }
+                        if (orderData.totals?.discount > 0) {
+                            printer.text(clean(`Desconto: -R$ ${orderData.totals.discount.toFixed(2)}`));
+                        }
+                        printer.style('b').size(1, 1);
+                        printer.text(clean(`TOTAL: R$ ${orderData.totals?.total?.toFixed(2) || '0.00'}`));
+                        printer.style('normal').size(0, 0).text('');
+
+                        printer.text(sep());
+                        const paymentMethod = {
+                            credit_card: 'CARTAO CREDITO',
+                            debit_card: 'CARTAO DEBITO',
+                            pix: 'PIX',
+                            money: 'DINHEIRO'
+                        }[orderData.payment?.method] || orderData.payment?.method?.toUpperCase() || 'N/A';
+
+                        printer.text(clean(`Pagamento: ${paymentMethod}`)).text('');
+
+                        printer.text(sep());
+                        const createdAt = new Date(orderData.created_at);
+                        printer.text(clean(`Data: ${createdAt.toLocaleDateString('pt-BR')}`));
+                        printer.text(clean(`Hora: ${createdAt.toLocaleTimeString('pt-BR')}`)).text('');
+
+                        printer.text(sep());
+                        printer.align('ct').text(center('Obrigado pela preferencia!'));
+                        printer.text('').text('');
+
+                        printer.cut();
+                        printer.close();
+
+                        resolve(device.getBuffer());
+
+                    } catch (err) {
+                        reject(err);
+                    }
+                });
+
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+
+    /**
+     * Imprimir usando comandos ESC/POS binários via PowerShell
+     */
+    async printESCPOSBuffer(orderData, location, copies, printerName) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                // Gerar buffer ESC/POS
+                const buffer = await this.generateESCPOSBuffer(orderData, location);
+
+                // Salvar em arquivo binário
+                const tempDir = os.tmpdir();
+                const tempFile = path.join(tempDir, `yumgo-${orderData.order_number}-${Date.now()}.bin`);
+
+                fs.writeFileSync(tempFile, buffer);
+                log.info(`🔥 Arquivo ESC/POS binário criado: ${tempFile} (${buffer.length} bytes)`);
+
+                let printsCompleted = 0;
+
+                for (let i = 0; i < copies; i++) {
+                    // PowerShell: Ler arquivo binário e enviar para impressora
+                    const psCmd = `powershell -Command "$bytes = [System.IO.File]::ReadAllBytes('${tempFile}'); $stream = [System.IO.File]::Open('\\\\\\\\.\\\\${printerName}', 'Append'); $stream.Write($bytes, 0, $bytes.Length); $stream.Close()"`;
+
+                    exec(psCmd, (error, stdout, stderr) => {
+                        if (error) {
+                            log.error(`Erro ao enviar ESC/POS binário: ${error.message}`);
+                            reject(error);
+                            return;
+                        }
+
+                        printsCompleted++;
+                        log.info(`✅ Cópia ${printsCompleted}/${copies} enviada via ESC/POS binário`);
+
+                        if (printsCompleted === copies) {
+                            setTimeout(() => {
+                                try {
+                                    fs.unlinkSync(tempFile);
+                                    log.info(`🗑️ Arquivo binário removido`);
+                                } catch (e) {}
+                            }, 2000);
+
+                            log.info(`✅ ${copies} cópia(s) impressa(s) via ESC/POS binário!`);
+                            resolve();
+                        }
+                    });
+                }
+
+            } catch (error) {
+                log.error(`Erro ao imprimir ESC/POS binário: ${error.message}`);
+                reject(error);
+            }
+        });
+    }
+
+    /**
      * Buscar porta da impressora no Windows (USB001, COM1, etc)
      */
     async getPrinterPort(printerName) {
@@ -398,8 +625,8 @@ class ThermalPrinter {
     }
 
     /**
-     * Imprimir em impressora do sistema (Windows/macOS/Linux) - v3.6.0
-     * ⭐ PROFISSIONAL: Auto-detecta térmicas + copia direto na porta
+     * Imprimir em impressora do sistema (Windows/macOS/Linux) - v3.7.0
+     * ⭐ PROFISSIONAL: 4 métodos de fallback para térmicas
      */
     async printSystemPrinter(orderData, location, copies) {
         const printerObj = this.printers[location];
@@ -408,33 +635,46 @@ class ThermalPrinter {
 
         // ⭐ SOLUÇÃO PROFISSIONAL: Detectar térmicas e usar ESC/POS
         if (this.isThermalPrinter(printerName)) {
-            log.info(`🔥 "${printerName}" detectada como térmica. Tentando ESC/POS...`);
+            log.info(`🔥 "${printerName}" detectada como térmica. Tentando métodos profissionais...`);
 
+            // MÉTODO 1: ESC/POS via USB direto (libusb)
             try {
                 const device = await this.findUSBThermalPrinter();
                 if (device) {
-                    log.info(`✅ Device USB encontrado! Usando ESC/POS nativo.`);
+                    log.info(`✅ [Método 1] Device USB encontrado! Usando ESC/POS nativo.`);
                     return await this.printESCPOS(orderData, location, copies, device);
                 }
             } catch (error) {
-                log.warn(`⚠️ ESC/POS USB falhou: ${error.message}`);
+                log.warn(`⚠️ [Método 1] ESC/POS USB falhou: ${error.message}`);
             }
 
-            // ⭐ PLANO B para térmicas: Copiar direto na porta (Windows)
+            // MÉTODO 2: ESC/POS binário via PowerShell (Windows)
             if (process.platform === 'win32') {
-                log.info(`🔧 Tentando método de porta direta...`);
+                log.info(`🔧 [Método 2] Tentando ESC/POS binário via PowerShell...`);
+                try {
+                    return await this.printESCPOSBuffer(orderData, location, copies, printerName);
+                } catch (bufferError) {
+                    log.warn(`⚠️ [Método 2] ESC/POS binário falhou: ${bufferError.message}`);
+                }
+            }
+
+            // MÉTODO 3: Copiar direto na porta (Windows)
+            if (process.platform === 'win32') {
+                log.info(`🔧 [Método 3] Tentando porta direta...`);
                 try {
                     const port = await this.getPrinterPort(printerName);
                     if (port && (port.startsWith('USB') || port.startsWith('COM'))) {
-                        log.info(`🎯 Porta encontrada: ${port}. Copiando direto...`);
+                        log.info(`🎯 Porta encontrada: ${port}. Copiando...`);
                         return await this.printToPort(orderData, location, copies, printerName, port);
                     } else {
-                        log.warn(`⚠️ Porta "${port}" não é USB/COM. Usando comando PRINT.`);
+                        log.warn(`⚠️ Porta "${port}" não é USB/COM.`);
                     }
                 } catch (portError) {
-                    log.warn(`⚠️ Erro ao obter porta: ${portError.message}`);
+                    log.warn(`⚠️ [Método 3] Porta direta falhou: ${portError.message}`);
                 }
             }
+
+            log.info(`🔧 [Método 4] Fallback: comando do sistema...`);
         }
 
         // FALLBACK: Comando do sistema (para impressoras comuns)
