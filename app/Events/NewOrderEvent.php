@@ -13,8 +13,10 @@ class NewOrderEvent implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public function __construct(public Order $order)
-    {
+    public function __construct(
+        public Order $order,
+        public bool $forceReprint = false // ⭐ Flag para reimpressão forçada
+    ) {
     }
 
     /**
@@ -104,6 +106,9 @@ class NewOrderEvent implements ShouldBroadcastNow
 
                 // Onde imprimir
                 'print_locations' => $printLocations,
+
+                // ⭐ Reimpressão forçada (ignora cooldown)
+                'force_reprint' => $this->forceReprint,
 
                 // Timestamp
                 'created_at' => $this->order->created_at->toIso8601String(),

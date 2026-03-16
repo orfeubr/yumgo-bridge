@@ -651,7 +651,8 @@ class OrderResource extends Resource
                     ->action(function (Order $record) {
                         try {
                             // Dispara evento WebSocket para impressão
-                            event(new \App\Events\NewOrderEvent($record));
+                            // ⭐ forceReprint = true (ignora proteção de duplicação)
+                            event(new \App\Events\NewOrderEvent($record, forceReprint: true));
 
                             \Filament\Notifications\Notification::make()
                                 ->title('Pedido reenviado para impressão!')

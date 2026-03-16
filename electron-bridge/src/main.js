@@ -499,9 +499,10 @@ function connectWebSocket(restaurantId, token) {
                 const order = data.order;
                 const orderId = order.id;
                 const now = Date.now();
+                const forceReprint = order.force_reprint === true; // ⭐ Flag de reimpressão forçada
 
                 // ===== PROTEÇÃO CONTRA IMPRESSÃO DUPLICADA (v1.8.0) =====
-                if (printedOrders.has(orderId)) {
+                if (printedOrders.has(orderId) && !forceReprint) {  // ⭐ Ignora proteção se force_reprint = true
                     const lastPrinted = printedOrders.get(orderId);
                     const timeSinceLastPrint = now - lastPrinted;
 
@@ -520,6 +521,11 @@ function connectWebSocket(restaurantId, token) {
                         // Cooldown expirado, pode reimprimir
                         log.info(`✅ Cooldown expirado para pedido #${order.order_number}. Permitindo impressão.`);
                     }
+                }
+
+                // ⭐ Log de reimpressão forçada
+                if (forceReprint) {
+                    log.info(`🔄 REIMPRESSÃO FORÇADA do pedido #${order.order_number} (ignora cooldown)`);
                 }
 
                 // Registrar impressão
