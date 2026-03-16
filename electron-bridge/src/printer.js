@@ -330,8 +330,76 @@ class ThermalPrinter {
     }
 
     /**
-     * Imprimir em impressora do sistema (Windows/macOS/Linux) - v3.5.0
-     * ⭐ PROFISSIONAL: Auto-detecta térmicas USB e usa ESC/POS
+     * Buscar porta da impressora no Windows (USB001, COM1, etc)
+     */
+    async getPrinterPort(printerName) {
+        return new Promise((resolve) => {
+            const cmd = `powershell -Command "Get-Printer | Where-Object {$_.Name -eq '${printerName}'} | Select-Object -ExpandProperty PortName"`;
+
+            exec(cmd, (error, stdout) => {
+                if (error || !stdout) {
+                    resolve(null);
+                    return;
+                }
+                const port = stdout.trim();
+                resolve(port);
+            });
+        });
+    }
+
+    /**
+     * Imprimir direto na porta (para térmicas Windows)
+     */
+    async printToPort(orderData, location, copies, printerName, port) {
+        return new Promise((resolve, reject) => {
+            try {
+                const receiptText = this.generateTextReceipt(orderData, location);
+                const tempDir = os.tmpdir();
+                const tempFile = path.join(tempDir, `yumgo-${orderData.order_number}-${Date.now()}.txt`);
+
+                fs.writeFileSync(tempFile, receiptText, 'utf8');
+                log.info(`📄 Arquivo criado: ${tempFile}`);
+
+                let printsCompleted = 0;
+
+                for (let i = 0; i < copies; i++) {
+                    // Copiar direto para porta (mais confiável para térmicas)
+                    const copyCmd = `copy "${tempFile}" "\\\\.\\${port}"`;
+
+                    exec(copyCmd, (error, stdout, stderr) => {
+                        if (error) {
+                            log.error(`Erro ao copiar para porta ${port}: ${error.message}`);
+                            reject(error);
+                            return;
+                        }
+
+                        printsCompleted++;
+                        log.info(`✅ Cópia ${printsCompleted}/${copies} enviada para porta ${port}`);
+
+                        if (printsCompleted === copies) {
+                            setTimeout(() => {
+                                try {
+                                    fs.unlinkSync(tempFile);
+                                    log.info(`🗑️ Arquivo removido`);
+                                } catch (e) {}
+                            }, 2000);
+
+                            log.info(`✅ ${copies} cópia(s) impressa(s) via porta ${port}`);
+                            resolve();
+                        }
+                    });
+                }
+
+            } catch (error) {
+                log.error(`Erro ao imprimir na porta: ${error.message}`);
+                reject(error);
+            }
+        });
+    }
+
+    /**
+     * Imprimir em impressora do sistema (Windows/macOS/Linux) - v3.6.0
+     * ⭐ PROFISSIONAL: Auto-detecta térmicas + copia direto na porta
      */
     async printSystemPrinter(orderData, location, copies) {
         const printerObj = this.printers[location];
@@ -347,11 +415,25 @@ class ThermalPrinter {
                 if (device) {
                     log.info(`✅ Device USB encontrado! Usando ESC/POS nativo.`);
                     return await this.printESCPOS(orderData, location, copies, device);
-                } else {
-                    log.warn(`⚠️ Device USB não encontrado. Fallback para comando do sistema.`);
                 }
             } catch (error) {
-                log.warn(`⚠️ Erro ao usar ESC/POS: ${error.message}. Fallback para comando do sistema.`);
+                log.warn(`⚠️ ESC/POS USB falhou: ${error.message}`);
+            }
+
+            // ⭐ PLANO B para térmicas: Copiar direto na porta (Windows)
+            if (process.platform === 'win32') {
+                log.info(`🔧 Tentando método de porta direta...`);
+                try {
+                    const port = await this.getPrinterPort(printerName);
+                    if (port && (port.startsWith('USB') || port.startsWith('COM'))) {
+                        log.info(`🎯 Porta encontrada: ${port}. Copiando direto...`);
+                        return await this.printToPort(orderData, location, copies, printerName, port);
+                    } else {
+                        log.warn(`⚠️ Porta "${port}" não é USB/COM. Usando comando PRINT.`);
+                    }
+                } catch (portError) {
+                    log.warn(`⚠️ Erro ao obter porta: ${portError.message}`);
+                }
             }
         }
 
