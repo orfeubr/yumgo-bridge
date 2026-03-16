@@ -1018,161 +1018,139 @@ class ThermalPrinter {
      */
     generateTextReceipt(order, location) {
         const config = this.printers[location]?.config || {};
-        const paperWidth = config.paperWidth || 80;
+        const paperWidth = config.paperWidth || 58;
+        const charsPerLine = paperWidth <= 58 ? 32 : 48;
 
-        // ⭐ Helper para remover acentos (evita problemas com PowerShell/Windows)
-        const removeAccents = (text) => {
+        const clean = (text) => {
             if (!text) return '';
-            return text
+            return String(text)
                 .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '') // Remove diacríticos
-                .replace(/[^\x00-\x7F]/g, ''); // Remove não-ASCII
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^\x00-\x7F]/g, '');
         };
 
-        // Cálculo dinâmico de caracteres por linha
-        // 58mm = 32 chars | 80mm = 48 chars | Outros proporcionais
-        let charsPerLine;
-        if (paperWidth <= 58) {
-            charsPerLine = 32; // ⭐ 58mm - ajustado para não quebrar (era 48)
-        } else if (paperWidth <= 80) {
-            charsPerLine = 48; // 80mm padrão
-        } else {
-            // Para tamanhos maiores (ex: 110mm), calcular proporcionalmente
-            charsPerLine = Math.floor(paperWidth * 0.6); // ~60% da largura em chars
-        }
+        const center = (text) => {
+            const pad = Math.max(0, Math.floor((charsPerLine - text.length) / 2));
+            return ' '.repeat(pad) + text;
+        };
+
+        const line = (char = '=') => char.repeat(charsPerLine);
 
         let text = '';
 
-        // ═══ CABEÇALHO PROFISSIONAL ═══
-        text += this.line(charsPerLine, '=') + '\n';
+        // CABEÇALHO LIMPO
+        text += line('=') + '\n';
+        const locationName = location === 'counter' ? 'BALCAO' : location === 'kitchen' ? 'COZINHA' : 'BAR';
+        text += center(`** ${locationName} **`) + '\n';
+        text += line('=') + '\n\n';
 
-        const title = removeAccents(this.getLocationTitle(location).replace(/=/g, '').trim());
-        text += this.centerText(`** NOVO PEDIDO - ${title} **`, charsPerLine) + '\n';
-
-        text += this.line(charsPerLine, '=') + '\n';
-        text += '\n';
-
-        // Número do pedido + Data/Hora (mesma linha se couber)
-        const date = new Date(order.created_at);
-        const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        // PEDIDO + DATA
+        const date = new Date(order.created_at || Date.now());
+        const time = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         const dateStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 
-        text += this.formatLine(`PEDIDO #${order.order_number}`, `${timeStr} - ${dateStr}`, charsPerLine) + '\n';
-        text += '\n';
+        text += `PEDIDO #${order.order_number}\n`;
+        text += `${time} - ${dateStr}\n\n`;
 
-        // Cliente + Telefone
-        text += `Cliente: ${removeAccents(order.customer.name)}\n`;
-        if (order.customer.phone) {
+        // CLIENTE
+        text += `Cliente: ${clean(order.customer?.name || 'N/A')}\n`;
+        if (order.customer?.phone) {
             text += `Tel: ${order.customer.phone}\n`;
         }
 
-        // Tipo de entrega
-        const deliveryType = order.delivery.method === 'delivery' ? 'DELIVERY' : 'RETIRADA';
-        text += '\n';
-        text += `${deliveryType}`;
-        if (order.delivery.neighborhood) {
-            text += ` - Bairro: ${removeAccents(order.delivery.neighborhood)}`;
+        // ENTREGA
+        const deliveryType = order.delivery?.type === 'delivery' ? 'ENTREGA' : 'RETIRADA';
+        text += `\n${deliveryType}`;
+        if (order.delivery?.neighborhood) {
+            text += ` - ${clean(order.delivery.neighborhood)}`;
         }
         text += '\n';
 
-        // Endereço (se delivery)
-        if (order.delivery.method === 'delivery' && order.delivery.address) {
-            text += `End: ${removeAccents(order.delivery.address)}\n`;
-            if (order.delivery.reference) {
-                text += `Ref: ${removeAccents(order.delivery.reference)}\n`;
-            }
+        if (order.delivery?.type === 'delivery' && order.delivery?.address) {
+            text += `End: ${clean(order.delivery.address)}\n`;
         }
 
-        text += '\n';
-        text += this.line(charsPerLine, '-') + '\n';
-        text += this.centerText('** ITENS **', charsPerLine) + '\n';
-        text += this.line(charsPerLine, '-') + '\n';
-        text += '\n';
+        // ITENS
+        text += '\n' + line('-') + '\n';
+        text += center('ITENS') + '\n';
+        text += line('-') + '\n\n';
 
-        // Itens do pedido
-        order.items.forEach(item => {
-            // Filtrar por localização se necessário
-            if (location !== 'counter') {
-                const itemLocation = item.print_location || 'kitchen';
-                if (itemLocation !== location && itemLocation !== 'both') {
-                    return;
+        // ⭐ LOG para debug
+        log.info(`📦 Total de items no pedido: ${order.items?.length || 0}`);
+
+        if (order.items && order.items.length > 0) {
+            order.items.forEach(item => {
+                // Filtrar por localização (apenas para cozinha/bar, não para balcão)
+                if (location !== 'counter') {
+                    const itemLocation = item.print_location || 'kitchen';
+                    if (itemLocation !== location && itemLocation !== 'both') {
+                        log.info(`⏭️ Item pulado: ${item.name} (location: ${itemLocation})`);
+                        return;
+                    }
                 }
-            }
 
-            // Nome do produto com quantidade
-            const itemName = removeAccents(`${item.quantity}x ${item.name.toUpperCase()}`);
+                log.info(`✅ Imprimindo item: ${item.name}`);
 
-            // Preço do item (se houver)
-            if (location === 'counter' && item.price) {
-                const itemTotal = (item.quantity * item.price).toFixed(2);
-                text += this.formatLine(itemName, `R$ ${itemTotal}`, charsPerLine) + '\n';
-            } else {
-                text += `${itemName}\n`;
-            }
+                // NOME + QTD
+                text += `${item.quantity}x ${clean(item.name)}\n`;
 
-            // Variações
-            if (item.variations && Object.keys(item.variations).length > 0) {
-                Object.entries(item.variations).forEach(([key, value]) => {
-                    text += `   - ${removeAccents(key)}: ${removeAccents(value)}\n`;
-                });
-            }
+                // VARIAÇÕES
+                if (item.variations) {
+                    Object.entries(item.variations).forEach(([key, value]) => {
+                        text += `  - ${clean(key)}: ${clean(value)}\n`;
+                    });
+                }
 
-            // Adicionais
-            if (item.addons && item.addons.length > 0) {
-                item.addons.forEach(addon => {
-                    const addonName = typeof addon === 'object' ? addon.name : addon;
-                    text += `   + ${removeAccents(addonName)}\n`;
-                });
-            }
+                // ADICIONAIS
+                if (item.addons && item.addons.length > 0) {
+                    item.addons.forEach(addon => {
+                        const name = typeof addon === 'object' ? addon.name : addon;
+                        text += `  + ${clean(name)}\n`;
+                    });
+                }
 
-            // Observações (destacado)
-            if (item.notes) {
-                text += `   >> OBS: ${removeAccents(item.notes)}\n`;
-            }
+                // OBS
+                if (item.notes) {
+                    text += `  OBS: ${clean(item.notes)}\n`;
+                }
 
-            text += '\n';
-        });
-
-        // Observações gerais (se houver)
-        if (order.notes) {
-            text += this.line(charsPerLine, '-') + '\n';
-            text += '** OBSERVACOES GERAIS **\n';
-            text += `${order.notes}\n`;
+                text += '\n';
+            });
+        } else {
+            text += '(Sem itens)\n\n';
+            log.warn('⚠️ Pedido sem itens!');
         }
 
-        // Totais (apenas balcão)
+        // TOTAIS (apenas balcão)
         if (location === 'counter') {
-            text += this.line(charsPerLine, '-') + '\n';
-            text += this.formatLine('Subtotal:', `R$ ${order.totals.subtotal.toFixed(2)}`, charsPerLine) + '\n';
+            text += line('-') + '\n';
+            text += `Subtotal:        R$ ${(order.subtotal || 0).toFixed(2)}\n`;
 
-            if (order.totals.delivery_fee > 0) {
-                text += this.formatLine('Taxa Entrega:', `R$ ${order.totals.delivery_fee.toFixed(2)}`, charsPerLine) + '\n';
+            if (order.delivery_fee > 0) {
+                text += `Taxa Entrega:     R$ ${order.delivery_fee.toFixed(2)}\n`;
             }
 
-            if (order.totals.discount > 0) {
-                text += this.formatLine('Desconto:', `- R$ ${order.totals.discount.toFixed(2)}`, charsPerLine) + '\n';
-            }
+            text += line('=') + '\n';
+            text += center(`TOTAL: R$ ${(order.total || 0).toFixed(2)}`) + '\n';
+            text += line('=') + '\n';
 
-            text += this.line(charsPerLine, '=') + '\n';
-            text += this.formatLine('** TOTAL **', `R$ ${order.totals.total.toFixed(2)}`, charsPerLine) + '\n';
-            text += this.line(charsPerLine, '=') + '\n';
+            // PAGAMENTO (sem símbolos Unicode!)
+            const paymentMap = {
+                'pix': 'PIX',
+                'credit_card': 'Cartao Credito',
+                'debit_card': 'Cartao Debito',
+                'cash': 'Dinheiro'
+            };
+            const paymentName = paymentMap[order.payment_method] || 'N/A';
+            const paymentStatus = order.payment_status === 'paid' ? 'PAGO' : 'PENDENTE';
 
-            // Forma de pagamento
-            const paymentMethod = this.getPaymentMethodName(order.payment.method);
-            text += `PAGAMENTO: ${paymentMethod}`;
-
-            if (order.payment.status === 'paid') {
-                text += ' - PAGO ✓';
-            }
-            text += '\n';
+            text += `\nPAGAMENTO: ${paymentName} - ${paymentStatus}\n`;
         }
 
-        // Rodapé profissional
-        text += '\n';
-        text += this.line(charsPerLine, '=') + '\n';
-        text += this.centerText('Impresso via YumGo Bridge', charsPerLine) + '\n';
-        text += this.line(charsPerLine, '=') + '\n';
-        text += '\n\n\n';
+        // RODAPÉ
+        text += '\n' + line('=') + '\n';
+        text += center('YumGo Bridge') + '\n';
+        text += line('=') + '\n\n\n';
 
         return text;
     }
