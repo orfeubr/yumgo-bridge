@@ -270,6 +270,53 @@ function updateTrayStatus(connected) {
 
 // ===== WEBSOCKET COM LARAVEL ECHO =====
 
+// ===== HEARTBEAT (Monitor de Impressão) =====
+let heartbeatInterval = null;
+
+function startHeartbeat(baseUrl, token) {
+    // Limpar intervalo anterior (se existir)
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+    }
+
+    // Função para enviar heartbeat
+    const sendHeartbeat = async () => {
+        try {
+            const printers = printerManager ? printerManager.getAllPrinters() : [];
+
+            await axios.post(`${baseUrl}/api/v1/bridge/heartbeat`, {
+                version: app.getVersion(),
+                printers: printers,
+                timestamp: new Date().toISOString(),
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            log.info('💓 Heartbeat enviado ao servidor');
+        } catch (error) {
+            log.error('❌ Erro ao enviar heartbeat:', error.message);
+        }
+    };
+
+    // Enviar heartbeat imediatamente
+    sendHeartbeat();
+
+    // Enviar heartbeat a cada 30 segundos
+    heartbeatInterval = setInterval(sendHeartbeat, 30000);
+    log.info('⏰ Heartbeat agendado (a cada 30s)');
+}
+
+function stopHeartbeat() {
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+        log.info('⏹️ Heartbeat parado');
+    }
+}
+
 function connectWebSocket(restaurantId, token) {
     // Desconectar se já houver conexão
     if (echo && echo.pusher) {
@@ -395,6 +442,9 @@ function connectWebSocket(restaurantId, token) {
 
             // Notificação
             showNotification('Conectado', 'YumGo Bridge conectado com sucesso!');
+
+            // ⭐ Iniciar heartbeat para o Monitor de Impressão
+            startHeartbeat(baseUrl, token);
         });
 
         pusher.connection.bind('disconnected', () => {
@@ -403,6 +453,9 @@ function connectWebSocket(restaurantId, token) {
 
             mainWindow.webContents.send('connection-status', 'disconnected');
             updateTrayStatus(false);
+
+            // Parar heartbeat
+            stopHeartbeat();
         });
 
         pusher.connection.bind('failed', () => {

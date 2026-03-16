@@ -267,6 +267,10 @@ Route::prefix('api/v1')->middleware([
     Route::post('/webhooks/asaas', [WebhookController::class, 'asaas'])->middleware('throttle:100,1'); // 100 req/min
     Route::post('/webhooks/tributaai', [\App\Http\Controllers\TributaAiWebhookController::class, 'handle'])->middleware('throttle:100,1'); // 100 req/min
 
+    // Bridge Heartbeat (público) (🔒 RATE LIMITED)
+    Route::post('/bridge/heartbeat', [\App\Http\Controllers\BridgeHeartbeatController::class, 'heartbeat'])->middleware('throttle:120,1'); // 120 req/min (1 a cada 30s por Bridge)
+    Route::get('/bridge/status', [\App\Http\Controllers\BridgeHeartbeatController::class, 'status'])->middleware('throttle:60,1'); // 60 req/min
+
     // Teste de webhook (apenas para desenvolvimento)
     Route::get('/test-webhook', function () {
         return response()->json([
