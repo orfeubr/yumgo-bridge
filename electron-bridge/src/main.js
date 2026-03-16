@@ -286,9 +286,9 @@ function connectWebSocket(restaurantId, token) {
 
     // Configurar URLs baseado no ambiente
     const baseUrl = 'https://yumgo.com.br';  // Sempre servidor (não localhost)
-    // ⭐ Conectar direto na porta 8081 (Reverb) sem SSL
-    const wsHost = 'yumgo.com.br';
-    const wsPort = 8081;
+    // ⭐ Conectar via Nginx proxy (wss://ws.yumgo.com.br porta 443)
+    const wsHost = 'ws.yumgo.com.br';
+    const wsPort = 443;
     const wsPath = '';  // Empty - Pusher adds /app/{key} automatically
 
     // ⭐ v3.2.7: Removido Pusher.Runtime.createXHR - deixar Pusher usar XMLHttpRequest nativo do Chromium
@@ -310,8 +310,8 @@ function connectWebSocket(restaurantId, token) {
             wsHost: wsHost,
             wsPort: wsPort,
             cluster: 'mt1',  // ⭐ Obrigatório pelo SDK (Reverb ignora)
-            forceTLS: false,  // ⭐ TESTE: Sem SSL (porta 8081 direto)
-            enabledTransports: ['ws'],  // ⭐ ws:// sem SSL
+            forceTLS: true,  // ⭐ SSL habilitado (wss:// via Nginx proxy)
+            enabledTransports: ['ws', 'wss'],  // ⭐ Aceita ws:// e wss://
             disableStats: true,
             // Electron-specific options
             activityTimeout: 120000,
