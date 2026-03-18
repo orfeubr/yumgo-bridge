@@ -16,18 +16,16 @@ class OrderPrintObserver
      */
     public function created(Order $order): void
     {
-        // ⭐ Dispara impressão se:
-        // 1. Já está pago (PIX, cartão confirmado)
-        // 2. OU pagamento na entrega (dinheiro, débito/crédito presencial)
-        // 3. OU aguardando entrega (não precisa esperar pagamento)
+        // ⭐ Regra de impressão:
+        // 1. JÁ PAGO (qualquer método) → Imprime
+        // 2. PAGAMENTO NA ENTREGA (qualquer status) → Imprime
+        // 3. Caso contrário (PIX/Cartão online não pago) → NÃO imprime
 
         $shouldPrint =
-            // Opção 1: Já está pago
+            // Opção 1: Já está pago (qualquer método)
             $order->payment_status === 'paid'
-            // Opção 2: Pagamento na entrega
-            || in_array($order->payment_method, ['cash', 'debit_on_delivery', 'credit_on_delivery', 'pix_on_delivery'])
-            // Opção 3: Status de entrega (não espera pagamento)
-            || in_array($order->payment_status, ['awaiting_delivery', 'delivered']);
+            // Opção 2: Pagamento na entrega (dinheiro, débito/crédito presencial, PIX presencial)
+            || in_array($order->payment_method, ['cash', 'debit_on_delivery', 'credit_on_delivery', 'pix_on_delivery']);
 
         if ($shouldPrint) {
             $this->dispatchPrintEvent($order);
