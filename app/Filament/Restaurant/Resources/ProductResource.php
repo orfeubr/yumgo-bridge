@@ -285,6 +285,43 @@ class ProductResource extends Resource
                             ->default(false),
                     ])->columns(4),
 
+                // ========== PRODUTOS SUGERIDOS (CROSS-SELL) ==========
+                Forms\Components\Section::make('Produtos Sugeridos (Cross-Sell)')
+                    ->description('Selecione produtos que serão sugeridos quando o cliente adicionar este item ao carrinho')
+                    ->schema([
+                        Forms\Components\Select::make('suggested_products')
+                            ->label('💡 Produtos Relacionados')
+                            ->helperText('Ex: Para uma Feijoada, sugira Coca-Cola, Caipirinha, Laranjada')
+                            ->multiple()
+                            ->searchable()
+                            ->preload()
+                            ->options(function () {
+                                // Buscar todos produtos ativos, organizados por categoria
+                                return \App\Models\Product::where('is_active', true)
+                                    ->with('category')
+                                    ->get()
+                                    ->groupBy(fn($p) => $p->category->name ?? 'Sem Categoria')
+                                    ->map(fn($products) => $products->pluck('name', 'id'))
+                                    ->toArray();
+                            })
+                            ->placeholder('Selecione produtos para sugerir junto...')
+                            ->columnSpanFull(),
+
+                        Forms\Components\Placeholder::make('tip')
+                            ->content(new \Illuminate\Support\HtmlString('
+                                <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                                    <p class="text-sm text-blue-700 dark:text-blue-300">
+                                        <strong>💡 Dica:</strong> Selecione produtos complementares que fazem sentido juntos:
+                                    </p>
+                                    <ul class="mt-2 text-sm text-blue-600 dark:text-blue-400 list-disc list-inside space-y-1">
+                                        <li><strong>Marmitas/Pratos:</strong> Sugira bebidas e sobremesas</li>
+                                        <li><strong>Bebidas:</strong> Sugira petiscos ou acompanhamentos</li>
+                                        <li><strong>Sobremesas:</strong> Sugira cafés ou bebidas quentes</li>
+                                    </ul>
+                                </div>
+                            ')),
+                    ])->collapsible(),
+
                 // ========== INFORMAÇÕES FISCAIS ==========
                 Forms\Components\Section::make('Informações Fiscais')
                     ->description('Classificação fiscal do produto para emissão de NFC-e')

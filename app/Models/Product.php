@@ -50,6 +50,7 @@ class Product extends Model
         'images' => 'array',
         'pizza_config' => 'array',
         'marmitex_config' => 'array',
+        'suggested_products' => 'array',
         'has_stock_control' => 'boolean',
         'is_active' => 'boolean',
         'is_featured' => 'boolean',
