@@ -29,14 +29,15 @@ class RetryPendingPrintsCommand extends Command
             // Buscar pedidos:
             // - print_status = 'pending' (nunca imprimiu)
             // - criados há mais de X minutos
-            // - Regra: JÁ PAGO OU PAGAMENTO NA ENTREGA
+            // - Regra INVERTIDA (mais segura): JÁ PAGO OU NÃO É ONLINE
+            //   → Cobre TODOS os métodos presenciais (atuais e futuros)
             $pendingOrders = Order::where('print_status', 'pending')
                 ->where('created_at', '<=', now()->subMinutes($minutesThreshold))
                 ->where(function($query) {
                     // Opção 1: Já está pago (qualquer método)
                     $query->where('payment_status', 'paid')
-                        // Opção 2: Pagamento na entrega (dinheiro, débito/crédito presencial, PIX presencial)
-                        ->orWhereIn('payment_method', ['cash', 'debit_on_delivery', 'credit_on_delivery', 'pix_on_delivery']);
+                        // Opção 2: NÃO é pagamento online (blacklist apenas métodos online)
+                        ->orWhereNotIn('payment_method', ['pix', 'credit_card', 'debit_card']);
                 })
                 ->get();
 
