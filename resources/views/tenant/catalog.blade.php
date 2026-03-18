@@ -396,6 +396,9 @@
 
 <script>
 function catalogApp() {
+    // 🔒 ISOLAMENTO POR TENANT - Evita vazamento de carrinho entre restaurantes
+    const CART_KEY = 'yumgo_cart_{{ $tenant->slug }}';
+
     return {
         products: [],
         categories: [],
@@ -427,6 +430,9 @@ function catalogApp() {
             window.addEventListener('category-changed', (e) => {
                 this.selectedCategory = e.detail;
             });
+
+            // 🧹 LIMPEZA: Remover carrinhos antigos compartilhados (migração)
+            this.cleanupOldCarts();
         },
 
         async loadProducts() {
@@ -468,14 +474,25 @@ function catalogApp() {
         },
 
         loadCart() {
-            const saved = localStorage.getItem('yumgo_cart');
+            const saved = localStorage.getItem(CART_KEY);
             if (saved) {
                 this.cart = JSON.parse(saved);
             }
         },
 
         saveCart() {
-            localStorage.setItem('yumgo_cart', JSON.stringify(this.cart));
+            localStorage.setItem(CART_KEY, JSON.stringify(this.cart));
+        },
+
+        cleanupOldCarts() {
+            // Remove carrinho global antigo (inseguro)
+            if (localStorage.getItem('yumgo_cart')) {
+                console.log('🧹 Removendo carrinho compartilhado antigo (migração de segurança)');
+                localStorage.removeItem('yumgo_cart');
+            }
+            if (localStorage.getItem('cart')) {
+                localStorage.removeItem('cart');
+            }
         },
 
         get filteredProducts() {

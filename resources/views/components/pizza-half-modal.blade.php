@@ -461,12 +461,19 @@ function confirmHalfAndHalf() {
     showToast('Pizza meio a meio adicionada ao carrinho!');
 }
 
-// ADICIONAR AO CARRINHO (você já deve ter essa função)
+// ADICIONAR AO CARRINHO (isolado por tenant)
 function addToCart(item) {
-    let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    // 🔒 IMPORTANTE: A página pai deve definir CART_KEY = 'yumgo_cart_{{ $tenant->slug }}'
+    // Se não estiver definido, usa fallback (mas não é recomendado)
+    const cartKey = typeof CART_KEY !== 'undefined' ? CART_KEY : 'yumgo_cart_' + window.location.hostname.split('.')[0];
+
+    let cart = JSON.parse(localStorage.getItem(cartKey) || '[]');
     cart.push(item);
-    localStorage.setItem('cart', JSON.stringify(cart));
-    updateCartDisplay();
+    localStorage.setItem(cartKey, JSON.stringify(cart));
+
+    if (typeof updateCartDisplay === 'function') {
+        updateCartDisplay();
+    }
 }
 
 // MOSTRAR NOTIFICAÇÃO

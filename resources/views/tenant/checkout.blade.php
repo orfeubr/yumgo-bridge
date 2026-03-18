@@ -714,6 +714,9 @@
 
     <script>
     function checkoutApp() {
+        // 🔒 ISOLAMENTO POR TENANT - Evita vazamento de carrinho entre restaurantes
+        const CART_KEY = 'yumgo_cart_{{ $tenant->slug }}';
+
         return {
             cart: [],
             customerName: '',
@@ -777,8 +780,8 @@
                 // Carregar saldo de cashback
                 await this.loadCashbackBalance();
 
-                // Carregar carrinho do localStorage
-                const savedCart = localStorage.getItem('yumgo_cart');
+                // Carregar carrinho do localStorage (isolado por tenant)
+                const savedCart = localStorage.getItem(CART_KEY);
                 if (savedCart) {
                     try {
                         this.cart = JSON.parse(savedCart);
@@ -1328,9 +1331,9 @@
                         throw new Error(data.message || 'Erro ao criar pedido');
                     }
 
-                    // Limpar carrinho
+                    // Limpar carrinho (isolado por tenant)
                     this.cart = [];
-                    localStorage.removeItem('yumgo_cart');
+                    localStorage.removeItem(CART_KEY);
                     localStorage.removeItem('yumgo_delivery');
 
                     // ⭐ Redirecionar baseado no método de pagamento REAL (não on_delivery)

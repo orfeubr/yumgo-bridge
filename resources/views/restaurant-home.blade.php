@@ -55,7 +55,8 @@
 
                         // Limpar dados do restaurante anterior
                         localStorage.removeItem('customer');
-                        localStorage.removeItem('cart'); // Limpar carrinho também
+                        localStorage.removeItem('cart'); // Limpar carrinho antigo (migração)
+                        localStorage.removeItem('yumgo_cart'); // Limpar carrinho compartilhado antigo
 
                         // Buscar dados do customer neste restaurante via API
                         const authToken = localStorage.getItem('auth_token');
@@ -1576,6 +1577,9 @@
 
     <script>
     function restaurantApp(){
+        // 🔒 ISOLAMENTO POR TENANT - Evita vazamento de carrinho entre restaurantes
+        const CART_KEY = 'yumgo_cart_{{ $tenant->slug }}';
+
         return{
             pageLoading:true,
             // PWA Install Banner
@@ -1678,8 +1682,8 @@
                 // Verificar se está logado
                 this.checkAuth();
 
-                // Carregar carrinho do localStorage
-                const savedCart = localStorage.getItem('yumgo_cart');
+                // Carregar carrinho do localStorage (isolado por tenant)
+                const savedCart = localStorage.getItem(CART_KEY);
                 if(savedCart){
                     try{
                         this.cart = JSON.parse(savedCart);
@@ -1691,10 +1695,19 @@
                 }
                 // Observar mudanças no carrinho e salvar
                 this.$watch('cart', value => {
-                    localStorage.setItem('yumgo_cart', JSON.stringify(value));
+                    localStorage.setItem(CART_KEY, JSON.stringify(value));
                     console.log('Carrinho salvo:', value);
                     this.loadSuggestedProducts();
                 });
+
+                // 🧹 LIMPEZA: Remover carrinhos antigos compartilhados (migração)
+                if (localStorage.getItem('yumgo_cart')) {
+                    console.log('🧹 Removendo carrinho compartilhado antigo');
+                    localStorage.removeItem('yumgo_cart');
+                }
+                if (localStorage.getItem('cart')) {
+                    localStorage.removeItem('cart');
+                }
 
                 // Carregar sugestões iniciais
                 this.loadSuggestedProducts();
@@ -2346,9 +2359,9 @@
                         throw new Error(data.message || 'Erro ao criar pedido');
                     }
 
-                    // Sucesso! Limpar carrinho
+                    // Sucesso! Limpar carrinho (isolado por tenant)
                     this.cart = [];
-                    localStorage.removeItem('yumgo_cart');
+                    localStorage.removeItem(CART_KEY);
 
                     // Redirecionar ou mostrar sucesso
                     if(data.payment?.qrcode_image){

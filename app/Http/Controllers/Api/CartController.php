@@ -46,11 +46,20 @@ class CartController extends Controller
             $quantity = $item['quantity'];
             $priceWhenAdded = (float) $item['price_when_added'];
 
-            // Buscar produto no BD
+            // 🔒 SEGURANÇA: Buscar produto APENAS no schema do tenant atual
+            // Isso previne fraude de adicionar produto de outro restaurante
             $product = Product::where('is_active', true)->find($productId);
 
             if (!$product) {
-                // Produto não existe ou foi desativado
+                // 🚨 ALERTA DE SEGURANÇA: Produto não existe neste tenant
+                // Pode ser tentativa de fraude (produto de outro restaurante)
+                \Log::warning('⚠️ Tentativa de validar produto inexistente no tenant', [
+                    'product_id' => $productId,
+                    'tenant' => tenant('id'),
+                    'ip' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                ]);
+
                 $validatedItems[] = [
                     'product_id' => $productId,
                     'variation_id' => $variationId,
@@ -58,7 +67,7 @@ class CartController extends Controller
                     'price_when_added' => $priceWhenAdded,
                     'current_price' => null,
                     'available' => false,
-                    'reason' => 'Produto não disponível',
+                    'reason' => 'Produto não disponível neste restaurante',
                     'price_changed' => false,
                 ];
                 continue;
