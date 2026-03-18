@@ -18,11 +18,21 @@ class OrderPrintObserver
     {
         // ⭐ Dispara impressão se:
         // 1. Já está pago (PIX, cartão confirmado)
-        // 2. OU está aguardando pagamento na entrega
-        $shouldPrint = in_array($order->payment_status, ['paid', 'awaiting_delivery']);
+        // 2. OU pagamento na entrega (dinheiro, débito/crédito presencial)
+        // 3. OU aguardando entrega (não precisa esperar pagamento)
+
+        $shouldPrint =
+            // Opção 1: Já está pago
+            $order->payment_status === 'paid'
+            // Opção 2: Pagamento na entrega
+            || in_array($order->payment_method, ['cash', 'debit_on_delivery', 'credit_on_delivery', 'pix_on_delivery'])
+            // Opção 3: Status de entrega (não espera pagamento)
+            || in_array($order->payment_status, ['awaiting_delivery', 'delivered']);
 
         if ($shouldPrint) {
             $this->dispatchPrintEvent($order);
+        } else {
+            Log::info("⏸️ Pedido #{$order->id} não será impresso ainda (aguardando pagamento online: {$order->payment_method})");
         }
     }
 

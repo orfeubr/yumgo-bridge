@@ -27,12 +27,19 @@ class RetryPendingPrintsCommand extends Command
             tenancy()->initialize($tenant);
 
             // Buscar pedidos:
-            // - status = 'pending' (nunca tentou imprimir)
-            // - payment_status = 'paid' ou 'awaiting_delivery'
+            // - print_status = 'pending' (nunca imprimiu)
             // - criados há mais de X minutos
+            // - EXCETO: PIX/Cartão online ainda não pagos
             $pendingOrders = Order::where('print_status', 'pending')
-                ->where('payment_status', '!=', 'pending') // Já está pago
                 ->where('created_at', '<=', now()->subMinutes($minutesThreshold))
+                ->where(function($query) {
+                    // Opção 1: Já está pago (qualquer método)
+                    $query->where('payment_status', 'paid')
+                        // Opção 2: Pagamento na entrega (dinheiro, débito presencial, etc)
+                        ->orWhereIn('payment_method', ['cash', 'debit_on_delivery', 'credit_on_delivery', 'pix_on_delivery'])
+                        // Opção 3: Status que não precisa esperar pagamento
+                        ->orWhereIn('payment_status', ['awaiting_delivery', 'delivered']);
+                })
                 ->get();
 
             if ($pendingOrders->isEmpty()) {
