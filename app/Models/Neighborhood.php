@@ -54,6 +54,14 @@ class Neighborhood extends Model
     }
 
     /**
+     * Alias para is_activeByCity (usado pela API)
+     */
+    public static function enabledByCity(string $city)
+    {
+        return static::is_activeByCity($city);
+    }
+
+    /**
      * Buscar taxa de um bairro específico
      */
     public static function getFeeByName(string $city, string $neighborhood): ?float

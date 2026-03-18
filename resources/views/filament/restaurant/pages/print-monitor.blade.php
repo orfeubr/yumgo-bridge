@@ -1,4 +1,7 @@
 <x-filament-panels::page>
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
     <div class="space-y-6">
 
         {{-- ===== ESTATÍSTICAS (Cards no topo) ===== --}}
@@ -190,13 +193,38 @@
         @endphp
 
         @if($pending->count() > 0)
-            <x-filament::section>
+            <x-filament::section x-data="printManager()">
                 <x-slot name="heading">
-                    <div class="flex items-center gap-2">
-                        <span>⏳ Aguardando Impressão</span>
-                        <x-filament::badge color="warning">
-                            {{ $pending->count() }}
-                        </x-filament::badge>
+                    <div class="flex items-center justify-between w-full">
+                        <div class="flex items-center gap-2">
+                            <span>⏳ Aguardando Impressão</span>
+                            <x-filament::badge color="warning">
+                                {{ $pending->count() }}
+                            </x-filament::badge>
+                        </div>
+
+                        {{-- Ações em massa --}}
+                        <div class="flex gap-2" x-show="selectedOrders.length > 0" x-cloak>
+                            <span class="text-sm text-gray-600 dark:text-gray-400 self-center" x-text="`${selectedOrders.length} selecionado(s)`"></span>
+                            <x-filament::button
+                                color="warning"
+                                size="sm"
+                                @click="forceReprint()"
+                                x-bind:disabled="loading"
+                            >
+                                <span x-show="!loading">🔄 Reimprimir</span>
+                                <span x-show="loading" x-cloak>⏳ Aguarde...</span>
+                            </x-filament::button>
+                            <x-filament::button
+                                color="danger"
+                                size="sm"
+                                @click="cancelPrint()"
+                                x-bind:disabled="loading"
+                            >
+                                <span x-show="!loading">🚫 Cancelar</span>
+                                <span x-show="loading" x-cloak>⏳ Aguarde...</span>
+                            </x-filament::button>
+                        </div>
                     </div>
                 </x-slot>
 
@@ -204,19 +232,57 @@
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="border-b dark:border-gray-700">
+                                <th class="text-left py-2 px-3 w-12">
+                                    <input
+                                        type="checkbox"
+                                        class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                        @change="toggleAll($event.target.checked)"
+                                        :checked="selectedOrders.length === {{ $pending->count() }} && {{ $pending->count() }} > 0"
+                                    >
+                                </th>
                                 <th class="text-left py-2 px-3">Pedido</th>
                                 <th class="text-left py-2 px-3">Cliente</th>
                                 <th class="text-left py-2 px-3">Total</th>
                                 <th class="text-left py-2 px-3">Data/Hora</th>
+                                <th class="text-left py-2 px-3">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($pending as $order)
-                                <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
-                                    <td class="py-2 px-3 font-medium">#{{ $order['order_number'] }}</td>
-                                    <td class="py-2 px-3">{{ $order['customer'] }}</td>
-                                    <td class="py-2 px-3">{{ $order['total'] }}</td>
-                                    <td class="py-2 px-3 text-gray-600 dark:text-gray-400">{{ $order['created_at'] }}</td>
+                                <tr class="border-b border-gray-200 dark:border-gray-700 hover:!bg-gray-50 dark:hover:!bg-gray-700 transition-colors cursor-pointer">
+                                    <td class="py-2 px-3">
+                                        <input
+                                            type="checkbox"
+                                            class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                            value="{{ $order['id'] }}"
+                                            @change="toggleOrder({{ $order['id'] }}, $event.target.checked)"
+                                            :checked="selectedOrders.includes({{ $order['id'] }})"
+                                        >
+                                    </td>
+                                    <td class="py-2 px-3 font-medium !text-gray-900 dark:!text-gray-100">#{{ $order['order_number'] }}</td>
+                                    <td class="py-2 px-3 !text-gray-900 dark:!text-gray-100">{{ $order['customer'] }}</td>
+                                    <td class="py-2 px-3 !text-gray-900 dark:!text-gray-100">{{ $order['total'] }}</td>
+                                    <td class="py-2 px-3 !text-gray-700 dark:!text-gray-300">{{ $order['created_at'] }}</td>
+                                    <td class="py-2 px-3">
+                                        <div class="flex gap-2">
+                                            <button
+                                                type="button"
+                                                class="text-xs px-2 py-1 bg-warning-100 text-warning-700 hover:bg-warning-200 rounded"
+                                                @click="forceReprintSingle({{ $order['id'] }})"
+                                                x-bind:disabled="loading"
+                                            >
+                                                🔄 Reimprimir
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="text-xs px-2 py-1 bg-danger-100 text-danger-700 hover:bg-danger-200 rounded"
+                                                @click="cancelPrintSingle({{ $order['id'] }})"
+                                                x-bind:disabled="loading"
+                                            >
+                                                🚫 Cancelar
+                                            </button>
+                                        </div>
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -252,11 +318,11 @@
                         </thead>
                         <tbody>
                             @foreach($recent as $order)
-                                <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
-                                    <td class="py-2 px-3 font-medium">#{{ $order['order_number'] }}</td>
-                                    <td class="py-2 px-3">{{ $order['customer'] }}</td>
-                                    <td class="py-2 px-3">{{ $order['total'] }}</td>
-                                    <td class="py-2 px-3 text-gray-600 dark:text-gray-400">
+                                <tr class="border-b dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                                    <td class="py-2 px-3 font-medium text-gray-900 dark:text-gray-100">#{{ $order['order_number'] }}</td>
+                                    <td class="py-2 px-3 text-gray-900 dark:text-gray-100">{{ $order['customer'] }}</td>
+                                    <td class="py-2 px-3 text-gray-900 dark:text-gray-100">{{ $order['total'] }}</td>
+                                    <td class="py-2 px-3 text-gray-700 dark:text-gray-300">
                                         {{ $order['printed_at'] ?? 'N/A' }}
                                     </td>
                                 </tr>
@@ -312,4 +378,188 @@
         </x-filament::section>
 
     </div>
+
+    @push('scripts')
+    <script>
+        function printManager() {
+            return {
+                selectedOrders: [],
+                loading: false,
+
+                toggleAll(checked) {
+                    if (checked) {
+                        // Selecionar todos os pedidos visíveis
+                        this.selectedOrders = Array.from(
+                            document.querySelectorAll('input[type="checkbox"][value]')
+                        ).map(el => parseInt(el.value));
+                    } else {
+                        this.selectedOrders = [];
+                    }
+                },
+
+                toggleOrder(orderId, checked) {
+                    if (checked) {
+                        if (!this.selectedOrders.includes(orderId)) {
+                            this.selectedOrders.push(orderId);
+                        }
+                    } else {
+                        this.selectedOrders = this.selectedOrders.filter(id => id !== orderId);
+                    }
+                },
+
+                async forceReprint() {
+                    if (this.selectedOrders.length === 0) {
+                        alert('Selecione pelo menos um pedido');
+                        return;
+                    }
+
+                    if (!confirm(`Reimprimir ${this.selectedOrders.length} pedido(s)?`)) {
+                        return;
+                    }
+
+                    this.loading = true;
+
+                    try {
+                        const response = await fetch('/api/v1/bridge/force-reprint', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                            },
+                            body: JSON.stringify({
+                                order_ids: this.selectedOrders
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            alert(data.message || 'Pedidos reenviados para impressão!');
+                            this.selectedOrders = [];
+                            window.location.reload();
+                        } else {
+                            alert('Erro: ' + (data.message || 'Falha ao reimprimir'));
+                        }
+                    } catch (error) {
+                        console.error('Erro:', error);
+                        alert('Erro ao comunicar com o servidor');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async cancelPrint() {
+                    if (this.selectedOrders.length === 0) {
+                        alert('Selecione pelo menos um pedido');
+                        return;
+                    }
+
+                    if (!confirm(`Cancelar impressão de ${this.selectedOrders.length} pedido(s)?`)) {
+                        return;
+                    }
+
+                    this.loading = true;
+
+                    try {
+                        const response = await fetch('/api/v1/bridge/cancel-print', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                            },
+                            body: JSON.stringify({
+                                order_ids: this.selectedOrders
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            alert(data.message || 'Impressões canceladas!');
+                            this.selectedOrders = [];
+                            window.location.reload();
+                        } else {
+                            alert('Erro: ' + (data.message || 'Falha ao cancelar'));
+                        }
+                    } catch (error) {
+                        console.error('Erro:', error);
+                        alert('Erro ao comunicar com o servidor');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async forceReprintSingle(orderId) {
+                    if (!confirm('Reimprimir este pedido?')) {
+                        return;
+                    }
+
+                    this.loading = true;
+
+                    try {
+                        const response = await fetch('/api/v1/bridge/force-reprint', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                            },
+                            body: JSON.stringify({
+                                order_ids: [orderId]
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            alert('Pedido reenviado para impressão!');
+                            window.location.reload();
+                        } else {
+                            alert('Erro: ' + (data.message || 'Falha ao reimprimir'));
+                        }
+                    } catch (error) {
+                        console.error('Erro:', error);
+                        alert('Erro ao comunicar com o servidor');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async cancelPrintSingle(orderId) {
+                    if (!confirm('Cancelar impressão deste pedido?')) {
+                        return;
+                    }
+
+                    this.loading = true;
+
+                    try {
+                        const response = await fetch('/api/v1/bridge/cancel-print', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                            },
+                            body: JSON.stringify({
+                                order_ids: [orderId]
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            alert('Impressão cancelada!');
+                            window.location.reload();
+                        } else {
+                            alert('Erro: ' + (data.message || 'Falha ao cancelar'));
+                        }
+                    } catch (error) {
+                        console.error('Erro:', error);
+                        alert('Erro ao comunicar com o servidor');
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            }
+        }
+    </script>
+    @endpush
 </x-filament-panels::page>

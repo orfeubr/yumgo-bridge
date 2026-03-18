@@ -212,18 +212,37 @@
                     <div x-show="savedAddresses.length > 0" class="space-y-2">
                         <template x-for="address in savedAddresses" :key="address.id">
                             <div
-                                :class="selectedAddressId === address.id ? 'border-primary bg-red-50' : 'border-gray-200 hover:border-gray-300'"
+                                :class="[
+                                    selectedAddressId === address.id ? 'border-primary bg-red-50' : 'border-gray-200',
+                                    address.in_delivery_area === false ? 'opacity-50' : 'hover:border-gray-300'
+                                ]"
                                 class="flex items-start gap-3 p-3 border-2 rounded-lg transition">
                                 <input
                                     type="radio"
                                     :value="address.id"
                                     x-model="selectedAddressId"
                                     @change="selectSavedAddress(address)"
-                                    class="mt-1 w-4 h-4 text-primary cursor-pointer">
-                                <div class="flex-1 cursor-pointer" @click="selectedAddressId = address.id; selectSavedAddress(address)">
-                                    <p class="font-semibold text-sm text-gray-900" x-text="address.label || 'Endereço'"></p>
+                                    :disabled="address.in_delivery_area === false"
+                                    class="mt-1 w-4 h-4 text-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-50">
+                                <div class="flex-1 cursor-pointer" @click="if (address.in_delivery_area !== false) { selectedAddressId = address.id; selectSavedAddress(address); }">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <p class="font-semibold text-sm text-gray-900" x-text="address.label || 'Endereço'"></p>
+                                        <!-- Badge: Não entregamos -->
+                                        <span x-show="address.in_delivery_area === false"
+                                              class="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded">
+                                            Fora da área
+                                        </span>
+                                    </div>
                                     <p class="text-xs text-gray-600 mt-0.5" x-text="`${address.street}, ${address.number}${address.complement ? ' - ' + address.complement : ''}`"></p>
                                     <p class="text-xs text-gray-500 mt-0.5" x-text="`${address.neighborhood} - ${address.city}`"></p>
+                                    <!-- Alerta inline quando fora da área -->
+                                    <p x-show="address.in_delivery_area === false"
+                                       class="text-xs text-yellow-700 mt-1 flex items-start gap-1">
+                                        <svg class="w-3 h-3 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                        </svg>
+                                        Este restaurante não entrega neste bairro
+                                    </p>
                                 </div>
                                 <button
                                     @click.stop="editAddress(address)"
@@ -597,10 +616,8 @@
                             :disabled="!selectedCity || loadingNeighborhoods"
                             @change="updateDeliveryFeeFromNeighborhood()"
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none disabled:bg-gray-100">
-                            <option value="">
-                                <span x-show="!selectedCity">Selecione a cidade primeiro</span>
-                                <span x-show="selectedCity && loadingNeighborhoods">Carregando...</span>
-                                <span x-show="selectedCity && !loadingNeighborhoods">Selecione o bairro</span>
+                            <option value=""
+                                    x-text="!selectedCity ? 'Selecione a cidade primeiro' : (loadingNeighborhoods ? 'Carregando...' : 'Selecione o bairro')">
                             </option>
                             <template x-for="neighborhood in availableNeighborhoods" :key="neighborhood.id">
                                 <option :value="neighborhood.name" x-text="neighborhood.name"></option>
@@ -798,11 +815,13 @@
                     this.loadPaymentMethods()
                 ]);
 
-                // Se há endereços salvos, selecionar o primeiro automaticamente
+                // Se há endereços salvos, selecionar o primeiro que está na área de entrega
                 if (this.savedAddresses.length > 0) {
-                    const defaultAddress = this.savedAddresses[0];
-                    this.selectedAddressId = defaultAddress.id;
-                    await this.selectSavedAddress(defaultAddress);
+                    const defaultAddress = this.savedAddresses.find(a => a.in_delivery_area !== false) || this.savedAddresses[0];
+                    if (defaultAddress.in_delivery_area !== false) {
+                        this.selectedAddressId = defaultAddress.id;
+                        await this.selectSavedAddress(defaultAddress);
+                    }
                 }
 
                 // Finalizar loading
@@ -828,10 +847,33 @@
                     });
                     if (response.ok) {
                         const data = await response.json();
-                        this.savedAddresses = data.data || [];
+                        const addresses = data.data || [];
+
+                        // Validar se cada endereço está na área de entrega deste restaurante
+                        for (let address of addresses) {
+                            address.in_delivery_area = await this.checkAddressInDeliveryArea(address);
+                        }
+
+                        this.savedAddresses = addresses;
                     }
                 } catch (error) {
                     console.error('Erro ao carregar endereços:', error);
+                }
+            },
+
+            async checkAddressInDeliveryArea(address) {
+                try {
+                    const response = await fetch(`/api/v1/location/enabled-neighborhoods/${encodeURIComponent(address.city)}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        const neighborhoods = data.data || [];
+                        // Verifica se o bairro do endereço está na lista de bairros habilitados
+                        return neighborhoods.some(n => n.name === address.neighborhood);
+                    }
+                    return false;
+                } catch (error) {
+                    console.error('Erro ao validar endereço:', error);
+                    return false;
                 }
             },
 

@@ -192,4 +192,79 @@ class BridgeController extends Controller
             })
         ]);
     }
+
+    /**
+     * Cancelar impressão de pedidos (ação manual do usuário)
+     *
+     * POST /api/v1/bridge/cancel-print
+     * {
+     *   "order_ids": [123, 124, 125]
+     * }
+     */
+    public function cancelPrint(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'order_ids' => 'required|array',
+            'order_ids.*' => 'required|integer|exists:orders,id',
+        ]);
+
+        $canceledCount = 0;
+
+        foreach ($validated['order_ids'] as $orderId) {
+            $order = Order::find($orderId);
+
+            if ($order && in_array($order->print_status, ['pending', 'printing', 'failed'])) {
+                $order->print_status = 'cancelled';
+                $order->print_error = 'Cancelado manualmente pelo usuário';
+                $order->save();
+                $canceledCount++;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "{$canceledCount} impressão(ões) cancelada(s) com sucesso",
+            'canceled_count' => $canceledCount,
+        ]);
+    }
+
+    /**
+     * Forçar reimpressão de pedidos (ação manual do usuário)
+     *
+     * POST /api/v1/bridge/force-reprint
+     * {
+     *   "order_ids": [123, 124, 125]
+     * }
+     */
+    public function forceReprint(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'order_ids' => 'required|array',
+            'order_ids.*' => 'required|integer|exists:orders,id',
+        ]);
+
+        $reprintedCount = 0;
+
+        foreach ($validated['order_ids'] as $orderId) {
+            $order = Order::find($orderId);
+
+            if ($order) {
+                // Resetar status para pending
+                $order->print_status = 'pending';
+                $order->print_error = null;
+                $order->print_attempts = 0;
+                $order->save();
+
+                // Disparar evento de impressão
+                event(new \App\Events\NewOrderEvent($order, true));
+                $reprintedCount++;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "{$reprintedCount} pedido(s) reenviado(s) para impressão",
+            'reprinted_count' => $reprintedCount,
+        ]);
+    }
 }

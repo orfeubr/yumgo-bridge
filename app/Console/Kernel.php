@@ -21,6 +21,13 @@ class Kernel extends ConsoleKernel
             ->hourly()
             ->withoutOverlapping()
             ->onOneServer();
+
+        // ⭐ Reimprimir pedidos pendentes (evento disparado mas Bridge não respondeu)
+        // Roda a cada 5 minutos para detectar pedidos que ficaram "esquecidos"
+        $schedule->command('orders:retry-pending-prints --minutes=5')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->onOneServer();
     }
 
     protected function commands(): void

@@ -81,6 +81,17 @@ autoUpdater.on('update-available', (info) => {
 autoUpdater.on('update-not-available', (info) => {
     log.info('✅ App está atualizado:', info.version);
     log.info(`📌 Versão checada: ${info.version}`);
+
+    // Mostrar mensagem para usuário
+    if (mainWindow) {
+        dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            title: 'Sem Atualizações',
+            message: 'Você já está usando a versão mais recente!',
+            detail: `Versão instalada: ${app.getVersion()}`,
+            buttons: ['OK']
+        });
+    }
 });
 
 // Evento: Erro ao verificar atualização
@@ -168,33 +179,60 @@ function checkForUpdates() {
 // ===== INICIALIZAÇÃO =====
 
 function createWindow() {
-    mainWindow = new BrowserWindow({
-        width: 900,
-        height: 650,
-        minWidth: 800,
-        minHeight: 550,
-        webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false,
-            enableRemoteModule: true
-        },
-        icon: path.join(__dirname, '../assets/icon.png'),
-        title: `YumGo Bridge v${app.getVersion()} - Impressão Local`,
-        show: false,
-        backgroundColor: '#ffffff',
-        resizable: true // Permite redimensionar
-    });
+    log.info('🪟 Criando janela principal...');
 
-    mainWindow.loadFile(path.join(__dirname, 'index.html'));
+    try {
+        mainWindow = new BrowserWindow({
+            width: 900,
+            height: 650,
+            minWidth: 800,
+            minHeight: 550,
+            webPreferences: {
+                nodeIntegration: true,
+                contextIsolation: false,
+                enableRemoteModule: true
+            },
+            icon: path.join(__dirname, '../assets/icon.png'),
+            title: `YumGo Bridge v${app.getVersion()} - Impressão Local`,
+            show: false,
+            backgroundColor: '#ffffff',
+            resizable: true // Permite redimensionar
+        });
 
-    // Mostrar quando pronto
-    mainWindow.once('ready-to-show', () => {
-        mainWindow.show();
+        log.info('✅ BrowserWindow criada');
 
-        if (isDev) {
-            mainWindow.webContents.openDevTools();
-        }
-    });
+        const htmlPath = path.join(__dirname, 'index.html');
+        log.info(`📄 Carregando HTML: ${htmlPath}`);
+        mainWindow.loadFile(htmlPath);
+
+        // Timeout de segurança: se não mostrar em 10s, mostrar mesmo assim
+        const safetyTimeout = setTimeout(() => {
+            log.warn('⚠️ Timeout: Forçando exibição da janela');
+            if (mainWindow && !mainWindow.isVisible()) {
+                mainWindow.show();
+            }
+        }, 10000);
+
+        // Mostrar quando pronto
+        mainWindow.once('ready-to-show', () => {
+            clearTimeout(safetyTimeout);
+            log.info('✅ Janela pronta para exibição');
+            mainWindow.show();
+
+            if (isDev) {
+                mainWindow.webContents.openDevTools();
+            }
+        });
+
+        // Log de erros de carregamento
+        mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+            log.error(`❌ Erro ao carregar HTML: ${errorCode} - ${errorDescription}`);
+        });
+
+    } catch (error) {
+        log.error('❌ ERRO CRÍTICO ao criar janela:', error);
+        dialog.showErrorBox('Erro Fatal', `Não foi possível criar a janela:\n${error.message}`);
+    }
 
     // Minimizar para tray ao fechar
     mainWindow.on('close', (event) => {

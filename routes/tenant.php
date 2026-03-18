@@ -273,6 +273,8 @@ Route::prefix('api/v1')->middleware([
     Route::post('/bridge/print-success', [\App\Http\Controllers\Api\BridgeController::class, 'printSuccess'])->middleware('throttle:120,1'); // 120 req/min
     Route::post('/bridge/print-failed', [\App\Http\Controllers\Api\BridgeController::class, 'printFailed'])->middleware('throttle:120,1'); // 120 req/min
     Route::get('/bridge/pending-prints', [\App\Http\Controllers\Api\BridgeController::class, 'pendingPrints'])->middleware('throttle:60,1'); // 60 req/min
+    Route::post('/bridge/cancel-print', [\App\Http\Controllers\Api\BridgeController::class, 'cancelPrint'])->middleware('throttle:60,1'); // 60 req/min
+    Route::post('/bridge/force-reprint', [\App\Http\Controllers\Api\BridgeController::class, 'forceReprint'])->middleware('throttle:60,1'); // 60 req/min
 
     // Teste de webhook (apenas para desenvolvimento)
     Route::get('/test-webhook', function () {

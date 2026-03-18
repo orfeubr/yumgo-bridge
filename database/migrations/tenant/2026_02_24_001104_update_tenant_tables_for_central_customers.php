@@ -46,8 +46,12 @@ return new class extends Migration
     /**
      * Run the migrations.
      *
-     * IMPORTANTE: Esta migration REMOVE a tabela customers do schema do tenant
-     * e atualiza as tabelas para apontar para customers centrais (schema public).
+     * IMPORTANTE: Esta migration mantém a tabela customers NO TENANT (isolamento por restaurante).
+     * A decisão de centralizar customers foi REVERTIDA - cashback deve ser isolado por tenant.
+     *
+     * Arquitetura correta:
+     * - Schema PUBLIC: tenants, plans, subscriptions (plataforma)
+     * - Schema TENANT: customers, orders, cashback (isolado por restaurante)
      */
     public function up(): void
     {
@@ -58,8 +62,8 @@ return new class extends Migration
         $this->dropForeignKeyIfExists('addresses', 'customer_id');
         $this->dropForeignKeyIfExists('loyalty_badges', 'customer_id');
 
-        // 2. Dropar tabela customers do tenant (vai ser central)
-        Schema::dropIfExists('customers');
+        // 2. MANTÉM a tabela customers no tenant (NÃO deletar!)
+        // Schema::dropIfExists('customers'); ← REMOVIDO: customers DEVE ficar no tenant!
 
         // 3. As foreign keys NÃO podem apontar para outra schema no PostgreSQL
         // Então vamos manter customer_id como bigInteger sem FK constraint

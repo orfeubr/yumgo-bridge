@@ -305,6 +305,17 @@ class Order extends Model
         $this->print_error = $error;
         $this->print_attempts = ($this->print_attempts ?? 0) + 1;
         $this->save();
+
+        // ⭐ Agendar retry automático (se ainda não atingiu máximo)
+        if ($this->print_attempts < 3) {
+            $delayMinutes = $this->print_attempts; // 1min, 2min, 3min
+            \App\Jobs\RetryPrintJob::dispatch($this->id, $this->print_attempts + 1)
+                ->delay(now()->addMinutes($delayMinutes));
+
+            \Log::info("📄 Retry de impressão agendado para o pedido #{$this->order_number} em {$delayMinutes} minutos");
+        } else {
+            \Log::warning("⚠️ Pedido #{$this->order_number} atingiu máximo de tentativas automáticas (3)");
+        }
     }
 
     /**
