@@ -38,6 +38,17 @@ Route::middleware([
     Route::get('/auth/{provider}/callback', [SocialAuthController::class, 'callback'])->name('social.callback');
 });
 
+// ⭐ Servir arquivos estáticos do storage (tenancy/assets)
+Route::get('/tenancy/assets/{path}', function ($path) {
+    $storagePath = storage_path('app/public/' . $path);
+
+    if (!file_exists($storagePath)) {
+        abort(404);
+    }
+
+    return response()->file($storagePath);
+})->where('path', '.*')->name('tenant.assets');
+
 Route::middleware([
     'web',
     InitializeTenancyByDomain::class,

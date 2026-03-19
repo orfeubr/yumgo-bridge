@@ -26,6 +26,9 @@ class SettingsObserver
      */
     public function created(Settings $settings): void
     {
+        // ⭐ Sincronizar logo do marketplace com Tenant
+        $this->syncTenantLogo($settings);
+
         $this->clearTenantCache();
     }
 
@@ -34,7 +37,31 @@ class SettingsObserver
      */
     public function updated(Settings $settings): void
     {
+        // ⭐ Sincronizar logo do marketplace com Tenant
+        $this->syncTenantLogo($settings);
+
         $this->clearTenantCache();
+    }
+
+    /**
+     * Sincroniza logo do marketplace (tenant_logo) com o Tenant
+     */
+    private function syncTenantLogo(Settings $settings): void
+    {
+        // Verifica se tenant_logo foi alterado
+        if ($settings->wasChanged('tenant_logo') || $settings->wasRecentlyCreated) {
+            $tenant = tenancy()->tenant;
+
+            if ($tenant) {
+                $tenant->logo = $settings->getAttribute('tenant_logo');
+                $tenant->saveQuietly(); // Save sem disparar observers
+
+                \Log::info('🔄 SettingsObserver: Logo sincronizado com Tenant', [
+                    'tenant_id' => $tenant->id,
+                    'logo' => $settings->getAttribute('tenant_logo') ?: 'NULL (removido)',
+                ]);
+            }
+        }
     }
 
     /**

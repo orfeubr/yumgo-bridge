@@ -36,13 +36,38 @@ class SettingsResource extends Resource
                         Forms\Components\Tabs\Tab::make('Identidade Visual')
                             ->icon('heroicon-o-paint-brush')
                             ->schema([
-                                Forms\Components\Section::make('Logo e Banner')
+                                Forms\Components\Section::make('Logo do Marketplace')
+                                    ->description('Este logo aparece na página inicial (yumgo.com.br)')
+                                    ->schema([
+                                        Forms\Components\FileUpload::make('tenant_logo')
+                                            ->label('Logo do Marketplace')
+                                            ->image()
+                                            ->disk('public')
+                                            ->directory('tenants/logos')
+                                            ->helperText('📍 Este logo aparece na HOME (yumgo.com.br). Tamanho: 512x512px')
+                                            ->maxSize(2048)
+                                            ->imageEditor()
+                                            ->imageEditorAspectRatios(['1:1'])
+                                            ->imagePreviewHeight('150')
+                                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/jpg'])
+                                            ->getUploadedFileNameForStorageUsing(function ($file) {
+                                                // ⭐ Nome padrão: logo-{tenant-id}.extensão
+                                                $tenantId = tenancy()->tenant?->id ?? 'default';
+                                                $extension = $file->getClientOriginalExtension();
+                                                return "logo-{$tenantId}.{$extension}";
+                                            })
+                                            ->live() // ⭐ Necessário para capturar mudanças
+                                            ->columnSpanFull(),
+                                    ]),
+
+                                Forms\Components\Section::make('Logo e Banner Internos')
+                                    ->description('Usados nas páginas internas do seu restaurante')
                                     ->schema([
                                         Forms\Components\FileUpload::make('logo')
-                                            ->label('Logo')
+                                            ->label('Logo Interno')
                                             ->image()
                                             ->directory('logos')
-                                            ->helperText('Tamanho recomendado: 512x512px (formato: JPG, PNG)')
+                                            ->helperText('📱 Logo usado dentro do painel (opcional)')
                                             ->maxSize(2048)
                                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/jpg']),
 
@@ -53,7 +78,7 @@ class SettingsResource extends Resource
                                             ->helperText('Tamanho recomendado: 1920x1080px (formato: JPG, PNG)')
                                             ->maxSize(2048)
                                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/jpg']),
-                                    ])->columns(2),
+                                    ])->columns(2)->collapsed(),
 
                                 Forms\Components\Section::make('Cores do Tema')
                                     ->description('Personalize as cores do seu aplicativo')

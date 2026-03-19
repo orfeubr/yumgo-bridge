@@ -113,22 +113,7 @@ class TenantResource extends Resource
                             ->dehydrated()
                             ->helperText('Selecione os tipos de comida que seu restaurante serve'),
 
-                        Forms\Components\FileUpload::make('logo')
-                            ->label('Logo do Restaurante')
-                            ->image()
-                            ->disk('public')
-                            ->imageEditor()
-                            ->imageEditorAspectRatios([
-                                '1:1',
-                                '16:9',
-                            ])
-                            ->maxSize(2048)
-                            ->directory('tenants/logos')
-                            ->visibility('public')
-                            ->dehydrated()
-                            ->helperText('Imagem do logo (máx. 2MB, formatos: JPG, PNG)')
-                            ->imagePreviewHeight('150')
-                            ->columnSpanFull(),
+                        // Logo removido - restaurantes gerenciam no próprio painel
                     ])->columns(2),
 
                 Forms\Components\Section::make('Dados da Empresa e Endereço')

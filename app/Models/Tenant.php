@@ -276,12 +276,15 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     }
 
     /**
-     * Retorna URL da logo ou fallback
+     * Retorna URL da logo ou fallback (com cache busting)
      */
     public function getLogoUrlAttribute(): string
     {
         if ($this->logo && file_exists(storage_path('app/public/' . $this->logo))) {
-            return asset('storage/' . $this->logo);
+            // ⭐ Cache busting: adiciona timestamp do arquivo
+            $filePath = storage_path('app/public/' . $this->logo);
+            $timestamp = filemtime($filePath);
+            return asset('storage/' . $this->logo) . '?v=' . $timestamp;
         }
 
         // Fallback: Logo YumGo cinza (SVG)

@@ -23,6 +23,12 @@ class ManageSettings extends EditRecord
 
     protected function mutateFormDataBeforeFill(array $data): array
     {
+        // ⭐ Carregar logo do marketplace do Tenant (tabela central)
+        $tenant = tenancy()->tenant;
+        if ($tenant && $tenant->logo) {
+            $data['tenant_logo'] = $tenant->logo;
+        }
+
         // Se não houver registro, retorna valores padrão
         if (empty($data)) {
             return array_merge([
@@ -58,6 +64,33 @@ class ManageSettings extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
+        // ⭐ Salvar logo do marketplace no Tenant (tabela central)
+        \Log::info('🔍 ManageSettings::mutateFormDataBeforeSave', [
+            'has_tenant_logo' => isset($data['tenant_logo']),
+            'tenant_logo_value' => $data['tenant_logo'] ?? 'N/A',
+            'all_keys' => array_keys($data),
+        ]);
+
+        if (isset($data['tenant_logo'])) {
+            $tenant = tenancy()->tenant;
+            \Log::info('💾 Tentando salvar logo no Tenant', [
+                'tenant_id' => $tenant?->id,
+                'logo_path' => $data['tenant_logo'],
+            ]);
+
+            if ($tenant) {
+                $tenant->logo = $data['tenant_logo'];
+                $tenant->save();
+                \Log::info('✅ Logo salvo com sucesso no Tenant');
+            } else {
+                \Log::warning('⚠️ Tenant não encontrado!');
+            }
+            // Remover do array (não pertence ao Settings)
+            unset($data['tenant_logo']);
+        } else {
+            \Log::info('⚠️ Campo tenant_logo não veio no $data');
+        }
+
         // Converter campos individuais de volta para business_hours
         $businessHours = $this->convertFieldsToBusinessHours($data);
         $data['business_hours'] = $businessHours;
@@ -162,6 +195,38 @@ class ManageSettings extends EditRecord
         }
 
         return $businessHours;
+    }
+
+    protected function handleRecordUpdate(\Illuminate\Database\Eloquent\Model $record, array $data): \Illuminate\Database\Eloquent\Model
+    {
+        // ⭐ PRIMEIRO: Salvar logo do marketplace no Tenant
+        \Log::info('🔍 handleRecordUpdate called', [
+            'data_keys' => array_keys($data),
+            'has_tenant_logo' => array_key_exists('tenant_logo', $data),
+        ]);
+
+        if (array_key_exists('tenant_logo', $data) && $data['tenant_logo']) {
+            $tenant = tenancy()->tenant;
+            if ($tenant) {
+                \Log::info('💾 Salvando logo no Tenant', [
+                    'tenant_id' => $tenant->id,
+                    'logo' => $data['tenant_logo'],
+                ]);
+
+                $tenant->logo = $data['tenant_logo'];
+                $tenant->save();
+
+                \Log::info('✅ Logo salvo no Tenant');
+            }
+
+            // Remover do array para não tentar salvar no Settings
+            unset($data['tenant_logo']);
+        }
+
+        // DEPOIS: Salvar o resto no Settings e retornar
+        $record->update($data);
+
+        return $record;
     }
 
     public function mount(int | string $record = null): void
