@@ -66,6 +66,14 @@ class POS extends Page implements HasForms
     public $pixCopyPaste = null;
     public $pixOrderNumber = null;
 
+    // ⭐ Aguardando Pagamento
+    public $showPaymentWaitingModal = false;
+    public $currentOrderId = null;
+    public $currentOrderNumber = null;
+    public $currentOrderTotal = 0;
+    public $currentPaymentMethod = null;
+    public $paymentConfirmed = false;
+
     // Confirmações visuais
     public $willPrint = true; // Indica se vai imprimir
     public $willEmitNfce = false; // Indica se vai emitir NFC-e
@@ -541,8 +549,6 @@ class POS extends Page implements HasForms
                 if ($payment && $payment->pix_qrcode) {
                     $this->pixQrCode = $payment->pix_qrcode;
                     $this->pixCopyPaste = $payment->pix_copy_paste ?? $payment->pix_code;
-                    $this->pixOrderNumber = $order->order_number;
-                    $this->showPixModal = true;
 
                     // ⭐ IMPRIMIR COMPROVANTE PIX TAMBÉM
                     try {
@@ -565,23 +571,19 @@ class POS extends Page implements HasForms
                 }
             }
 
-            // Limpar carrinho
-            $this->cart = [];
-            $this->clearCustomer();
-            $this->customerNotes = '';
-            $this->discount = 0;
-            $this->deliveryFee = 0;
-            $this->cashbackUsed = 0;
+            // ⭐ ABRIR MODAL DE AGUARDANDO PAGAMENTO (não limpar ainda!)
+            $this->currentOrderId = $order->id;
+            $this->currentOrderNumber = $order->order_number;
+            $this->currentOrderTotal = $order->total;
+            $this->currentPaymentMethod = $this->paymentMethod;
+            $this->paymentConfirmed = false;
+            $this->showPaymentWaitingModal = true;
 
-            // Notificação de sucesso para métodos não-PIX
-            if ($this->paymentMethod !== 'pix') {
-                Notification::make()
-                    ->success()
-                    ->title('✅ Pedido #{order_number} criado!')
-                    ->body('Cupom enviado para impressão')
-                    ->body("Pedido #{$order->order_number} criado e enviado para impressão!")
-                    ->send();
-            }
+            Notification::make()
+                ->success()
+                ->title("✅ Pedido #{$order->order_number} criado!")
+                ->body('Cupom enviado para impressão')
+                ->send();
 
         } catch (\Exception $e) {
             \Log::error('Erro ao criar pedido no POS', [
@@ -603,6 +605,129 @@ class POS extends Page implements HasForms
         $this->pixQrCode = null;
         $this->pixCopyPaste = null;
         $this->pixOrderNumber = null;
+    }
+
+    /**
+     * ⭐ Marcar pedido como pago manualmente (dinheiro, débito, crédito)
+     */
+    public function markOrderAsPaid(): void
+    {
+        if (!$this->currentOrderId) {
+            return;
+        }
+
+        try {
+            $order = Order::findOrFail($this->currentOrderId);
+            $order->payment_status = 'paid';
+            $order->save();
+
+            $this->paymentConfirmed = true;
+
+            Notification::make()
+                ->success()
+                ->title('✅ Pedido marcado como PAGO!')
+                ->body("Pedido #{$order->order_number} - {$this->currentPaymentMethod}")
+                ->send();
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->danger()
+                ->title('Erro ao marcar como pago')
+                ->body($e->getMessage())
+                ->send();
+        }
+    }
+
+    /**
+     * ⭐ Fechar modal de pagamento e limpar PDV para próximo pedido
+     */
+    public function finishAndStartNext(): void
+    {
+        // Limpar tudo
+        $this->showPaymentWaitingModal = false;
+        $this->showPixModal = false;
+        $this->currentOrderId = null;
+        $this->currentOrderNumber = null;
+        $this->currentOrderTotal = 0;
+        $this->currentPaymentMethod = null;
+        $this->paymentConfirmed = false;
+        $this->pixQrCode = null;
+        $this->pixCopyPaste = null;
+
+        // Limpar carrinho
+        $this->cart = [];
+        $this->clearCustomer();
+        $this->customerNotes = '';
+        $this->discount = 0;
+        $this->deliveryFee = 0;
+        $this->cashbackUsed = 0;
+
+        Notification::make()
+            ->success()
+            ->title('🔄 PDV pronto para próximo pedido!')
+            ->send();
+    }
+
+    /**
+     * ⭐ Reimprimir QR Code PIX
+     */
+    public function reprintPixFromWaiting(): void
+    {
+        if (!$this->currentOrderId) {
+            return;
+        }
+
+        try {
+            $order = Order::findOrFail($this->currentOrderId);
+            $payment = $order->payments()->latest()->first();
+
+            if ($payment) {
+                event(new \App\Events\PrintPixReceiptEvent($order, $payment));
+
+                Notification::make()
+                    ->success()
+                    ->title('🖨️ QR Code PIX reenviado!')
+                    ->body('Comprovante enviado para impressora')
+                    ->send();
+            }
+        } catch (\Exception $e) {
+            Notification::make()
+                ->danger()
+                ->title('Erro ao reimprimir')
+                ->body($e->getMessage())
+                ->send();
+        }
+    }
+
+    /**
+     * ⭐ Cancelar pedido atual
+     */
+    public function cancelCurrentOrder(): void
+    {
+        if (!$this->currentOrderId) {
+            return;
+        }
+
+        try {
+            $order = Order::findOrFail($this->currentOrderId);
+            $order->status = 'cancelled';
+            $order->payment_status = 'failed';
+            $order->save();
+
+            Notification::make()
+                ->warning()
+                ->title('❌ Pedido cancelado')
+                ->body("Pedido #{$order->order_number} foi cancelado")
+                ->send();
+
+            $this->finishAndStartNext();
+        } catch (\Exception $e) {
+            Notification::make()
+                ->danger()
+                ->title('Erro ao cancelar')
+                ->body($e->getMessage())
+                ->send();
+        }
     }
 
     public function reprintPixQrCode(): void

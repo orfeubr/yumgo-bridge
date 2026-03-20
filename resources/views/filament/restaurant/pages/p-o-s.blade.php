@@ -563,4 +563,124 @@
 
         </div>
     </div>
+
+    {{-- ===== MODAL: AGUARDANDO PAGAMENTO ===== --}}
+    <x-filament::modal
+        wire:model="showPaymentWaitingModal"
+        width="2xl"
+        :close-by-clicking-away="false"
+        :close-button="false"
+    >
+        <x-slot name="heading">
+            <div class="flex items-center gap-2">
+                @if($paymentConfirmed)
+                    <span class="text-green-600">✅</span>
+                @else
+                    <span class="animate-pulse">⏳</span>
+                @endif
+                <span>Pedido #{{ $currentOrderNumber }}</span>
+            </div>
+        </x-slot>
+
+        <div class="space-y-4">
+            {{-- Total do Pedido --}}
+            <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 text-center">
+                <div class="text-sm text-gray-600 dark:text-gray-400">Total do Pedido</div>
+                <div class="text-3xl font-bold text-primary-600 dark:text-primary-400">
+                    R$ {{ number_format($currentOrderTotal, 2, ',', '.') }}
+                </div>
+                <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Forma de Pagamento: <span class="font-semibold">{{ strtoupper($currentPaymentMethod ?? '') }}</span>
+                </div>
+            </div>
+
+            {{-- QR Code PIX (se aplicável) --}}
+            @if($currentPaymentMethod === 'pix' && $pixQrCode)
+                <div class="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                    <div class="text-center space-y-3">
+                        <div class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            📱 QR Code PIX
+                        </div>
+                        <div class="flex justify-center">
+                            <img src="{{ $pixQrCode }}" alt="QR Code PIX" class="w-48 h-48" />
+                        </div>
+                        @if($pixCopyPaste)
+                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                Código Copia e Cola disponível
+                            </div>
+                        @endif
+                        <x-filament::button
+                            wire:click="reprintPixFromWaiting"
+                            color="info"
+                            size="sm"
+                            outlined
+                        >
+                            🖨️ Reimprimir QR Code
+                        </x-filament::button>
+                    </div>
+                </div>
+            @endif
+
+            {{-- Status do Pagamento --}}
+            <div class="text-center">
+                @if($paymentConfirmed)
+                    <div class="text-green-600 dark:text-green-400 font-semibold text-lg">
+                        ✅ Pagamento Confirmado!
+                    </div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        Cupom já foi impresso
+                    </div>
+                @else
+                    <div class="text-orange-600 dark:text-orange-400 font-semibold">
+                        ⏳ Aguardando Pagamento...
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        @if($currentPaymentMethod === 'pix')
+                            Cliente pode escanear o QR Code ou digitar o código manualmente
+                        @else
+                            Marque como pago após receber o pagamento
+                        @endif
+                    </div>
+                @endif
+            </div>
+
+            {{-- Ações --}}
+            <div class="grid grid-cols-1 gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                @if(!$paymentConfirmed)
+                    @if($currentPaymentMethod !== 'pix')
+                        {{-- Botão: Marcar como Pago (Dinheiro, Débito, Crédito) --}}
+                        <x-filament::button
+                            wire:click="markOrderAsPaid"
+                            color="success"
+                            size="lg"
+                            class="w-full"
+                        >
+                            ✅ MARCAR COMO PAGO
+                        </x-filament::button>
+                    @endif
+
+                    {{-- Botão: Cancelar Pedido --}}
+                    <x-filament::button
+                        wire:click="cancelCurrentOrder"
+                        wire:confirm="Tem certeza que deseja cancelar este pedido?"
+                        color="danger"
+                        size="sm"
+                        outlined
+                    >
+                        ❌ Cancelar Pedido
+                    </x-filament::button>
+                @else
+                    {{-- Botão: Próximo Pedido --}}
+                    <x-filament::button
+                        wire:click="finishAndStartNext"
+                        color="primary"
+                        size="lg"
+                        class="w-full"
+                    >
+                        🔄 PRÓXIMO PEDIDO
+                    </x-filament::button>
+                @endif
+            </div>
+        </div>
+    </x-filament::modal>
 </x-filament-panels::page>
