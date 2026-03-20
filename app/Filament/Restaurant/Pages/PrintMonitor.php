@@ -70,7 +70,6 @@ class PrintMonitor extends Page
     public function failedPrints(): Collection
     {
         return Order::printFailed()
-            ->with(['customer'])
             ->where('created_at', '>=', now()->subDay())
             ->orderBy('created_at', 'desc')
             ->limit(20)
@@ -79,7 +78,7 @@ class PrintMonitor extends Page
                 return [
                     'id' => $order->id,
                     'order_number' => $order->order_number,
-                    'customer' => $order->customer->name ?? 'N/A',
+                    'customer' => $order->customer_name ?? 'N/A',
                     'total' => 'R$ ' . number_format($order->total, 2, ',', '.'),
                     'error' => $order->print_error,
                     'attempts' => $order->print_attempts,
@@ -95,7 +94,6 @@ class PrintMonitor extends Page
     public function pendingPrints(): Collection
     {
         return Order::where('print_status', 'pending')
-            ->with(['customer'])
             ->where('created_at', '>=', now()->subDay())
             ->orderBy('created_at', 'desc')
             ->limit(20)
@@ -104,7 +102,7 @@ class PrintMonitor extends Page
                 return [
                     'id' => $order->id,
                     'order_number' => $order->order_number,
-                    'customer' => $order->customer->name ?? 'N/A',
+                    'customer' => $order->customer_name ?? 'N/A',
                     'total' => 'R$ ' . number_format($order->total, 2, ',', '.'),
                     'created_at' => $order->created_at->format('d/m/Y H:i'),
                 ];
@@ -118,7 +116,6 @@ class PrintMonitor extends Page
     public function recentPrints(): Collection
     {
         return Order::where('print_status', 'printed')
-            ->with(['customer'])
             ->orderBy('printed_at', 'desc')
             ->limit(20)
             ->get()
@@ -126,7 +123,7 @@ class PrintMonitor extends Page
                 return [
                     'id' => $order->id,
                     'order_number' => $order->order_number,
-                    'customer' => $order->customer->name ?? 'N/A',
+                    'customer' => $order->customer_name ?? 'N/A',
                     'total' => 'R$ ' . number_format($order->total, 2, ',', '.'),
                     'printed_at' => $order->printed_at?->format('d/m/Y H:i'),
                 ];
@@ -191,19 +188,17 @@ class PrintMonitor extends Page
                         ->searchable()
                         ->getSearchResultsUsing(function (string $search): array {
                             // Busca por: número do pedido, nome do cliente ou valor
-                            return Order::with('customer')
-                                ->where(function ($query) use ($search) {
+                            // Busca apenas no schema TENANT (não precisa ->with('customer'))
+                            return Order::where(function ($query) use ($search) {
                                     $query->where('order_number', 'LIKE', "%{$search}%")
-                                        ->orWhereHas('customer', function ($q) use ($search) {
-                                            $q->where('name', 'LIKE', "%{$search}%");
-                                        })
+                                        ->orWhere('customer_name', 'LIKE', "%{$search}%") // Campo direto
                                         ->orWhere('total', 'LIKE', "%{$search}%");
                                 })
                                 ->orderBy('created_at', 'desc')
                                 ->limit(50)
                                 ->get()
                                 ->mapWithKeys(function ($order) {
-                                    $label = "#{$order->order_number} - {$order->customer->name} - R$ " .
+                                    $label = "#{$order->order_number} - {$order->customer_name} - R$ " .
                                              number_format($order->total, 2, ',', '.') .
                                              " - " . $order->created_at->format('d/m/Y H:i');
                                     return [$order->id => $label];
@@ -211,9 +206,9 @@ class PrintMonitor extends Page
                                 ->toArray();
                         })
                         ->getOptionLabelUsing(function ($value): ?string {
-                            $order = Order::with('customer')->find($value);
+                            $order = Order::find($value);
                             if (!$order) return null;
-                            return "#{$order->order_number} - {$order->customer->name} - R$ " .
+                            return "#{$order->order_number} - {$order->customer_name} - R$ " .
                                    number_format($order->total, 2, ',', '.') .
                                    " - " . $order->created_at->format('d/m/Y H:i');
                         }),

@@ -329,9 +329,11 @@ class POS extends Page implements HasForms
     public function quickBalcaoMode(): void
     {
         // Modo rápido: Cliente balcão sem cadastro
-        $this->customerName = 'Cliente Balcão #' . rand(1000, 9999);
-        $this->customerPhone = '(00) 0000-0000';
-        $this->customerEmail = null;
+        $randomNumber = rand(1000, 9999);
+        $this->customerName = 'Cliente Balcão #' . $randomNumber;
+        // Gerar telefone único para evitar duplicação
+        $this->customerPhone = '(99) 9' . rand(1000, 9999) . '-' . rand(1000, 9999);
+        $this->customerEmail = null; // Será gerado email único no createQuickCustomer
         $this->deliveryType = 'pickup';
         $this->deliveryAddress = '';
         $this->deliveryFee = 0;
@@ -436,10 +438,17 @@ class POS extends Page implements HasForms
             'customerEmail.email' => 'E-mail inválido',
         ]);
 
+        // Gerar email único se não fornecido (evita duplicação)
+        $email = $this->customerEmail;
+        if (!$email) {
+            // Email único: balcao-{timestamp}-{random}@temp.com
+            $email = 'balcao-' . time() . '-' . rand(1000, 9999) . '@temp.com';
+        }
+
         $customer = Customer::create([
             'name' => $this->customerName,
             'phone' => $this->customerPhone,
-            'email' => $this->customerEmail ?: $this->customerPhone . '@temp.com',
+            'email' => $email,
             'password' => bcrypt('123456'),
             'is_active' => true,
         ]);
