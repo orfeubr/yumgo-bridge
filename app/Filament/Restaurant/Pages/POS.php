@@ -520,17 +520,31 @@ class POS extends Page implements HasForms
                 'cash_register_id' => $cashRegister?->id, // Vincular ao caixa aberto
             ]);
 
+            // ⭐ IMPRIMIR CUPOM DO PEDIDO (todos os métodos de pagamento)
+            try {
+                event(new \App\Events\NewOrderEvent($order));
+                \Log::info('🖨️ Evento de impressão do pedido disparado', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'payment_method' => $this->paymentMethod,
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('❌ Erro ao disparar impressão do pedido', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             // Se for PIX, buscar o pagamento e exibir QR Code
             if ($this->paymentMethod === 'pix') {
                 $payment = $order->payments()->latest()->first();
 
                 if ($payment && $payment->pix_qrcode) {
                     $this->pixQrCode = $payment->pix_qrcode;
-                    $this->pixCopyPaste = $payment->pix_code;
+                    $this->pixCopyPaste = $payment->pix_copy_paste ?? $payment->pix_code;
                     $this->pixOrderNumber = $order->order_number;
                     $this->showPixModal = true;
 
-                    // ⭐ IMPRIMIR COMPROVANTE PIX AUTOMATICAMENTE
+                    // ⭐ IMPRIMIR COMPROVANTE PIX TAMBÉM
                     try {
                         event(new \App\Events\PrintPixReceiptEvent($order, $payment));
                         \Log::info('🖨️ Evento de impressão PIX disparado', [
@@ -559,15 +573,14 @@ class POS extends Page implements HasForms
             $this->deliveryFee = 0;
             $this->cashbackUsed = 0;
 
+            // Notificação de sucesso para métodos não-PIX
             if ($this->paymentMethod !== 'pix') {
                 Notification::make()
                     ->success()
-                    ->title('Pedido criado com sucesso! 🎉')
-                    ->body("Número: {$order->order_number}")
+                    ->title('✅ Pedido #{order_number} criado!')
+                    ->body('Cupom enviado para impressão')
+                    ->body("Pedido #{$order->order_number} criado e enviado para impressão!")
                     ->send();
-
-                // Redirecionar para o pedido (apenas se não for PIX)
-                $this->redirect(OrderResource::getUrl('edit', ['record' => $order]));
             }
 
         } catch (\Exception $e) {
