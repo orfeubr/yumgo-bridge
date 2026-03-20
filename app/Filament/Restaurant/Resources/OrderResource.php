@@ -37,6 +37,18 @@ class OrderResource extends Resource
         return true;
     }
 
+    // Permitir edição para todos usuários autenticados
+    public static function canEdit($record): bool
+    {
+        return true;
+    }
+
+    // Permitir deleção para todos usuários autenticados
+    public static function canDelete($record): bool
+    {
+        return true;
+    }
+
     public static function form(Form $form): Form
     {
         return $form
