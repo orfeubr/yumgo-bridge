@@ -566,7 +566,7 @@
 
     {{-- ===== MODAL: AGUARDANDO PAGAMENTO ===== --}}
     <x-filament::modal
-        wire:model="showPaymentWaitingModal"
+        wire:model.live="showPaymentWaitingModal"
         width="2xl"
         :close-by-clicking-away="false"
         :close-button="false"

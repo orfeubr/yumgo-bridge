@@ -579,6 +579,13 @@ class POS extends Page implements HasForms
             $this->paymentConfirmed = false;
             $this->showPaymentWaitingModal = true;
 
+            \Log::info('🔔 Modal de pagamento aberta', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'payment_method' => $this->paymentMethod,
+                'modal_visible' => $this->showPaymentWaitingModal,
+            ]);
+
             Notification::make()
                 ->success()
                 ->title("✅ Pedido #{$order->order_number} criado!")
