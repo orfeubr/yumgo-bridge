@@ -52,9 +52,14 @@ class AsaasService
             'email' => $data['email'],
             'cpfCnpj' => $cpfCnpj,
             'companyType' => $data['companyType'] ?? 'MEI',
-            'mobilePhone' => preg_replace('/[^0-9]/', '', $data['mobilePhone'] ?? $data['phone'] ?? '11912345678'),
             'incomeValue' => 5000.00,  // Faturamento mensal padrão
         ];
+
+        // mobilePhone é opcional - só adiciona se tiver valor válido
+        $mobilePhone = preg_replace('/[^0-9]/', '', $data['mobilePhone'] ?? $data['phone'] ?? '');
+        if (strlen($mobilePhone) >= 10) {
+            $payload['mobilePhone'] = $mobilePhone;
+        }
 
         // Adicionar birthDate se fornecido
         if (!empty($data['birthDate'])) {
@@ -80,6 +85,7 @@ class AsaasService
         $response = Http::withHeaders([
             'access_token' => $this->apiKey,
             'Content-Type' => 'application/json',
+            'User-Agent' => 'YumGo/1.0 (Laravel; +https://yumgo.com.br)',
         ])->post("{$this->baseUrl}/accounts", $payload);
 
         if ($response->successful()) {
@@ -112,6 +118,7 @@ class AsaasService
         $response = Http::withHeaders([
             'access_token' => $this->apiKey,
             'Content-Type' => 'application/json',
+            'User-Agent' => 'YumGo/1.0',
         ])->post("{$this->baseUrl}/accounts/{$accountId}/bankAccounts", $bankData);
 
         if ($response->successful()) {
@@ -134,6 +141,7 @@ class AsaasService
     {
         $response = Http::withHeaders([
             'access_token' => $this->apiKey,
+            'User-Agent' => 'YumGo/1.0',
         ])->get("{$this->baseUrl}/myAccount");
 
         if ($response->successful()) {
@@ -193,6 +201,7 @@ class AsaasService
         $response = Http::timeout(10)->withHeaders([
             'access_token' => $this->apiKey, // Usa API Key Master
             'Content-Type' => 'application/json',
+            'User-Agent' => 'YumGo/1.0',
         ])->post("{$this->baseUrl}/payments", $payload);
 
         if ($response->successful()) {
@@ -244,6 +253,7 @@ class AsaasService
         // Busca cliente existente
         $response = Http::timeout(5)->withHeaders([
             'access_token' => $this->apiKey,
+            'User-Agent' => 'YumGo/1.0',
         ])->get("{$this->baseUrl}/customers", [
             'email' => $customer->email,
         ]);
@@ -258,6 +268,7 @@ class AsaasService
                     Http::withHeaders([
                         'access_token' => $this->apiKey,
                         'Content-Type' => 'application/json',
+                        'User-Agent' => 'YumGo/1.0',
                     ])->put("{$this->baseUrl}/customers/{$asaasCustomerId}", [
                         'cpfCnpj' => $cpf,
                     ]);
@@ -271,6 +282,7 @@ class AsaasService
         $response = Http::timeout(5)->withHeaders([
             'access_token' => $this->apiKey,
             'Content-Type' => 'application/json',
+            'User-Agent' => 'YumGo/1.0',
         ])->post("{$this->baseUrl}/customers", [
             'name' => $customer->name ?? 'Cliente',
             'email' => $customer->email,
@@ -300,6 +312,7 @@ class AsaasService
     {
         $response = Http::withHeaders([
             'access_token' => $this->apiKey,
+            'User-Agent' => 'YumGo/1.0',
         ])->get("{$this->baseUrl}/payments/{$paymentId}");
 
         if ($response->successful()) {
@@ -417,6 +430,7 @@ class AsaasService
     {
         $response = Http::withHeaders([
             'access_token' => $this->apiKey,
+            'User-Agent' => 'YumGo/1.0',
         ])->get("{$this->baseUrl}/payments/{$paymentId}/pixQrCode");
 
         if ($response->successful()) {
