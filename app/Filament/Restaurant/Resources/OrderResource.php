@@ -37,16 +37,16 @@ class OrderResource extends Resource
         return true;
     }
 
-    // Permitir edição para todos usuários autenticados
+    // ❌ BLOQUEAR EDIÇÃO - Risco de fraude (adicionar itens sem pagar)
     public static function canEdit($record): bool
     {
-        return true;
+        return false;
     }
 
-    // Permitir deleção para todos usuários autenticados
+    // ❌ BLOQUEAR DELEÇÃO - Manter auditoria completa
     public static function canDelete($record): bool
     {
-        return true;
+        return false;
     }
 
     public static function form(Form $form): Form
@@ -670,8 +670,8 @@ class OrderResource extends Resource
                     }),
             ])
             ->actions([
+                // ✅ Apenas VISUALIZAR (não editar - risco de fraude)
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
 
                 // Action para marcar como pago
                 Tables\Actions\Action::make('mark_as_paid')
@@ -753,9 +753,7 @@ class OrderResource extends Resource
                     }),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                // ❌ Sem ações em massa - manter auditoria
             ]);
     }
 
