@@ -564,23 +564,20 @@
         </div>
     </div>
 
-    {{-- ===== MODAL: AGUARDANDO PAGAMENTO ===== --}}
-    <x-filament::modal
-        wire:model.live="showPaymentWaitingModal"
-        width="2xl"
-        :close-by-clicking-away="false"
-        :close-button="false"
-    >
-        <x-slot name="heading">
-            <div class="flex items-center gap-2">
+    {{-- ===== MODAL: AGUARDANDO PAGAMENTO (Versão Simples) ===== --}}
+    @if($showPaymentWaitingModal)
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+         wire:key="payment-waiting-modal">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 p-6">
+            {{-- Cabeçalho --}}
+            <div class="flex items-center gap-2 mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
                 @if($paymentConfirmed)
-                    <span class="text-green-600">✅</span>
+                    <span class="text-green-600 text-2xl">✅</span>
                 @else
-                    <span class="animate-pulse">⏳</span>
+                    <span class="animate-pulse text-2xl">⏳</span>
                 @endif
-                <span>Pedido #{{ $currentOrderNumber }}</span>
+                <span class="text-xl font-bold">Pedido #{{ $currentOrderNumber }}</span>
             </div>
-        </x-slot>
 
         <div class="space-y-4">
             {{-- Total do Pedido --}}
@@ -682,5 +679,6 @@
                 @endif
             </div>
         </div>
-    </x-filament::modal>
+    </div>
+    @endif
 </x-filament-panels::page>
