@@ -245,6 +245,7 @@ class OrderService
         return [
             'order_number' => $this->generateOrderNumber(),
             'customer_id' => $customer->id,
+            'cash_register_id' => $data['cash_register_id'] ?? null, // ✅ Vincular ao caixa
             'subtotal' => $totals['subtotal'],
             'delivery_fee' => $totals['delivery_fee'],
             'discount' => $totals['discount'],

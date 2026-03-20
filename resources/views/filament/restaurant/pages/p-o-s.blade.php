@@ -1,20 +1,91 @@
 <x-filament-panels::page>
     @livewire('restaurant.pizza-builder')
 
+    {{-- ATALHOS REMOVIDOS: Causavam conflitos com navegador --}}
+    {{-- Sistema otimizado para uso com mouse/touch --}}
+
+    {{-- SOM DE FEEDBACK --}}
+    <audio id="beep-sound" src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuFzvfVhzMHHGS56t2dQwwOVKzp67FoGAU7k9z1z4g0Bx1iuOngnkQNDlCp6uyxaRcFOY/Y8c6GOgcZX7Tp6aFSEQxMouH1v3AhBS6Gzfjtjj0IGV+1693CcSYFLojO9tOLOAcZXLPl6qNcFgxJneHytHEiBS2F0PbtjjwHGmG37OClUhIMRpzh8bVuIgUshdTx8IxBCBleue3fpFcSDkmf4PK9dCAELYfX8tGJPAcXYbTs7KRVEwxHnODvu3IcBSuFy/bbjjkII2C1593RiT0HHmS96+upUhEKSpzfuXYeBS2EyvbwkkEIFl636eShVhEMRp3e87VxIAUrlcz46YxBBxlft+viqVIRDEud3PO2ciMEK4NK8/OOMgYaXbbs5KdXEgtFn9vxunAjBSuBy/vrklIJFlux5/OgVBYLSJrb8r92IwUrgdT87I9CBRZds+XupFQVDE2c2fO8cSQEK4DO8e2RQQcWXLPm66JWFA1Mm97yt3UlBCuB0fXri0AJE1606+ikVhIOSp7d8LdyIgUrgdHz7I9DBRVbtOjqpFUSC0qb3PK5cSQELH/Q8+2RQQcUXLTl66JYEQxJnt/wvHEiBS2Bz/Xtj0AJFluz5euiVxILSp3c8bhwJQQrf9Dy9I9BBRVbtOjqpVYSC0mf3vC8ciMGK4DO8++RQQcWXbLm7KNXEg1Knt3ytnEiBSyAzvPtj0AJFluz5+uiVxIMSp3c8bhwJAQqf9Dz745ABRRds+rrpFYTDE2c3fG6cCQFK4DQ8e6PQQcXX7Pm66FZEQtInd3xu3EjBSuAz/Luj0EJFl2z5+qkVhINSZ7c8rhxIwQsf87y7o5BBRVbuenkpFYTDE2d3fG6cSQGK3/O8++OQggaXrPm66NYEg1Knt3wuXIjBCuAzvLuj0EIFl6z5uqkVxINSZ7c8rhwJAQqgM7z7o5ABRZes+fqpFYTDE2c3fG5cSQEK4DN8+6PQQgYXbPm66NYEgtKn9zxunAkBSyA0PPtkD8IGFyz5/OmVxIMR5/c8rpxIwUrgM7z7ZFBCBRcs+fso1cUDUqe3/C3ciQEKoDQ8eyPQQcXXbTm66VYEg1JntzwunIkBSyAzvPtkUAIE1y06POhWhALR5/b8rxxIwUsgNDy8I9ABxVbsujpolcSDUmd3fG6cyMHLIDO8+2PQQgTXLPm7KJZEg1Jntzxu3EjBiuAzvPuj0IJF12z5uujVxMMSJzd8bpxJQQsgc/z7o9AB"  preload="auto"></audio>
+
+    <script>
+        document.addEventListener('livewire:init', () => {
+            Livewire.on('play-beep', () => {
+                document.getElementById('beep-sound')?.play();
+            });
+            Livewire.on('focusBarcode', () => {
+                document.querySelector('[wire\\:model\\.live\\.debounce\\.300ms="barcode"]')?.focus();
+            });
+            Livewire.on('focusSearch', () => {
+                document.querySelector('[wire\\:model\\.live\\.debounce\\.300ms="searchProduct"]')?.focus();
+            });
+        });
+    </script>
+
+    {{-- HEADER COM INDICADORES --}}
+    <div class="mb-4 bg-gradient-to-r from-primary-50 to-primary-100 dark:from-gray-800 dark:to-gray-700 rounded-lg p-3 border-2 border-primary-200 dark:border-primary-600">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">🛒</span>
+                <div>
+                    <h2 class="text-sm font-bold text-gray-900 dark:text-white">Frente de Caixa</h2>
+                    <p class="text-xs text-gray-600 dark:text-gray-400">
+                        Adicione produtos clicando nos cards ou usando o leitor de código de barras
+                    </p>
+                </div>
+            </div>
+
+            {{-- INDICADORES VISUAIS --}}
+            <div class="flex items-center gap-2">
+                @if($willPrint)
+                    <div class="flex items-center gap-1 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-lg border border-green-300 dark:border-green-700">
+                        <span class="text-lg">🖨️</span>
+                        <span class="text-xs font-bold text-green-700 dark:text-green-300">Vai Imprimir</span>
+                    </div>
+                @endif
+
+                @if($willEmitNfce)
+                    <div class="flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded-lg border border-blue-300 dark:border-blue-700">
+                        <span class="text-lg">🧾</span>
+                        <span class="text-xs font-bold text-blue-700 dark:text-blue-300">NFC-e Ativa</span>
+                    </div>
+                @else
+                    <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-700/30 px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-600">
+                        <span class="text-lg">📄</span>
+                        <span class="text-xs font-bold text-gray-600 dark:text-gray-400">NFC-e Inativa</span>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <!-- PRODUTOS (8 colunas) -->
         <div class="lg:col-span-8 space-y-4">
 
-            <!-- Busca e Categorias Compactas -->
+            <!-- Busca MELHORADA com Código de Barras -->
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2">
-                <!-- Busca + Toggle Imagens -->
                 <div class="flex gap-2 mb-2">
+                    {{-- Código de Barras --}}
+                    <div class="flex-1">
+                        <x-filament::input.wrapper>
+                            <x-filament::input
+                                wire:model.live.debounce.300ms="barcode"
+                                wire:keydown.enter="scanBarcode"
+                                type="text"
+                                placeholder="📷 Código de Barras (F5)"
+                                class="text-sm py-1 font-mono"
+                                autofocus
+                            />
+                        </x-filament::input.wrapper>
+                    </div>
+
+                    {{-- Busca por Nome --}}
                     <div class="flex-1">
                         <x-filament::input.wrapper>
                             <x-filament::input
                                 wire:model.live.debounce.300ms="searchProduct"
                                 type="text"
-                                placeholder="🔍 Buscar..."
+                                placeholder="🔍 Buscar Produto (F1)"
                                 class="text-sm py-1"
                             />
                         </x-filament::input.wrapper>
@@ -32,9 +103,9 @@
                         </svg>
                     </x-filament::button>
 
-                    @if($searchProduct)
+                    @if($searchProduct || $barcode)
                         <x-filament::button
-                            wire:click="$set('searchProduct', '')"
+                            wire:click="$set('searchProduct', ''); $set('barcode', '')"
                             color="gray"
                             outlined
                             size="xs"
@@ -70,11 +141,11 @@
 
             <!-- Grid de Produtos (COMPACTO) -->
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2">
-                <div class="grid @if($showImages) grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 @else grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 @endif gap-1.5 max-h-[calc(100vh-240px)] overflow-y-auto pr-1">
+                <div class="grid @if($showImages) grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 @else grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 @endif gap-1.5 max-h-[calc(100vh-300px)] overflow-y-auto pr-1">
                     @forelse($this->getProducts() as $product)
                         <button
                             wire:click="addToCart({{ $product->id }})"
-                            class="group relative flex flex-col bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg @if($showImages) p-1.5 @else p-2 @endif hover:border-primary-500 hover:shadow-md transition-all duration-150 cursor-pointer"
+                            class="group relative flex flex-col bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-lg @if($showImages) p-1.5 @else p-2 @endif hover:border-primary-500 hover:shadow-lg transition-all duration-150 cursor-pointer"
                             @if($product->has_stock_control && !$product->hasStock())
                                 disabled
                                 class="opacity-50 cursor-not-allowed"
@@ -91,7 +162,7 @@
                                         >
                                     @else
                                         <div class="w-full h-16 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded flex items-center justify-center">
-                                            <span class="text-2xl">🍕</span>
+                                            <span class="text-2xl">🍽️</span>
                                         </div>
                                     @endif
 
@@ -160,10 +231,18 @@
         <!-- CARRINHO E FINALIZAÇÃO (4 colunas) -->
         <div class="lg:col-span-4 space-y-4">
 
-            <!-- Cliente -->
+            <!-- Cliente MELHORADO -->
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
                 <h3 class="text-sm font-bold mb-3 text-gray-700 dark:text-gray-300 flex items-center gap-2">
                     <span class="text-lg">👤</span> Cliente
+                    <x-filament::button
+                        wire:click="quickBalcaoMode"
+                        color="warning"
+                        size="xs"
+                        title="Modo Balcão Rápido (F4)"
+                    >
+                        ⚡ Balcão
+                    </x-filament::button>
                 </h3>
 
                 @if($selectedCustomer)
@@ -202,12 +281,27 @@
                     <div class="space-y-2">
                         <x-filament::input.wrapper>
                             <x-filament::input
-                                wire:model.live.debounce.300ms="customerPhone"
+                                wire:model.live.debounce.300ms="searchCustomer"
                                 type="text"
-                                placeholder="Digite o telefone do cliente..."
+                                placeholder="🔍 Nome, telefone ou email (F3)"
                                 class="text-sm"
                             />
                         </x-filament::input.wrapper>
+
+                        {{-- Sugestões de clientes --}}
+                        @if($this->getCustomerSuggestions()->count() > 0)
+                            <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-2 space-y-1 max-h-40 overflow-y-auto">
+                                @foreach($this->getCustomerSuggestions() as $customer)
+                                    <button
+                                        wire:click="selectCustomer({{ $customer->id }})"
+                                        class="w-full text-left px-3 py-2 bg-white dark:bg-gray-800 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors"
+                                    >
+                                        <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ $customer->name }}</p>
+                                        <p class="text-xs text-gray-600 dark:text-gray-400">{{ $customer->phone }}</p>
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endif
 
                         <x-filament::button
                             wire:click="$set('showNewCustomerModal', true)"
@@ -245,7 +339,7 @@
                     @endif
                 </div>
 
-                <div class="space-y-2 max-h-[calc(100vh-580px)] overflow-y-auto pr-2">
+                <div class="space-y-2 max-h-[calc(100vh-680px)] overflow-y-auto pr-2">
                     @forelse($cart as $key => $item)
                         <div class="flex gap-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
                             <!-- Quantidade grande -->
@@ -312,15 +406,6 @@
                         <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Tipo de Pedido</label>
                         <div class="grid grid-cols-2 gap-2">
                             <x-filament::button
-                                wire:click="$set('deliveryType', 'delivery')"
-                                :color="$deliveryType === 'delivery' ? 'primary' : 'gray'"
-                                :outlined="$deliveryType !== 'delivery'"
-                                size="sm"
-                                class="flex items-center justify-center gap-2"
-                            >
-                                <span class="text-lg">🚗</span> Delivery
-                            </x-filament::button>
-                            <x-filament::button
                                 wire:click="$set('deliveryType', 'pickup')"
                                 :color="$deliveryType === 'pickup' ? 'primary' : 'gray'"
                                 :outlined="$deliveryType !== 'pickup'"
@@ -329,20 +414,21 @@
                             >
                                 <span class="text-lg">🏃</span> Retirada
                             </x-filament::button>
+                            <x-filament::button
+                                wire:click="$set('deliveryType', 'delivery')"
+                                :color="$deliveryType === 'delivery' ? 'primary' : 'gray'"
+                                :outlined="$deliveryType !== 'delivery'"
+                                size="sm"
+                                class="flex items-center justify-center gap-2"
+                            >
+                                <span class="text-lg">🚗</span> Delivery
+                            </x-filament::button>
                         </div>
                     </div>
 
                     <div>
                         <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Pagamento</label>
                         <div class="grid grid-cols-2 gap-2">
-                            <x-filament::button
-                                wire:click="$set('paymentMethod', 'pix')"
-                                :color="$paymentMethod === 'pix' ? 'success' : 'gray'"
-                                :outlined="$paymentMethod !== 'pix'"
-                                size="sm"
-                            >
-                                💰 PIX
-                            </x-filament::button>
                             <x-filament::button
                                 wire:click="$set('paymentMethod', 'cash')"
                                 :color="$paymentMethod === 'cash' ? 'success' : 'gray'"
@@ -351,11 +437,64 @@
                             >
                                 💵 Dinheiro
                             </x-filament::button>
+                            <x-filament::button
+                                wire:click="$set('paymentMethod', 'pix')"
+                                :color="$paymentMethod === 'pix' ? 'success' : 'gray'"
+                                :outlined="$paymentMethod !== 'pix'"
+                                size="sm"
+                            >
+                                💰 PIX
+                            </x-filament::button>
                         </div>
                     </div>
 
-                    <!-- Taxas -->
-                    <div class="grid grid-cols-2 gap-2">
+                    <!-- Desconto MELHORADO -->
+                    <div>
+                        <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 block flex items-center justify-between">
+                            Desconto
+                            @if($discount > 0)
+                                <x-filament::button
+                                    wire:click="clearDiscount"
+                                    color="danger"
+                                    size="xs"
+                                >
+                                    ✕ Limpar
+                                </x-filament::button>
+                            @endif
+                        </label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="col-span-2">
+                                <x-filament::input.wrapper>
+                                    <x-filament::input
+                                        wire:model.live="discountInput"
+                                        type="number"
+                                        step="0.01"
+                                        placeholder="Valor"
+                                        class="text-sm"
+                                    />
+                                </x-filament::input.wrapper>
+                            </div>
+                            <x-filament::button
+                                wire:click="$toggle('discountType'); applyDiscount()"
+                                :color="$discountType === 'percentage' ? 'warning' : 'gray'"
+                                size="sm"
+                            >
+                                {{ $discountType === 'percentage' ? '%' : 'R$' }}
+                            </x-filament::button>
+                        </div>
+                        @if($discountInput > 0)
+                            <x-filament::button
+                                wire:click="applyDiscount"
+                                color="success"
+                                size="xs"
+                                class="w-full mt-2"
+                            >
+                                ✓ Aplicar Desconto
+                            </x-filament::button>
+                        @endif
+                    </div>
+
+                    @if($deliveryType === 'delivery')
                         <div>
                             <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">Taxa Entrega</label>
                             <x-filament::input.wrapper>
@@ -368,19 +507,7 @@
                                 />
                             </x-filament::input.wrapper>
                         </div>
-                        <div>
-                            <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">Desconto</label>
-                            <x-filament::input.wrapper>
-                                <x-filament::input
-                                    wire:model.live="discount"
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="0,00"
-                                    class="text-sm"
-                                />
-                            </x-filament::input.wrapper>
-                        </div>
-                    </div>
+                    @endif
 
                     <!-- Resumo -->
                     <div class="bg-white dark:bg-gray-900 rounded-lg p-4 space-y-2 border-2 border-gray-200 dark:border-gray-700">
@@ -422,14 +549,14 @@
                         </div>
                     </div>
 
-                    <!-- Botão Finalizar -->
+                    <!-- Botão Finalizar (F2) -->
                     <x-filament::button
                         wire:click="finishOrder"
                         color="success"
                         size="lg"
                         class="w-full text-lg font-bold"
                     >
-                        ✅ FINALIZAR PEDIDO
+                        ✅ FINALIZAR PEDIDO (F2)
                     </x-filament::button>
                 </div>
             @endif

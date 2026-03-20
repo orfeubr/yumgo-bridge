@@ -46,17 +46,8 @@ class SettingsResource extends Resource
                                             ->directory('tenants/logos')
                                             ->helperText('📍 Este logo aparece na HOME (yumgo.com.br). Tamanho: 512x512px')
                                             ->maxSize(2048)
-                                            ->imageEditor()
-                                            ->imageEditorAspectRatios(['1:1'])
                                             ->imagePreviewHeight('150')
                                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/jpg'])
-                                            ->getUploadedFileNameForStorageUsing(function ($file) {
-                                                // ⭐ Nome padrão: logo-{tenant-id}.extensão
-                                                $tenantId = tenancy()->tenant?->id ?? 'default';
-                                                $extension = $file->getClientOriginalExtension();
-                                                return "logo-{$tenantId}.{$extension}";
-                                            })
-                                            ->live() // ⭐ Necessário para capturar mudanças
                                             ->columnSpanFull(),
                                     ]),
 

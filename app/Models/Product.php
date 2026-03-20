@@ -16,6 +16,7 @@ class Product extends Model
         'category_id',
         'name',
         'slug',
+        'barcode', // ✅ Código de barras EAN
         'description',
         'price',
         'image',

@@ -35,6 +35,7 @@ class POS extends Page implements HasForms
     public $selectedCategory = null;
     public $searchProduct = '';
     public $showImages = true; // Toggle imagens
+    public $barcode = ''; // Código de barras
 
     // Cliente
     public $selectedCustomer = null;
@@ -43,13 +44,16 @@ class POS extends Page implements HasForms
     public $customerEmail = '';
     public $customerCashbackBalance = 0;
     public $customerLoyaltyTier = 'bronze';
+    public $searchCustomer = ''; // Busca de cliente
 
     // Pedido
-    public $deliveryType = 'delivery';
-    public $paymentMethod = 'pix';
+    public $deliveryType = 'pickup'; // Padrão: Retirada (mais comum em PDV)
+    public $paymentMethod = 'cash'; // Padrão: Dinheiro (mais comum em PDV)
     public $deliveryAddress = '';
     public $customerNotes = '';
     public $discount = 0;
+    public $discountType = 'value'; // 'value' ou 'percentage'
+    public $discountInput = 0; // Input do usuário
     public $deliveryFee = 0;
     public $cashbackUsed = 0;
 
@@ -62,11 +66,17 @@ class POS extends Page implements HasForms
     public $pixCopyPaste = null;
     public $pixOrderNumber = null;
 
-    protected $listeners = ['addCustomPizza'];
+    // Confirmações visuais
+    public $willPrint = true; // Indica se vai imprimir
+    public $willEmitNfce = false; // Indica se vai emitir NFC-e
+
+    protected $listeners = ['addCustomPizza', 'focusBarcode', 'focusSearch'];
 
     public function mount(): void
     {
         $this->cart = [];
+        $this->willPrint = $this->checkWillPrint();
+        $this->willEmitNfce = $this->checkWillEmitNfce();
     }
 
     public function getCategories(): Collection
@@ -90,11 +100,54 @@ class POS extends Page implements HasForms
         if ($this->searchProduct) {
             $query->where(function($q) {
                 $q->where('name', 'ilike', '%' . $this->searchProduct . '%')
-                  ->orWhere('description', 'ilike', '%' . $this->searchProduct . '%');
+                  ->orWhere('description', 'ilike', '%' . $this->searchProduct . '%')
+                  ->orWhere('barcode', $this->searchProduct); // Busca por código de barras exato
             });
         }
 
         return $query->ordered()->get();
+    }
+
+    public function getCustomerSuggestions(): Collection
+    {
+        if (!$this->searchCustomer || strlen($this->searchCustomer) < 3) {
+            return collect([]);
+        }
+
+        return Customer::query()
+            ->where(function($q) {
+                $q->where('phone', 'ilike', '%' . $this->searchCustomer . '%')
+                  ->orWhere('name', 'ilike', '%' . $this->searchCustomer . '%')
+                  ->orWhere('email', 'ilike', '%' . $this->searchCustomer . '%');
+            })
+            ->where('is_active', true)
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+    }
+
+    public function scanBarcode(): void
+    {
+        if (!$this->barcode) {
+            return;
+        }
+
+        $product = Product::where('barcode', $this->barcode)
+            ->where('is_active', true)
+            ->first();
+
+        if ($product) {
+            $this->addToCart($product->id);
+            $this->barcode = ''; // Limpar após adicionar
+            $this->dispatch('play-beep'); // Som de feedback
+        } else {
+            Notification::make()
+                ->warning()
+                ->title('Produto não encontrado')
+                ->body("Código: {$this->barcode}")
+                ->send();
+            $this->barcode = '';
+        }
     }
 
     public function addToCart($productId): void
@@ -218,6 +271,76 @@ class POS extends Page implements HasForms
         $total = $this->getTotal();
         $percentage = $this->getCashbackPercentage();
         return $total * ($percentage / 100);
+    }
+
+    public function applyDiscount(): void
+    {
+        if (!$this->discountInput || $this->discountInput <= 0) {
+            $this->discount = 0;
+            return;
+        }
+
+        $subtotal = $this->getSubtotal() + $this->deliveryFee;
+
+        if ($this->discountType === 'percentage') {
+            // Validar percentual (máximo 100%)
+            $percentage = min($this->discountInput, 100);
+            $this->discount = $subtotal * ($percentage / 100);
+        } else {
+            // Validar valor (máximo = subtotal)
+            $this->discount = min($this->discountInput, $subtotal);
+        }
+
+        Notification::make()
+            ->success()
+            ->title('Desconto aplicado!')
+            ->body('R$ ' . number_format($this->discount, 2, ',', '.'))
+            ->send();
+    }
+
+    public function clearDiscount(): void
+    {
+        $this->discount = 0;
+        $this->discountInput = 0;
+        $this->discountType = 'value';
+    }
+
+    public function checkWillPrint(): bool
+    {
+        // Verifica se vai imprimir (lógica do OrderPrintObserver)
+        $isOnlinePayment = in_array($this->paymentMethod, ['pix', 'credit_card', 'debit_card']);
+
+        return !$isOnlinePayment; // Imprime se não for pagamento online
+    }
+
+    public function checkWillEmitNfce(): bool
+    {
+        // Verifica se tenant tem certificado A1 configurado
+        $tenant = tenant();
+        return $tenant && $tenant->certificate_a1 !== null;
+    }
+
+    public function updatedPaymentMethod(): void
+    {
+        // Atualiza indicadores visuais quando método de pagamento muda
+        $this->willPrint = $this->checkWillPrint();
+    }
+
+    public function quickBalcaoMode(): void
+    {
+        // Modo rápido: Cliente balcão sem cadastro
+        $this->customerName = 'Cliente Balcão #' . rand(1000, 9999);
+        $this->customerPhone = '(00) 0000-0000';
+        $this->customerEmail = null;
+        $this->deliveryType = 'pickup';
+        $this->deliveryAddress = '';
+        $this->deliveryFee = 0;
+
+        Notification::make()
+            ->success()
+            ->title('Modo Balcão Ativado')
+            ->body('Cliente rápido criado')
+            ->send();
     }
 
     public function selectCustomer($customerId): void
@@ -359,6 +482,9 @@ class POS extends Page implements HasForms
         try {
             $customer = Customer::findOrFail($this->selectedCustomer);
 
+            // Buscar caixa aberto
+            $cashRegister = \App\Models\CashRegister::currentOpen();
+
             // Preparar items para o OrderService
             $items = collect($this->cart)->map(function ($item) {
                 return [
@@ -382,6 +508,7 @@ class POS extends Page implements HasForms
                 'delivery_type' => $this->deliveryType,
                 'use_cashback' => $this->cashbackUsed,
                 'notes' => $this->customerNotes,
+                'cash_register_id' => $cashRegister?->id, // Vincular ao caixa aberto
             ]);
 
             // Se for PIX, buscar o pagamento e exibir QR Code
@@ -393,6 +520,19 @@ class POS extends Page implements HasForms
                     $this->pixCopyPaste = $payment->pix_code;
                     $this->pixOrderNumber = $order->order_number;
                     $this->showPixModal = true;
+
+                    // ⭐ IMPRIMIR COMPROVANTE PIX AUTOMATICAMENTE
+                    try {
+                        event(new \App\Events\PrintPixReceiptEvent($order, $payment));
+                        \Log::info('🖨️ Evento de impressão PIX disparado', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                        ]);
+                    } catch (\Exception $e) {
+                        \Log::error('❌ Erro ao disparar impressão PIX', [
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
                 } else {
                     Notification::make()
                         ->warning()
@@ -441,6 +581,53 @@ class POS extends Page implements HasForms
         $this->pixQrCode = null;
         $this->pixCopyPaste = null;
         $this->pixOrderNumber = null;
+    }
+
+    public function reprintPixQrCode(): void
+    {
+        try {
+            // Buscar pedido pelo order_number
+            $order = Order::where('order_number', $this->pixOrderNumber)->first();
+
+            if (!$order) {
+                Notification::make()
+                    ->danger()
+                    ->title('Pedido não encontrado')
+                    ->send();
+                return;
+            }
+
+            // Buscar pagamento PIX
+            $payment = $order->payments()->where('payment_method', 'pix')->latest()->first();
+
+            if (!$payment || !$payment->pix_qrcode) {
+                Notification::make()
+                    ->danger()
+                    ->title('QR Code não encontrado')
+                    ->send();
+                return;
+            }
+
+            // Disparar evento de impressão
+            event(new \App\Events\PrintPixReceiptEvent($order, $payment));
+
+            Notification::make()
+                ->success()
+                ->title('🖨️ Imprimindo QR Code...')
+                ->body('Comprovante PIX enviado para impressora')
+                ->send();
+
+        } catch (\Exception $e) {
+            \Log::error('Erro ao reimprimir QR Code PIX', [
+                'error' => $e->getMessage(),
+            ]);
+
+            Notification::make()
+                ->danger()
+                ->title('Erro ao imprimir')
+                ->body($e->getMessage())
+                ->send();
+        }
     }
 
     public function sendPixWhatsApp(): void

@@ -9,4 +9,6 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateSettings extends CreateRecord
 {
     protected static string $resource = SettingsResource::class;
+
+    // ⚠️ Hook removido - agora usamos afterStateUpdated() no FileUpload
 }

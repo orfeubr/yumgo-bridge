@@ -21,11 +21,8 @@ class Settings extends Model
         'notify_whatsapp_new_order', 'notification_phone', 'enable_reviews',
         'enable_loyalty_program', 'enable_coupons', 'enable_scheduled_orders',
         'terms_of_service', 'privacy_policy', 'return_policy',
-        'tenant_logo', // ⭐ Campo virtual
+        'tenant_logo', // ⭐ Campo temporário para aceitar upload (removido via hook)
     ];
-
-    // ⭐ Força Laravel a incluir tenant_logo nos atributos
-    protected $appends = ['tenant_logo'];
 
     protected $casts = [
         'business_hours' => 'array',
@@ -55,26 +52,14 @@ class Settings extends Model
         'enable_scheduled_orders' => 'boolean',
     ];
 
-    // ⭐ Accessor: Carregar logo do Tenant
+    // ⭐ Accessor: Carregar logo do Tenant (somente leitura)
     public function getTenantLogoAttribute()
     {
         return tenancy()->tenant?->logo;
     }
 
-    // ⭐ Mutator: Salvar logo no Tenant (inclusive NULL para exclusão)
-    public function setTenantLogoAttribute($value)
-    {
-        if (tenancy()->tenant) {
-            $tenant = tenancy()->tenant;
-            $tenant->logo = $value; // Permite NULL para exclusão
-            $tenant->save();
-
-            \Log::info('✅ Logo ' . ($value ? 'salvo' : 'removido') . ' no Tenant via mutator', [
-                'tenant_id' => $tenant->id,
-                'logo' => $value ?: 'NULL',
-            ]);
-        }
-    }
+    // ⚠️ Mutator REMOVIDO - agora usamos hooks do Filament (EditSettings/CreateSettings)
+    // para salvar tenant_logo diretamente no Tenant
 
     public static function current()
     {

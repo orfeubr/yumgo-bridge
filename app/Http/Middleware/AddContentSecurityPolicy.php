@@ -15,7 +15,24 @@ class AddContentSecurityPolicy
     {
         $response = $next($request);
 
-        // CSP: Permitir WebSocket, scripts, styles, etc
+        // ⭐ Desabilitar CSP para subdomínios de tenant (evita cache do CloudFlare)
+        $host = $request->getHost();
+        if ($host !== 'yumgo.com.br' && !str_starts_with($host, 'www.')) {
+            // É um subdomínio de tenant - REMOVE CSP completamente
+            $response->headers->remove('Content-Security-Policy');
+            $response->headers->set('X-CSP-Disabled', 'tenant-subdomain-v2'); // Debug + version bump
+
+            // ⚠️ Força CloudFlare a NÃO cachear páginas do painel
+            if (str_contains($request->path(), 'painel')) {
+                $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0', true);
+                $response->headers->set('Pragma', 'no-cache', true);
+                $response->headers->set('Expires', '0', true);
+            }
+
+            return $response;
+        }
+
+        // CSP: Permitir WebSocket, scripts, styles, etc (apenas domínio central)
         $csp = implode('; ', [
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://assets.pagar.me https://unpkg.com https://static.cloudflareinsights.com",

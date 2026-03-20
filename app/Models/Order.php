@@ -16,6 +16,7 @@ class Order extends Model
         'order_number',
         'public_token',
         'customer_id',
+        'cash_register_id', // ✅ Vínculo com caixa
         'subtotal',
         'delivery_fee',
         'discount',
@@ -86,6 +87,14 @@ class Order extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Caixa ao qual este pedido pertence
+     */
+    public function cashRegister(): BelongsTo
+    {
+        return $this->belongsTo(CashRegister::class);
     }
 
     /**
