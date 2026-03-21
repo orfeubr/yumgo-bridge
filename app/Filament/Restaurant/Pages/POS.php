@@ -715,7 +715,7 @@ class POS extends Page implements HasForms
 
         try {
             $order = Order::findOrFail($this->currentOrderId);
-            $order->status = 'cancelled';
+            $order->status = 'canceled'; // ✅ 1 "l", não 2!
             $order->payment_status = 'failed';
             $order->save();
 
