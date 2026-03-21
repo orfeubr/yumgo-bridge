@@ -65,4 +65,106 @@ class Settings extends Model
     {
         return static::firstOrCreate(['id' => 1]);
     }
+
+    /**
+     * Verifica se o restaurante está aberto agora
+     */
+    public function isOpenNow(): bool
+    {
+        // Se business_hours não está configurado, usa is_open_now
+        if (empty($this->business_hours)) {
+            return (bool) $this->is_open_now;
+        }
+
+        $now = now();
+        $currentDay = $this->getDayNameInPortuguese($now->dayOfWeek);
+        $currentTime = $now->format('H:i');
+
+        // Se não tem horário configurado para hoje, considera fechado
+        if (!isset($this->business_hours[$currentDay])) {
+            return false;
+        }
+
+        $todayHours = $this->business_hours[$currentDay];
+
+        // Se o valor é string (formato antigo ou novo)
+        if (is_string($todayHours)) {
+            return $this->isWithinTimeRange($currentTime, $todayHours);
+        }
+
+        // Se é array (múltiplos horários)
+        if (is_array($todayHours)) {
+            foreach ($todayHours as $timeRange) {
+                if ($this->isWithinTimeRange($currentTime, $timeRange)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Verifica se o horário atual está dentro do range
+     */
+    private function isWithinTimeRange(string $currentTime, string $timeRange): bool
+    {
+        // Suporta formatos: "18:00 - 23:00" ou "18:00-23:00"
+        $timeRange = str_replace(' ', '', $timeRange); // Remove espaços
+
+        // Se está fechado
+        if (strtolower($timeRange) === 'fechado' || strtolower($timeRange) === 'closed') {
+            return false;
+        }
+
+        // Extrai horário de abertura e fechamento
+        if (!preg_match('/(\d{2}:\d{2})-(\d{2}:\d{2})/', $timeRange, $matches)) {
+            return false;
+        }
+
+        $openTime = $matches[1];
+        $closeTime = $matches[2];
+
+        // Se fecha depois da meia-noite (ex: 18:00 - 02:00)
+        if ($closeTime < $openTime) {
+            return $currentTime >= $openTime || $currentTime <= $closeTime;
+        }
+
+        // Horário normal (ex: 18:00 - 23:00)
+        return $currentTime >= $openTime && $currentTime <= $closeTime;
+    }
+
+    /**
+     * Traduz dia da semana para português
+     */
+    private function getDayNameInPortuguese(int $dayOfWeek): string
+    {
+        $days = [
+            0 => 'Domingo',
+            1 => 'Segunda-feira',
+            2 => 'Terça-feira',
+            3 => 'Quarta-feira',
+            4 => 'Quinta-feira',
+            5 => 'Sexta-feira',
+            6 => 'Sábado',
+        ];
+
+        return $days[$dayOfWeek] ?? 'Segunda-feira';
+    }
+
+    /**
+     * Retorna horários de funcionamento padrão
+     */
+    public static function defaultBusinessHours(): array
+    {
+        return [
+            'Segunda-feira' => '18:00 - 23:00',
+            'Terça-feira' => '18:00 - 23:00',
+            'Quarta-feira' => '18:00 - 23:00',
+            'Quinta-feira' => '18:00 - 23:00',
+            'Sexta-feira' => '18:00 - 23:00',
+            'Sábado' => '18:00 - 00:00',
+            'Domingo' => 'Fechado',
+        ];
+    }
 }

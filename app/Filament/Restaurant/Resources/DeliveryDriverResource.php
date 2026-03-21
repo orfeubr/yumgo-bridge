@@ -97,6 +97,27 @@ class DeliveryDriverResource extends Resource
                             ->rows(3)
                             ->columnSpanFull(),
                     ]),
+
+                Forms\Components\Section::make('🔗 Link de Acesso do Entregador')
+                    ->schema([
+                        Forms\Components\Placeholder::make('access_url')
+                            ->label('Link de Acesso')
+                            ->content(fn (?DeliveryDriver $record): string => $record?->access_url ?? 'Será gerado após salvar')
+                            ->helperText('Envie este link para o entregador via WhatsApp. Ele poderá acessar suas entregas diretamente.'),
+
+                        Forms\Components\Placeholder::make('token_info')
+                            ->label('Informações do Token')
+                            ->content(function (?DeliveryDriver $record): string {
+                                if (!$record) return 'Token será gerado ao criar o entregador';
+
+                                $generated = $record->token_generated_at?->diffForHumans() ?? 'Nunca';
+                                $lastAccess = $record->last_access_at?->diffForHumans() ?? 'Nunca';
+
+                                return "Gerado: {$generated} | Último acesso: {$lastAccess}";
+                            }),
+                    ])
+                    ->hidden(fn (string $operation): bool => $operation === 'create')
+                    ->collapsible(),
             ]);
     }
 
@@ -170,6 +191,36 @@ class DeliveryDriverResource extends Resource
                     ]),
             ])
             ->actions([
+                Tables\Actions\Action::make('copyLink')
+                    ->label('Copiar Link')
+                    ->icon('heroicon-o-clipboard')
+                    ->color('success')
+                    ->action(function (DeliveryDriver $record) {
+                        // O JS vai copiar automaticamente
+                    })
+                    ->extraAttributes(fn (DeliveryDriver $record) => [
+                        'x-on:click' => "
+                            navigator.clipboard.writeText('{$record->access_url}');
+                            \$tooltip('Link copiado!', { timeout: 2000 });
+                        "
+                    ]),
+
+                Tables\Actions\Action::make('regenerateToken')
+                    ->label('Regenerar')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalHeading('Regenerar Token de Acesso')
+                    ->modalDescription('Isso irá invalidar o link atual. Você precisará enviar o novo link para o entregador.')
+                    ->action(function (DeliveryDriver $record) {
+                        $record->regenerateToken();
+                        \Filament\Notifications\Notification::make()
+                            ->success()
+                            ->title('Token Regenerado!')
+                            ->body('Novo link criado. Copie e envie para o entregador.')
+                            ->send();
+                    }),
+
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])

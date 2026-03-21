@@ -17,6 +17,9 @@ class Order extends Model
         'public_token',
         'customer_id',
         'cash_register_id', // ✅ Vínculo com caixa
+        'order_source', // ✅ online, table, counter
+        'table_id', // ✅ ID da mesa (se order_source = table)
+        'waiter_id', // ✅ ID do garçom (se order_source = table)
         'subtotal',
         'delivery_fee',
         'discount',
@@ -89,6 +92,22 @@ class Order extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Mesa (se pedido presencial)
+     */
+    public function table(): BelongsTo
+    {
+        return $this->belongsTo(Table::class);
+    }
+
+    /**
+     * Garçom (se pedido de mesa)
+     */
+    public function waiter(): BelongsTo
+    {
+        return $this->belongsTo(Waiter::class);
     }
 
     /**

@@ -75,6 +75,22 @@ Route::middleware([
     // REMOVIDO: já tratado em web.php para permitir domínios centrais mostrarem lista de restaurantes
     // Route::get('/', [\App\Http\Controllers\RestaurantHomeController::class, 'index'])->name('catalog');
 
+    // ==========================================
+    // 📱 PEDIDOS PRESENCIAIS (QR CODE)
+    // ==========================================
+
+    // Mesa - Cliente escaneia QR da mesa
+    Route::get('/mesa/{token}', [\App\Http\Controllers\TableOrderController::class, 'tableAccess'])
+        ->name('table.access');
+
+    // Selecionar garçom (após escanear QR da mesa)
+    Route::post('/selecionar-garcom', [\App\Http\Controllers\TableOrderController::class, 'selectWaiter'])
+        ->name('table.select-waiter');
+
+    // Balcão - Cliente escaneia QR do balcão (sem garçom)
+    Route::get('/balcao', [\App\Http\Controllers\TableOrderController::class, 'counterAccess'])
+        ->name('counter.access');
+
     // Tela de Welcome/Onboarding
     Route::get('/welcome', function () {
         $tenant = tenant();
@@ -630,4 +646,41 @@ Route::prefix('test-api')->middleware([
             ], 500);
         }
     });
+});
+
+// ============================================
+// PORTAL DO ENTREGADOR (autenticação por token único)
+// ============================================
+Route::middleware([
+    InitializeTenancyByDomain::class,
+    PreventAccessFromCentralDomains::class,
+])->group(function () {
+    // Portal do entregador (autenticação via token na URL)
+    Route::get('/entregador/{token}', [\App\Http\Controllers\DriverPortalController::class, 'index'])
+        ->name('driver.portal');
+
+    // API do portal (requer sessão ativa)
+    Route::prefix('entregador/api')->group(function () {
+        Route::post('/update-status', [\App\Http\Controllers\DriverPortalController::class, 'updateStatus'])
+            ->name('driver.update-status');
+
+        Route::post('/find-order', [\App\Http\Controllers\DriverPortalController::class, 'findOrder'])
+            ->name('driver.find-order');
+    });
+});
+
+// ============================================
+// GERADOR DE QR CODES (Painel Restaurante)
+// ============================================
+Route::middleware([
+    InitializeTenancyByDomain::class,
+    PreventAccessFromCentralDomains::class,
+])->prefix('painel/qr-codes')->name('restaurant.')->group(function () {
+    // QR Code de mesa específica
+    Route::get('/mesa/{table}', [\App\Http\Controllers\TableOrderController::class, 'generateTableQR'])
+        ->name('table.qr-code');
+
+    // QR Code do balcão
+    Route::get('/balcao', [\App\Http\Controllers\TableOrderController::class, 'generateCounterQR'])
+        ->name('counter.qr-code');
 });

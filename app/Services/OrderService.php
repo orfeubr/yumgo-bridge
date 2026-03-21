@@ -741,13 +741,32 @@ class OrderService
     }
 
     /**
-     * Gera número único do pedido
+     * Gera número único do pedido com 6 dígitos aleatórios
+     * Formato: YYYYMMDD-NNNNNN (ex: 20260321-847293)
      */
     private function generateOrderNumber(): string
     {
         $date = Carbon::now()->format('Ymd');
-        $random = strtoupper(substr(uniqid(), -6));
-        
-        return "{$date}-{$random}";
+
+        // Tenta gerar número único (máximo 10 tentativas)
+        $attempts = 0;
+        do {
+            // Gera 6 dígitos aleatórios (100000 a 999999)
+            $random = str_pad(random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+            $orderNumber = "{$date}-{$random}";
+
+            // Verifica se já existe
+            $exists = Order::where('order_number', $orderNumber)->exists();
+
+            $attempts++;
+            if ($attempts > 10) {
+                // Fallback: usa timestamp se não conseguir gerar único em 10 tentativas
+                $random = substr(str_replace('.', '', microtime(true)), -6);
+                $orderNumber = "{$date}-{$random}";
+                break;
+            }
+        } while ($exists);
+
+        return $orderNumber;
     }
 }
