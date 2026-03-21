@@ -104,7 +104,18 @@ class DriverPortalController extends Controller
     public function findOrder(Request $request)
     {
         $driverId = Session::get('driver_id');
+
+        \Log::info('🔍 Driver Portal: Buscando pedido', [
+            'driver_id' => $driverId,
+            'session_id' => Session::getId(),
+            'code' => $request->code,
+        ]);
+
         if (!$driverId) {
+            \Log::warning('⚠️ Driver não autenticado', [
+                'session_id' => Session::getId(),
+                'all_session' => Session::all(),
+            ]);
             return response()->json(['error' => 'Não autenticado'], 401);
         }
 
@@ -125,11 +136,23 @@ class DriverPortalController extends Controller
             ->first();
 
         if (!$order) {
+            \Log::warning('❌ Pedido não encontrado', [
+                'code' => $request->code,
+                'driver_id' => $driverId,
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Pedido não encontrado ou já está com outro entregador.',
             ], 404);
         }
+
+        \Log::info('✅ Pedido encontrado', [
+            'order_number' => $order->order_number,
+            'order_id' => $order->id,
+            'delivery_id' => $order->delivery->id,
+            'current_driver_id' => $order->delivery->driver_id,
+        ]);
 
         // 🚚 AUTO-ATRIBUIÇÃO: Se pedido não tem motorista, atribui automaticamente
         if ($order->delivery->driver_id === null) {
