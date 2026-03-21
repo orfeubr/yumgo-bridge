@@ -561,7 +561,7 @@ class POS extends Page implements HasForms
 
                 if ($payment && $payment->pix_qrcode) {
                     $this->pixQrCode = $payment->pix_qrcode;
-                    $this->pixCopyPaste = $payment->pix_copy_paste ?? $payment->pix_code;
+                    $this->pixCopyPaste = $payment->pix_copy_paste;
                 } else {
                     Notification::make()
                         ->warning()

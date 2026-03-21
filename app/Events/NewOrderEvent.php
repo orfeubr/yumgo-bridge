@@ -164,9 +164,9 @@ class NewOrderEvent implements ShouldBroadcastNow
             return null;
         }
 
-        // Buscar último pagamento PIX do pedido
+        // Buscar último pagamento PIX do pedido (coluna: method, não payment_method)
         $payment = $this->order->payments()
-            ->where('payment_method', 'pix')
+            ->where('method', 'pix')
             ->latest()
             ->first();
 
@@ -176,8 +176,7 @@ class NewOrderEvent implements ShouldBroadcastNow
 
         return [
             'qrcode' => $payment->pix_qrcode, // Base64 da imagem QR Code
-            'code' => $payment->pix_code ?? $payment->pix_copy_paste, // Código copia-e-cola
-            'expires_at' => $payment->expires_at?->format('d/m/Y H:i'),
+            'code' => $payment->pix_copy_paste, // Código copia-e-cola
         ];
     }
 }
