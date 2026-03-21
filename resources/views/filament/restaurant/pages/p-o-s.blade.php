@@ -154,20 +154,20 @@
                         </div>
 
                         {{-- Grid de Produtos da Categoria --}}
-                        <div class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1.5 mb-4">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 mb-4">
                             @foreach($products as $product)
                                 <button
                                     wire:click="addToCart({{ $product->id }})"
                                     @if($product->has_stock_control && !$product->hasStock())
                                         disabled
-                                        class="group relative flex flex-col bg-gray-100 dark:bg-gray-900/50 border-2 border-gray-300 dark:border-gray-700 rounded-lg p-2 opacity-50 cursor-not-allowed"
+                                        class="group relative flex flex-col bg-gray-100 dark:bg-gray-900/50 border-2 border-gray-300 dark:border-gray-700 rounded-lg p-2.5 min-h-[90px] opacity-50 cursor-not-allowed"
                                     @else
-                                        class="group relative flex flex-col bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-2 hover:border-primary-500 hover:shadow-lg hover:scale-105 transition-all duration-150 cursor-pointer"
+                                        class="group relative flex flex-col bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-2.5 min-h-[90px] hover:border-primary-500 hover:shadow-lg hover:scale-105 transition-all duration-150 cursor-pointer"
                                     @endif
                                 >
                                     {{-- Nome e Badges --}}
-                                    <div class="flex items-start justify-between gap-1 mb-2">
-                                        <h4 class="font-semibold text-xs leading-tight text-gray-900 dark:text-white line-clamp-2 flex-1">
+                                    <div class="flex items-start justify-between gap-1 mb-2 min-h-[32px]">
+                                        <h4 class="font-semibold text-xs leading-tight text-gray-900 dark:text-white line-clamp-2 flex-1 break-words">
                                             {{ $product->name }}
                                         </h4>
 
