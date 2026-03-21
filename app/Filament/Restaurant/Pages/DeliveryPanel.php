@@ -2,131 +2,136 @@
 
 namespace App\Filament\Restaurant\Pages;
 
+use App\Models\Delivery;
+use App\Models\DeliveryDriver;
 use App\Models\Order;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use Filament\Tables;
-use Filament\Tables\Table;
-use Filament\Tables\Concerns\InteractsWithTable;
-use Filament\Tables\Contracts\HasTable;
+use Illuminate\Support\Collection;
+use Livewire\Attributes\On;
 
-class DeliveryPanel extends Page implements HasTable
+class DeliveryPanel extends Page
 {
-    use InteractsWithTable;
-
     protected static ?string $navigationIcon = 'heroicon-o-truck';
-    protected static ?string $slug = 'painel-entregas'; // URL em português
-    protected static ?string $navigationLabel = '🚗 Entregas';
+    protected static ?string $navigationLabel = '📦 Painel de Entregas';
     protected static ?string $title = 'Painel de Entregas';
-    protected static ?int $navigationSort = 3;
-    protected static ?string $navigationGroup = '📦 Operações';
+    protected static ?string $navigationGroup = '🚚 Entregas';
+    protected static ?int $navigationSort = 2;
+
     protected static string $view = 'filament.restaurant.pages.delivery-panel';
-    protected static ?string $pollingInterval = '10s';
 
-    public function table(Table $table): Table
+    public function getPendingOrders(): Collection
     {
-        return $table
-            ->query(
-                Order::query()
-                    ->whereIn('status', ['ready', 'out_for_delivery'])
-                    ->where('payment_status', 'paid')
-                    ->latest()
-            )
-            ->columns([
-                Tables\Columns\TextColumn::make('order_number')
-                    ->label('#')
-                    ->badge()
-                    ->color('primary')
-                    ->size(Tables\Columns\TextColumn\TextColumnSize::Large)
-                    ->weight('bold')
-                    ->searchable(),
+        return Order::query()
+            ->with(['customer', 'delivery.driver'])
+            ->where('delivery_type', 'delivery')
+            ->where('payment_status', 'paid')
+            ->whereIn('status', ['confirmed', 'preparing'])
+            ->whereDoesntHave('delivery', function ($query) {
+                $query->whereIn('status', ['delivered', 'failed']);
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
 
-                Tables\Columns\TextColumn::make('customer.name')
-                    ->label('Cliente')
-                    ->searchable()
-                    ->description(fn (Order $record): string => $record->customer->phone ?? ''),
+    public function getInTransitDeliveries(): Collection
+    {
+        return Delivery::query()
+            ->with(['order.customer', 'driver'])
+            ->whereIn('status', ['driver_assigned', 'picked_up', 'in_transit'])
+            ->orderBy('created_at', 'asc')
+            ->get();
+    }
 
-                Tables\Columns\TextColumn::make('delivery_address')
-                    ->label('Endereço')
-                    ->wrap()
-                    ->limit(50),
+    public function getActiveDrivers(): Collection
+    {
+        return DeliveryDriver::query()
+            ->where('is_active', true)
+            ->withCount(['deliveries' => function ($query) {
+                $query->whereIn('status', ['driver_assigned', 'picked_up', 'in_transit']);
+            }])
+            ->orderBy('deliveries_count', 'asc')
+            ->get();
+    }
 
-                Tables\Columns\TextColumn::make('delivery_neighborhood')
-                    ->label('Bairro')
-                    ->badge()
-                    ->color('info'),
+    #[On('assignDriver')]
+    public function assignDriver(int $orderId, int $driverId): void
+    {
+        try {
+            $order = Order::findOrFail($orderId);
+            $driver = DeliveryDriver::findOrFail($driverId);
 
-                Tables\Columns\BadgeColumn::make('status')
-                    ->label('Status')
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'ready' => '📦 Pronto',
-                        'out_for_delivery' => '🚗 Em Entrega',
-                        'delivered' => '✅ Entregue',
-                        default => $state,
-                    })
-                    ->colors([
-                        'success' => 'ready',
-                        'info' => 'out_for_delivery',
-                        'primary' => 'delivered',
-                    ]),
+            // Verificar se já existe delivery
+            $delivery = $order->delivery;
 
-                Tables\Columns\TextColumn::make('total')
-                    ->label('Valor')
-                    ->money('BRL')
-                    ->weight('bold'),
+            if (!$delivery) {
+                // Criar delivery
+                $delivery = Delivery::create([
+                    'order_id' => $order->id,
+                    'driver_id' => $driverId,
+                    'pickup_address' => 'Restaurante',
+                    'delivery_address' => $order->delivery_address,
+                    'delivery_fee' => $order->delivery_fee,
+                    'status' => 'driver_assigned',
+                ]);
+            } else {
+                // Atualizar driver
+                $delivery->update([
+                    'driver_id' => $driverId,
+                    'status' => 'driver_assigned',
+                ]);
+            }
 
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Hora')
-                    ->dateTime('H:i')
-                    ->sortable(),
-            ])
-            ->actions([
-                Tables\Actions\Action::make('start_delivery')
-                    ->label('Iniciar Entrega')
-                    ->icon('heroicon-o-truck')
-                    ->color('info')
-                    ->size('lg')
-                    ->visible(fn (Order $record) => $record->status === 'ready')
-                    ->action(function (Order $record) {
-                        $record->update(['status' => 'out_for_delivery']);
-                        Notification::make()
-                            ->success()
-                            ->title('🚗 Entrega iniciada!')
-                            ->send();
-                    }),
+            // Atualizar status do pedido
+            $order->update(['status' => 'out_for_delivery']);
 
-                Tables\Actions\Action::make('mark_delivered')
-                    ->label('Marcar como Entregue')
-                    ->icon('heroicon-o-check-circle')
-                    ->color('success')
-                    ->size('lg')
-                    ->requiresConfirmation()
-                    ->modalHeading('Confirmar Entrega')
-                    ->modalDescription('Confirme que o pedido foi entregue ao cliente.')
-                    ->visible(fn (Order $record) => $record->status === 'out_for_delivery')
-                    ->action(function (Order $record) {
-                        $record->update([
-                            'status' => 'delivered',
-                            'delivered_at' => now(),
-                        ]);
-                        Notification::make()
-                            ->success()
-                            ->title('✅ Pedido entregue com sucesso!')
-                            ->send();
-                    }),
+            Notification::make()
+                ->success()
+                ->title('Entregador Atribuído!')
+                ->body("Pedido #{$order->order_number} atribuído para {$driver->name}")
+                ->send();
 
-                Tables\Actions\Action::make('view_map')
-                    ->label('Ver Mapa')
-                    ->icon('heroicon-o-map')
-                    ->color('gray')
-                    ->url(fn (Order $record): string =>
-                        "https://www.google.com/maps/search/?api=1&query=" .
-                        urlencode($record->delivery_address . ', ' . $record->delivery_neighborhood)
-                    )
-                    ->openUrlInNewTab(),
-            ])
-            ->bulkActions([])
-            ->defaultSort('created_at', 'desc')
-            ->poll('10s');
+        } catch (\Exception $e) {
+            Notification::make()
+                ->danger()
+                ->title('Erro ao atribuir entregador')
+                ->body($e->getMessage())
+                ->send();
+        }
+    }
+
+    #[On('updateDeliveryStatus')]
+    public function updateDeliveryStatus(int $deliveryId, string $status): void
+    {
+        try {
+            $delivery = Delivery::findOrFail($deliveryId);
+
+            $delivery->update(['status' => $status]);
+
+            // Atualizar timestamps
+            if ($status === 'picked_up') {
+                $delivery->picked_up_at = now();
+                $delivery->save();
+            } elseif ($status === 'delivered') {
+                $delivery->delivered_at = now();
+                $delivery->order->update(['status' => 'delivered']);
+                $delivery->save();
+            }
+
+            Notification::make()
+                ->success()
+                ->title('Status Atualizado!')
+                ->body("Entrega atualizada")
+                ->send();
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->danger()
+                ->title('Erro ao atualizar status')
+                ->body($e->getMessage())
+                ->send();
+        }
     }
 }
