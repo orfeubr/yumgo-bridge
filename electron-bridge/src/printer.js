@@ -331,6 +331,42 @@ class ThermalPrinter {
                         printer.text(removeAccents(`Hora: ${createdAt.toLocaleTimeString('pt-BR')}`));
                         printer.text('');
 
+                        // ⭐ QR CODE PIX (se houver)
+                        if (orderData.pix && orderData.pix.qrcode) {
+                            try {
+                                printer.text(separator());
+                                printer.align('ct').text(center('PAGAMENTO PIX'));
+                                printer.text('');
+
+                                // Converter base64 para buffer
+                                const base64Data = orderData.pix.qrcode.replace(/^data:image\/\w+;base64,/, '');
+                                const imageBuffer = Buffer.from(base64Data, 'base64');
+
+                                // Imprimir QR Code centralizado
+                                printer.align('ct');
+                                printer.image(imageBuffer, 'd24');
+                                printer.text('');
+
+                                // Código copia-e-cola (se houver)
+                                if (orderData.pix.code) {
+                                    printer.align('lt');
+                                    printer.text(removeAccents('Codigo Copia-e-Cola:'));
+
+                                    // Quebrar código em linhas de 32 chars
+                                    const code = orderData.pix.code;
+                                    for (let i = 0; i < code.length; i += charsPerLine) {
+                                        printer.text(code.substring(i, i + charsPerLine));
+                                    }
+                                    printer.text('');
+                                }
+
+                                printer.text(separator());
+                            } catch (pixError) {
+                                log.error('Erro ao imprimir QR Code PIX:', pixError);
+                                // Continua impressão mesmo se falhar QR Code
+                            }
+                        }
+
                         // RODAPÉ
                         printer.text(separator());
                         printer.align('ct').text(center('Obrigado pela preferencia!'));
@@ -1180,6 +1216,24 @@ class ThermalPrinter {
             text += '\n' + line('-') + '\n';
             text += 'OBSERVACOES DO CLIENTE:\n';
             text += clean(order.notes) + '\n';
+        }
+
+        // ⭐ PIX: Código copia-e-cola (se houver)
+        if (order.pix && order.pix.code) {
+            text += '\n' + line('=') + '\n';
+            text += center('PAGAMENTO PIX') + '\n';
+            text += line('=') + '\n';
+            text += 'Codigo Copia-e-Cola:\n\n';
+
+            // Quebrar código em linhas
+            const code = order.pix.code;
+            for (let i = 0; i < code.length; i += charsPerLine) {
+                text += code.substring(i, i + charsPerLine) + '\n';
+            }
+
+            text += '\n';
+            text += '(Copie e cole no app do seu banco)\n';
+            text += line('=') + '\n';
         }
 
         // ===== RODAPÉ =====
