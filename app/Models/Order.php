@@ -33,6 +33,8 @@ class Order extends Model
         'print_error', // ✅ Erro de impressão
         'print_attempts', // ✅ Tentativas de impressão
         'delivery_type',
+        'service_type', // ✅ counter, table, delivery
+        'table_number', // ✅ Número da mesa (se service_type = table)
         'delivery_address',
         'delivery_city',
         'delivery_neighborhood',

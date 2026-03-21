@@ -197,8 +197,68 @@
                     </div>
                 </div>
 
-                <!-- Endereço Completo -->
+                <!-- ⭐ Tipo de Atendimento (Mesa/Balcão/Delivery) -->
                 <div class="bg-white rounded-xl shadow-sm p-5">
+                    <h2 class="text-lg font-bold mb-4 text-gray-900 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z"/>
+                        </svg>
+                        Tipo de Atendimento
+                    </h2>
+
+                    <div class="grid grid-cols-3 gap-3">
+                        <!-- Balcão -->
+                        <button
+                            type="button"
+                            @click="serviceType = 'counter'; tableNumber = ''"
+                            :class="serviceType === 'counter' ? 'border-primary bg-red-50 text-primary' : 'border-gray-300 text-gray-700'"
+                            class="flex flex-col items-center justify-center gap-2 p-4 border-2 rounded-lg transition hover:border-primary">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z"/>
+                            </svg>
+                            <span class="text-sm font-semibold">Balcão</span>
+                        </button>
+
+                        <!-- Mesa -->
+                        <button
+                            type="button"
+                            @click="serviceType = 'table'"
+                            :class="serviceType === 'table' ? 'border-primary bg-red-50 text-primary' : 'border-gray-300 text-gray-700'"
+                            class="flex flex-col items-center justify-center gap-2 p-4 border-2 rounded-lg transition hover:border-primary">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12"/>
+                            </svg>
+                            <span class="text-sm font-semibold">Mesa</span>
+                        </button>
+
+                        <!-- Delivery -->
+                        <button
+                            type="button"
+                            @click="serviceType = 'delivery'; tableNumber = ''"
+                            :class="serviceType === 'delivery' ? 'border-primary bg-red-50 text-primary' : 'border-gray-300 text-gray-700'"
+                            class="flex flex-col items-center justify-center gap-2 p-4 border-2 rounded-lg transition hover:border-primary">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.11-.504 1.11-1.125v-3.75m-17.25 0h16.5m-17.25 0V9.75c0-.621.504-1.125 1.125-1.125H9.75M3.375 14.25V12A2.625 2.625 0 016 9.375h1.5m13.5 5.625V12A2.625 2.625 0 0018.375 9.375h-1.5m-13.5 3.75V9.75c0-.621.504-1.125 1.125-1.125h12.75c.621 0 1.125.504 1.125 1.125v3.75m-13.5 0h13.5"/>
+                            </svg>
+                            <span class="text-sm font-semibold">Delivery</span>
+                        </button>
+                    </div>
+
+                    <!-- Campo Número da Mesa (só aparece se serviceType = 'table') -->
+                    <div x-show="serviceType === 'table'" x-cloak class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Número da Mesa *
+                        </label>
+                        <input
+                            type="text"
+                            x-model="tableNumber"
+                            placeholder="Ex: 5"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20 transition">
+                    </div>
+                </div>
+
+                <!-- Endereço Completo (só aparece se serviceType = 'delivery') -->
+                <div x-show="serviceType === 'delivery'" x-cloak class="bg-white rounded-xl shadow-sm p-5">
                     <h2 class="text-lg font-bold mb-4 text-gray-900 flex items-center justify-between">
                         <span class="flex items-center gap-2">
                             <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
@@ -777,6 +837,9 @@
             deliveryPaymentOptions: [],
             deliveryPaymentType: null,
             needsChange: false,
+            // ⭐ Auto-atendimento
+            serviceType: 'counter', // counter, table, delivery
+            tableNumber: '',
 
             async init() {
                 // Verificar se está autenticado
@@ -1285,9 +1348,16 @@
                         return;
                     }
 
-                    // Validar endereço
-                    if (!this.selectedCity || !this.selectedNeighborhood) {
+                    // Validar endereço (apenas para delivery)
+                    if (this.serviceType === 'delivery' && (!this.selectedCity || !this.selectedNeighborhood)) {
                         alert('❌ Erro: Selecione um endereço de entrega válido.');
+                        this.loading = false;
+                        return;
+                    }
+
+                    // Validar número da mesa (se mesa)
+                    if (this.serviceType === 'table' && !this.tableNumber) {
+                        alert('❌ Erro: Informe o número da mesa.');
                         this.loading = false;
                         return;
                     }
@@ -1312,9 +1382,11 @@
                     // Preparar payload
                     const payload = {
                         items: items,
-                        delivery_address: fullAddress,
-                        delivery_city: this.selectedCity,
-                        delivery_neighborhood: this.selectedNeighborhood,
+                        service_type: this.serviceType, // ⭐ counter, table, delivery
+                        table_number: this.serviceType === 'table' ? this.tableNumber : null, // ⭐ Número da mesa
+                        delivery_address: this.serviceType === 'delivery' ? fullAddress : null,
+                        delivery_city: this.serviceType === 'delivery' ? this.selectedCity : null,
+                        delivery_neighborhood: this.serviceType === 'delivery' ? this.selectedNeighborhood : null,
                         payment_method: finalPaymentMethod, // ⭐ CORRIGIDO: usa deliveryPaymentType se for on_delivery
                         use_cashback: this.useCashback, // ⭐ Boolean toggle (true = usar todo saldo)
                         coupon_code: this.appliedCoupon ? this.appliedCoupon.code : null, // ⭐ Cupom de desconto
