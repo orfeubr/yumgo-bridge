@@ -31,19 +31,23 @@ class OrderService
      * @param Customer $customer Cliente (pode ser do central ou tenant)
      * @param array $data Dados do pedido
      *   - items: array [product_id, quantity, variation_id?, addons?, notes?]
-     *   - delivery_address: string (obrigatório)
-     *   - delivery_city: string (obrigatório)
-     *   - delivery_neighborhood: string (obrigatório)
+     *   - service_type: string (counter|table|delivery) - padrão: counter
+     *   - table_number: string|null (obrigatório se service_type = table)
+     *   - delivery_address: string (obrigatório se service_type = delivery)
+     *   - delivery_city: string (obrigatório se service_type = delivery)
+     *   - delivery_neighborhood: string (obrigatório se service_type = delivery)
      *   - delivery_fee: float (calculado no backend)
      *   - payment_method: string (pix|credit_card|debit_card|cash)
      *   - cashback_used: float (calculado no backend)
      *   - coupon_code: string|null
      *   - notes: string|null
+     *   - cash_register_id: int|null (vínculo com caixa aberto)
      *
      * @return Order Pedido criado com payment anexado
      *
      * @throws \Exception Se falhar ao criar cobrança no gateway
      * @throws \Exception Se falhar ao debitar cashback
+     * @throws \Exception Se table_number não fornecido quando service_type = table
      *
      * @see CashbackService::useCashback() Para lógica de débito de cashback
      * @see PagarMeService::createCharge() Para criação de cobrança
@@ -242,6 +246,21 @@ class OrderService
             ? 'awaiting_delivery' // Pagar na entrega - imprime mas não pago ainda
             : 'pending'; // PIX, cartão - aguarda confirmação de pagamento
 
+        // ⭐ Valida service_type
+        $serviceType = $data['service_type'] ?? 'counter';
+        if (!in_array($serviceType, ['counter', 'table', 'delivery'])) {
+            $serviceType = 'counter';
+        }
+
+        // ⭐ Número da mesa (obrigatório se service_type = table)
+        $tableNumber = null;
+        if ($serviceType === 'table') {
+            $tableNumber = $data['table_number'] ?? null;
+            if (empty($tableNumber)) {
+                throw new \Exception('Número da mesa é obrigatório para pedidos na mesa');
+            }
+        }
+
         return [
             'order_number' => $this->generateOrderNumber(),
             'customer_id' => $customer->id,
@@ -255,6 +274,8 @@ class OrderService
             'status' => 'pending',
             'payment_status' => $paymentStatus, // ⭐ 'awaiting_delivery' ou 'pending'
             'payment_method' => $paymentMethod,
+            'service_type' => $serviceType, // ✅ counter, table, delivery
+            'table_number' => $tableNumber, // ✅ Número da mesa (se aplicável)
             'delivery_type' => $data['delivery_type'] ?? 'delivery',
             'delivery_address' => $deliveryAddress,
             'delivery_city' => $data['delivery_city'] ?? null,

@@ -148,9 +148,11 @@ class OrderController extends Controller
             'items.*.addons' => 'nullable|array', // ⭐ ADICIONADO
             'items.*.addons.*' => 'integer', // ⭐ ADICIONADO
             'items.*.notes' => 'nullable|string|max:500',
-            'delivery_address' => 'required|string|max:255',
-            'delivery_city' => 'required|string|max:100',
-            'delivery_neighborhood' => 'required|string|max:100',
+            'service_type' => 'nullable|in:counter,table,delivery', // ⭐ Tipo de atendimento
+            'table_number' => 'nullable|string|max:20', // ⭐ Número da mesa
+            'delivery_address' => 'nullable|string|max:255', // ⭐ MUDADO: nullable (obrigatório só se delivery)
+            'delivery_city' => 'nullable|string|max:100', // ⭐ MUDADO: nullable
+            'delivery_neighborhood' => 'nullable|string|max:100', // ⭐ MUDADO: nullable
             'payment_method' => 'required|in:pix,credit_card,debit_card,cash',
             'use_cashback' => 'nullable|boolean', // ⭐ TOGGLE: true = usar todo saldo
             'coupon_code' => 'nullable|string|max:50', // ⭐ Código do cupom
@@ -170,20 +172,42 @@ class OrderController extends Controller
             return $businessHoursValidation; // Retorna erro se fechado
         }
 
+        // ⭐ Validar service_type
+        $serviceType = $request->service_type ?? 'counter';
+        if (!in_array($serviceType, ['counter', 'table', 'delivery'])) {
+            $serviceType = 'counter';
+        }
+
+        // ⭐ Se for mesa, table_number é obrigatório
+        if ($serviceType === 'table' && empty($request->table_number)) {
+            return response()->json([
+                'message' => 'Número da mesa é obrigatório para pedidos na mesa',
+            ], 422);
+        }
+
         // PROTEÇÃO: Sanitizar inputs de texto (XSS)
-        $deliveryCity = htmlspecialchars(trim($request->delivery_city), ENT_QUOTES, 'UTF-8');
-        $deliveryNeighborhood = htmlspecialchars(trim($request->delivery_neighborhood), ENT_QUOTES, 'UTF-8');
-        $deliveryAddress = htmlspecialchars(trim($request->delivery_address), ENT_QUOTES, 'UTF-8');
+        $deliveryCity = htmlspecialchars(trim($request->delivery_city ?? ''), ENT_QUOTES, 'UTF-8');
+        $deliveryNeighborhood = htmlspecialchars(trim($request->delivery_neighborhood ?? ''), ENT_QUOTES, 'UTF-8');
+        $deliveryAddress = htmlspecialchars(trim($request->delivery_address ?? ''), ENT_QUOTES, 'UTF-8');
 
         // Calcular cashback a ser usado
         $useCashback = $this->calculateCashbackAmount($request, $customer);
 
-        // Calcular taxa de entrega
-        $deliveryFeeResult = $this->calculateDeliveryFee($deliveryCity, $deliveryNeighborhood);
-        if ($deliveryFeeResult instanceof \Illuminate\Http\JsonResponse) {
-            return $deliveryFeeResult; // Retorna erro se bairro não encontrado
+        // ⭐ Calcular taxa de entrega (apenas se service_type = delivery)
+        $deliveryFee = 0;
+        if ($serviceType === 'delivery') {
+            if (empty($deliveryCity) || empty($deliveryNeighborhood)) {
+                return response()->json([
+                    'message' => 'Endereço completo é obrigatório para delivery',
+                ], 422);
+            }
+
+            $deliveryFeeResult = $this->calculateDeliveryFee($deliveryCity, $deliveryNeighborhood);
+            if ($deliveryFeeResult instanceof \Illuminate\Http\JsonResponse) {
+                return $deliveryFeeResult; // Retorna erro se bairro não encontrado
+            }
+            $deliveryFee = $deliveryFeeResult;
         }
-        $deliveryFee = $deliveryFeeResult;
 
         // Validar e reservar cupom (se informado)
         $couponResult = $this->validateAndReserveCoupon($request, $customer);
@@ -196,6 +220,8 @@ class OrderController extends Controller
             // PROTEÇÃO: Usar apenas dados validados e sanitizados
             $order = $this->orderService->createOrder($customer, [
                 'items' => $request->items, // Será validado no enrichItems()
+                'service_type' => $serviceType, // ⭐ counter, table, delivery
+                'table_number' => $request->table_number, // ⭐ Número da mesa
                 'delivery_address' => $deliveryAddress,
                 'delivery_city' => $deliveryCity,
                 'delivery_neighborhood' => $deliveryNeighborhood,
