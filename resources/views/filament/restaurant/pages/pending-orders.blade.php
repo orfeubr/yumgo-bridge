@@ -1,10 +1,4 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pedidos Pendentes - {{ $tenant->name }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+<x-filament-panels::page>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         [x-cloak] { display: none !important; }
@@ -226,5 +220,4 @@
             }
         }
     </script>
-</body>
-</html>
+</x-filament-panels::page>

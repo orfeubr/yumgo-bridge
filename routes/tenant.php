@@ -187,12 +187,6 @@ Route::middleware([
         return view('tenant.order-tracking', ['tenant' => $tenant, 'orderId' => $id]);
     })->name('order.tracking');
 
-    // ⭐ Página de pedidos pendentes (para caixa mostrar QR Code PIX)
-    Route::get('/pedidos-pendentes', function () {
-        $tenant = tenant();
-        return view('tenant.pending-orders', compact('tenant'));
-    })->name('pending.orders');
-
     // Página de cashback (redireciona para perfil)
     Route::get('/cashback', function () {
         return redirect('/perfil');
