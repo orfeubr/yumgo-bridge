@@ -161,6 +161,9 @@ class NewOrderEvent implements ShouldBroadcastNow
     {
         // Apenas retorna dados se for pagamento PIX
         if ($this->order->payment_method !== 'pix') {
+            \Log::info('🚫 getPixData: Não é PIX', [
+                'payment_method' => $this->order->payment_method,
+            ]);
             return null;
         }
 
@@ -170,13 +173,33 @@ class NewOrderEvent implements ShouldBroadcastNow
             ->latest()
             ->first();
 
+        \Log::info('🔍 getPixData: Buscando payment PIX', [
+            'order_id' => $this->order->id,
+            'payment_found' => $payment ? 'SIM' : 'NÃO',
+            'has_qrcode' => $payment?->pix_qrcode ? 'SIM' : 'NÃO',
+            'qrcode_length' => $payment?->pix_qrcode ? strlen($payment->pix_qrcode) : 0,
+            'has_copy_paste' => $payment?->pix_copy_paste ? 'SIM' : 'NÃO',
+        ]);
+
         if (!$payment || !$payment->pix_qrcode) {
+            \Log::warning('⚠️ getPixData: QR Code não encontrado', [
+                'order_id' => $this->order->id,
+                'payment_exists' => $payment ? 'SIM' : 'NÃO',
+            ]);
             return null;
         }
 
-        return [
+        $pixData = [
             'qrcode' => $payment->pix_qrcode, // Base64 da imagem QR Code
             'code' => $payment->pix_copy_paste, // Código copia-e-cola
         ];
+
+        \Log::info('✅ getPixData: Dados PIX retornados', [
+            'order_id' => $this->order->id,
+            'has_qrcode' => !empty($pixData['qrcode']),
+            'has_code' => !empty($pixData['code']),
+        ]);
+
+        return $pixData;
     }
 }
