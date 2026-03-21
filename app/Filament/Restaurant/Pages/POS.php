@@ -540,13 +540,14 @@ class POS extends Page implements HasForms
                 'cash_register_id' => $cashRegister?->id, // Vincular ao caixa aberto
             ]);
 
-            // ⭐ IMPRIMIR CUPOM DO PEDIDO (todos os métodos de pagamento)
+            // ⭐ IMPRIMIR CUPOM DO PEDIDO (com QR Code PIX incluído, se aplicável)
             try {
                 event(new \App\Events\NewOrderEvent($order));
                 \Log::info('🖨️ Evento de impressão do pedido disparado', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'payment_method' => $this->paymentMethod,
+                    'includes_pix' => $this->paymentMethod === 'pix',
                 ]);
             } catch (\Exception $e) {
                 \Log::error('❌ Erro ao disparar impressão do pedido', [
@@ -554,26 +555,13 @@ class POS extends Page implements HasForms
                 ]);
             }
 
-            // Se for PIX, buscar o pagamento e exibir QR Code
+            // Se for PIX, buscar o pagamento e preencher dados do modal
             if ($this->paymentMethod === 'pix') {
                 $payment = $order->payments()->latest()->first();
 
                 if ($payment && $payment->pix_qrcode) {
                     $this->pixQrCode = $payment->pix_qrcode;
                     $this->pixCopyPaste = $payment->pix_copy_paste ?? $payment->pix_code;
-
-                    // ⭐ IMPRIMIR COMPROVANTE PIX TAMBÉM
-                    try {
-                        event(new \App\Events\PrintPixReceiptEvent($order, $payment));
-                        \Log::info('🖨️ Evento de impressão PIX disparado', [
-                            'order_id' => $order->id,
-                            'order_number' => $order->order_number,
-                        ]);
-                    } catch (\Exception $e) {
-                        \Log::error('❌ Erro ao disparar impressão PIX', [
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
                 } else {
                     Notification::make()
                         ->warning()
@@ -688,7 +676,7 @@ class POS extends Page implements HasForms
     }
 
     /**
-     * ⭐ Reimprimir QR Code PIX
+     * ⭐ Reimprimir cupom completo (com QR Code PIX se aplicável)
      */
     public function reprintPixFromWaiting(): void
     {
@@ -698,17 +686,15 @@ class POS extends Page implements HasForms
 
         try {
             $order = Order::findOrFail($this->currentOrderId);
-            $payment = $order->payments()->latest()->first();
 
-            if ($payment) {
-                event(new \App\Events\PrintPixReceiptEvent($order, $payment));
+            // Reimprimir pedido completo (NewOrderEvent já inclui PIX)
+            event(new \App\Events\NewOrderEvent($order, true)); // true = forceReprint
 
-                Notification::make()
-                    ->success()
-                    ->title('🖨️ QR Code PIX reenviado!')
-                    ->body('Comprovante enviado para impressora')
-                    ->send();
-            }
+            Notification::make()
+                ->success()
+                ->title('🖨️ Cupom reenviado para impressão!')
+                ->body('Cupom completo com QR Code PIX')
+                ->send();
         } catch (\Exception $e) {
             Notification::make()
                 ->danger()
@@ -763,28 +749,27 @@ class POS extends Page implements HasForms
                 return;
             }
 
-            // Buscar pagamento PIX
-            $payment = $order->payments()->where('payment_method', 'pix')->latest()->first();
-
-            if (!$payment || !$payment->pix_qrcode) {
+            // Verificar se é PIX
+            if ($order->payment_method !== 'pix') {
                 Notification::make()
-                    ->danger()
-                    ->title('QR Code não encontrado')
+                    ->warning()
+                    ->title('Pedido não é PIX')
+                    ->body('Este pedido foi pago com ' . strtoupper($order->payment_method))
                     ->send();
                 return;
             }
 
-            // Disparar evento de impressão
-            event(new \App\Events\PrintPixReceiptEvent($order, $payment));
+            // Reimprimir cupom completo (NewOrderEvent já inclui PIX)
+            event(new \App\Events\NewOrderEvent($order, true)); // true = forceReprint
 
             Notification::make()
                 ->success()
-                ->title('🖨️ Imprimindo QR Code...')
-                ->body('Comprovante PIX enviado para impressora')
+                ->title('🖨️ Imprimindo cupom...')
+                ->body('Cupom completo com QR Code PIX')
                 ->send();
 
         } catch (\Exception $e) {
-            \Log::error('Erro ao reimprimir QR Code PIX', [
+            \Log::error('Erro ao reimprimir cupom PIX', [
                 'error' => $e->getMessage(),
             ]);
 

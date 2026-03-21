@@ -112,6 +112,9 @@ class NewOrderEvent implements ShouldBroadcastNow
                     'status' => $this->order->payment_status,
                 ],
 
+                // ⭐ PIX: QR Code e código copia-e-cola (se aplicável)
+                'pix' => $this->getPixData(),
+
                 // Observações
                 'notes' => $this->order->customer_notes,
 
@@ -149,5 +152,32 @@ class NewOrderEvent implements ShouldBroadcastNow
         $locations->push('counter');
 
         return $locations->unique()->values()->toArray();
+    }
+
+    /**
+     * ⭐ Buscar dados do PIX (QR Code) se pagamento for PIX
+     */
+    private function getPixData(): ?array
+    {
+        // Apenas retorna dados se for pagamento PIX
+        if ($this->order->payment_method !== 'pix') {
+            return null;
+        }
+
+        // Buscar último pagamento PIX do pedido
+        $payment = $this->order->payments()
+            ->where('payment_method', 'pix')
+            ->latest()
+            ->first();
+
+        if (!$payment || !$payment->pix_qrcode) {
+            return null;
+        }
+
+        return [
+            'qrcode' => $payment->pix_qrcode, // Base64 da imagem QR Code
+            'code' => $payment->pix_code ?? $payment->pix_copy_paste, // Código copia-e-cola
+            'expires_at' => $payment->expires_at?->format('d/m/Y H:i'),
+        ];
     }
 }
