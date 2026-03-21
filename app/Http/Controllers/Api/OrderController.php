@@ -54,6 +54,12 @@ class OrderController extends Controller
 
     /**
      * ⭐ Listar pedidos pendentes (para tela de caixa)
+     *
+     * ENDPOINT PÚBLICO - Proteções de segurança:
+     * - Rate limit: 120 req/min (rota)
+     * - Apenas últimos 7 dias
+     * - Limit 50 pedidos
+     * - Não expõe dados sensíveis
      */
     public function pending(Request $request)
     {
@@ -63,6 +69,7 @@ class OrderController extends Controller
             ->with(['payments' => function($q) {
                 $q->where('method', 'pix')->latest();
             }])
+            ->where('created_at', '>=', now()->subDays(7)) // ⭐ Apenas últimos 7 dias
             ->orderBy('created_at', 'desc');
 
         // Filtro padrão: apenas pendentes + balcão/mesa
@@ -78,6 +85,22 @@ class OrderController extends Controller
             'data' => $orders->map(function($order) {
                 $payment = $order->payments->first();
 
+                // ⭐ Formatar QR Code para exibição em <img>
+                $pixData = null;
+                if ($payment && $payment->pix_qrcode) {
+                    $qrcode = $payment->pix_qrcode;
+
+                    // Adicionar prefixo data:image se não tiver
+                    if (strpos($qrcode, 'data:image') === false) {
+                        $qrcode = 'data:image/png;base64,' . $qrcode;
+                    }
+
+                    $pixData = [
+                        'qrcode' => $qrcode,
+                        'code' => $payment->pix_copy_paste,
+                    ];
+                }
+
                 return [
                     'id' => $order->id,
                     'order_number' => $order->order_number,
@@ -89,10 +112,7 @@ class OrderController extends Controller
                     'table_number' => $order->table_number,
                     'created_at' => $order->created_at->toIso8601String(),
                     'created_at_human' => $order->created_at->diffForHumans(),
-                    'pix' => $payment ? [
-                        'qrcode' => $payment->pix_qrcode,
-                        'code' => $payment->pix_copy_paste,
-                    ] : null,
+                    'pix' => $pixData,
                 ];
             }),
         ]);
