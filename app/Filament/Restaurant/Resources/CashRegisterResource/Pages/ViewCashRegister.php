@@ -4,16 +4,16 @@ namespace App\Filament\Restaurant\Resources\CashRegisterResource\Pages;
 
 use App\Filament\Restaurant\Resources\CashRegisterResource;
 use Filament\Actions;
-use Filament\Resources\Pages\ListRecords;
+use Filament\Resources\Pages\ViewRecord;
 
-class ListCashRegisters extends ListRecords
+class ViewCashRegister extends ViewRecord
 {
     protected static string $resource = CashRegisterResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
-            // ⭐ REMOVIDO CreateAction - Abertura de caixa é feita pela página "💰 Caixa"
+            // Sem ações de edição - caixas são read-only após criação
         ];
     }
 }

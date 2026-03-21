@@ -3,6 +3,7 @@
 namespace App\Filament\Restaurant\Pages;
 
 use App\Filament\Restaurant\Resources\OrderResource;
+use App\Models\CashRegister;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Order;
@@ -18,6 +19,7 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 
 class POS extends Page implements HasForms
 {
@@ -77,10 +79,18 @@ class POS extends Page implements HasForms
     public $willPrint = true; // Indica se vai imprimir
     public $willEmitNfce = false; // Indica se vai emitir NFC-e
 
+    // ⭐ Controle de Caixa
+    public $hasCashRegisterOpen = false;
+    public $currentCashRegister = null;
+
     protected $listeners = ['addCustomPizza', 'focusBarcode', 'focusSearch'];
 
     public function mount(): void
     {
+        // ⭐ VERIFICAR SE HÁ CAIXA ABERTO
+        $this->currentCashRegister = CashRegister::currentOpen(Auth::id());
+        $this->hasCashRegisterOpen = $this->currentCashRegister !== null;
+
         $this->cart = [];
         $this->willPrint = $this->checkWillPrint();
         $this->willEmitNfce = $this->checkWillEmitNfce();
@@ -503,6 +513,17 @@ class POS extends Page implements HasForms
             return;
         }
 
+        // ⭐ VALIDAR SE HÁ CAIXA ABERTO
+        if (!$this->hasCashRegisterOpen) {
+            Notification::make()
+                ->danger()
+                ->title('❌ Caixa Fechado!')
+                ->body('Você precisa abrir o caixa antes de realizar vendas. Acesse o menu "💰 Caixa".')
+                ->persistent()
+                ->send();
+            return;
+        }
+
         // Criar cliente rápido se necessário
         if (!$this->selectedCustomer && $this->customerName) {
             $this->createQuickCustomer();
@@ -511,8 +532,8 @@ class POS extends Page implements HasForms
         try {
             $customer = Customer::findOrFail($this->selectedCustomer);
 
-            // Buscar caixa aberto
-            $cashRegister = \App\Models\CashRegister::currentOpen();
+            // Buscar caixa aberto (usa o user_id do usuário logado)
+            $cashRegister = CashRegister::currentOpen(Auth::id());
 
             // Preparar items para o OrderService
             $items = collect($this->cart)->map(function ($item) {

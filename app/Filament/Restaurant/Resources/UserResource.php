@@ -105,6 +105,9 @@ class UserResource extends Resource
                                 'customers.view' => 'Ver clientes',
                                 'customers.edit' => 'Editar clientes',
 
+                                // Caixa
+                                'cash_registers.view' => '📋 Ver histórico de caixas',
+
                                 // Configurações
                                 'settings.view' => 'Ver configurações',
                                 'settings.edit' => 'Editar configurações',

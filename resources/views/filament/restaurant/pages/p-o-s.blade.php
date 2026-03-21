@@ -21,6 +21,25 @@
         });
     </script>
 
+    {{-- ⚠️ ALERTA: CAIXA FECHADO --}}
+    @if(!$hasCashRegisterOpen)
+        <div class="mb-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl p-4 border-2 border-red-700 shadow-lg">
+            <div class="flex items-center gap-3">
+                <div class="text-4xl animate-pulse">🔒</div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-black mb-1">❌ CAIXA FECHADO - VENDAS BLOQUEADAS</h3>
+                    <p class="text-sm font-semibold">
+                        Você precisa abrir o caixa antes de realizar vendas.
+                    </p>
+                </div>
+                <a href="{{ route('filament.restaurant.pages.caixa') }}"
+                   class="px-4 py-2 bg-white text-red-600 rounded-lg font-bold hover:bg-red-50 transition">
+                    🔓 Abrir Caixa
+                </a>
+            </div>
+        </div>
+    @endif
+
     {{-- HEADER COM INDICADORES --}}
     <div class="mb-4 bg-gradient-to-r from-primary-50 to-primary-100 dark:from-gray-800 dark:to-gray-700 rounded-lg p-3 border-2 border-primary-200 dark:border-primary-600">
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -326,53 +345,61 @@
                     @endif
                 </div>
 
-                <div class="space-y-2 max-h-[calc(100vh-680px)] overflow-y-auto pr-2">
+                <div class="space-y-1.5 max-h-[calc(100vh-680px)] overflow-y-auto pr-2">
                     @forelse($cart as $key => $item)
-                        <div class="flex gap-3 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
-                            <!-- Quantidade grande -->
-                            <div class="flex flex-col items-center justify-center">
-                                <span class="text-2xl font-black text-primary-600 dark:text-primary-400">
-                                    {{ $item['quantity'] }}x
-                                </span>
-                            </div>
+                        <div class="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 hover:shadow-md transition">
 
-                            <!-- Info -->
+                            <!-- Info do Produto -->
                             <div class="flex-1 min-w-0">
-                                <p class="font-semibold text-sm text-gray-900 dark:text-white truncate">
+                                <p class="font-semibold text-xs text-gray-900 dark:text-white truncate leading-tight">
                                     {{ $item['name'] }}
                                 </p>
-                                <p class="text-xs text-gray-600 dark:text-gray-400">
-                                    R$ {{ number_format($item['price'], 2, ',', '.') }} cada
-                                </p>
-                                <p class="text-sm font-bold text-primary-600 dark:text-primary-400 mt-1">
-                                    R$ {{ number_format($item['subtotal'], 2, ',', '.') }}
-                                </p>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="text-[10px] text-gray-500 dark:text-gray-400">
+                                        R$ {{ number_format($item['price'], 2, ',', '.') }}
+                                    </span>
+                                    <span class="text-xs font-bold text-primary-600 dark:text-primary-400">
+                                        = R$ {{ number_format($item['subtotal'], 2, ',', '.') }}
+                                    </span>
+                                </div>
                             </div>
 
-                            <!-- Controles -->
-                            <div class="flex flex-col gap-1">
-                                <x-filament::button
+                            <!-- Controles Compactos (- QTD +) -->
+                            <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+                                <!-- Botão Diminuir -->
+                                <button
+                                    wire:click="updateQuantity('{{ $key }}', {{ max(1, $item['quantity'] - 1) }})"
+                                    class="w-6 h-6 flex items-center justify-center bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-900 dark:text-white rounded font-bold text-base transition"
+                                    title="Diminuir"
+                                >
+                                    −
+                                </button>
+
+                                <!-- Quantidade -->
+                                <span class="w-8 text-center text-sm font-bold text-gray-900 dark:text-white">
+                                    {{ $item['quantity'] }}
+                                </span>
+
+                                <!-- Botão Aumentar -->
+                                <button
                                     wire:click="updateQuantity('{{ $key }}', {{ $item['quantity'] + 1 }})"
-                                    color="primary"
-                                    size="xs"
+                                    class="w-6 h-6 flex items-center justify-center bg-primary-500 hover:bg-primary-600 dark:bg-primary-600 dark:hover:bg-primary-500 text-white rounded font-bold text-base transition"
+                                    title="Aumentar"
                                 >
                                     +
-                                </x-filament::button>
-                                <x-filament::button
-                                    wire:click="updateQuantity('{{ $key }}', {{ $item['quantity'] - 1 }})"
-                                    color="gray"
-                                    size="xs"
-                                >
-                                    -
-                                </x-filament::button>
-                                <x-filament::button
-                                    wire:click="removeFromCart('{{ $key }}')"
-                                    color="danger"
-                                    size="xs"
-                                >
-                                    🗑️
-                                </x-filament::button>
+                                </button>
                             </div>
+
+                            <!-- Botão Remover -->
+                            <button
+                                wire:click="removeFromCart('{{ $key }}')"
+                                class="w-7 h-7 flex items-center justify-center bg-danger-100 dark:bg-danger-900/30 hover:bg-danger-200 dark:hover:bg-danger-900/50 text-danger-600 dark:text-danger-400 rounded transition"
+                                title="Remover item"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
                         </div>
                     @empty
                         <div class="text-center py-8">
@@ -386,11 +413,11 @@
 
             <!-- Finalização -->
             @if(!empty($cart))
-                <div class="bg-gradient-to-br from-primary-50 to-primary-100 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-lg border-2 border-primary-200 dark:border-primary-700 p-4 space-y-4">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border-2 border-gray-200 dark:border-gray-600 p-4 space-y-3">
 
                     <!-- Tipo e Pagamento -->
                     <div>
-                        <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Tipo de Pedido</label>
+                        <label class="text-xs font-bold text-gray-900 dark:text-white mb-2 block">Tipo de Pedido</label>
                         <div class="grid grid-cols-2 gap-2">
                             <x-filament::button
                                 wire:click="$set('deliveryType', 'pickup')"
@@ -414,7 +441,7 @@
                     </div>
 
                     <div>
-                        <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 block">Pagamento</label>
+                        <label class="text-xs font-bold text-gray-900 dark:text-white mb-2 block">Pagamento</label>
                         <div class="grid grid-cols-2 gap-2">
                             <x-filament::button
                                 wire:click="$set('paymentMethod', 'cash')"
@@ -437,7 +464,7 @@
 
                     <!-- Desconto MELHORADO -->
                     <div>
-                        <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 block flex items-center justify-between">
+                        <label class="text-xs font-bold text-gray-900 dark:text-white mb-2 block flex items-center justify-between">
                             Desconto
                             @if($discount > 0)
                                 <x-filament::button
@@ -483,7 +510,7 @@
 
                     @if($deliveryType === 'delivery')
                         <div>
-                            <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1 block">Taxa Entrega</label>
+                            <label class="text-xs font-bold text-gray-900 dark:text-white mb-1 block">Taxa Entrega</label>
                             <x-filament::input.wrapper>
                                 <x-filament::input
                                     wire:model.live="deliveryFee"
@@ -497,7 +524,7 @@
                     @endif
 
                     <!-- Resumo -->
-                    <div class="bg-white dark:bg-gray-900 rounded-lg p-4 space-y-2 border-2 border-gray-200 dark:border-gray-700">
+                    <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 space-y-2 border-2 border-gray-200 dark:border-gray-700">
                         <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400">
                             <span>Subtotal:</span>
                             <span class="font-semibold">R$ {{ number_format($this->getSubtotal(), 2, ',', '.') }}</span>
