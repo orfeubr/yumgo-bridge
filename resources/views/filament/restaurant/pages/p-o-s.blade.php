@@ -58,6 +58,100 @@
         </div>
     </div>
 
+    <!-- ⭐ CLIENTE (Primeira coisa a escolher) -->
+    <div class="mb-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border-2 border-primary-200 dark:border-primary-700 p-4">
+            <h3 class="text-lg font-bold mb-3 text-gray-900 dark:text-white flex items-center gap-2">
+                <span class="text-2xl">👤</span> 1. Selecione o Cliente
+                <x-filament::button
+                    wire:click="quickBalcaoMode"
+                    color="warning"
+                    size="xs"
+                    title="Modo Balcão Rápido"
+                >
+                    ⚡ Balcão Rápido
+                </x-filament::button>
+            </h3>
+
+            @if($selectedCustomer)
+                <div class="p-4 bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-800/20 rounded-lg border-2 border-primary-300 dark:border-primary-600">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex-1">
+                            <p class="font-bold text-lg text-gray-900 dark:text-white">{{ $customerName }}</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">{{ $customerPhone }}</p>
+                        </div>
+                        <x-filament::button
+                            wire:click="clearCustomer"
+                            color="danger"
+                            size="sm"
+                            outlined
+                        >
+                            Trocar Cliente
+                        </x-filament::button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="px-4 py-3 bg-white dark:bg-gray-900 rounded-lg border-2 border-green-300 dark:border-green-700">
+                            <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Saldo Cashback</p>
+                            <p class="font-bold text-xl text-green-600 dark:text-green-400">
+                                R$ {{ number_format($customerCashbackBalance, 2, ',', '.') }}
+                            </p>
+                        </div>
+                        <div class="px-4 py-3 bg-white dark:bg-gray-900 rounded-lg border-2 border-orange-300 dark:border-orange-700">
+                            <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Cashback Atual</p>
+                            <p class="font-bold text-xl text-orange-600 dark:text-orange-400">
+                                {{ $this->getCashbackPercentage() }}%
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            @else
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="space-y-2">
+                        <x-filament::input.wrapper>
+                            <x-filament::input
+                                wire:model.live.debounce.300ms="searchCustomer"
+                                type="text"
+                                placeholder="🔍 Buscar por nome, telefone ou email..."
+                                class="text-base"
+                            />
+                        </x-filament::input.wrapper>
+
+                        {{-- Sugestões de clientes --}}
+                        @if($this->getCustomerSuggestions()->count() > 0)
+                            <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-2 space-y-1 max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-700">
+                                @foreach($this->getCustomerSuggestions() as $customer)
+                                    <button
+                                        wire:click="selectCustomer({{ $customer->id }})"
+                                        class="w-full text-left px-3 py-2 bg-white dark:bg-gray-800 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors"
+                                    >
+                                        <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ $customer->name }}</p>
+                                        <p class="text-xs text-gray-600 dark:text-gray-400">{{ $customer->phone }}</p>
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="flex items-center">
+                        <x-filament::button
+                            wire:click="$set('showNewCustomerModal', true)"
+                            color="primary"
+                            outlined
+                            size="lg"
+                            class="w-full h-full min-h-[100px]"
+                        >
+                            <div class="text-center">
+                                <div class="text-3xl mb-2">➕</div>
+                                <div class="font-bold">Cadastrar Novo Cliente</div>
+                            </div>
+                        </x-filament::button>
+                    </div>
+                </div>
+            @endif
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <!-- PRODUTOS (8 colunas) -->
         <div class="lg:col-span-8 space-y-4">
@@ -208,91 +302,6 @@
 
         <!-- CARRINHO E FINALIZAÇÃO (4 colunas) -->
         <div class="lg:col-span-4 space-y-4">
-
-            <!-- Cliente MELHORADO -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <h3 class="text-sm font-bold mb-3 text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                    <span class="text-lg">👤</span> Cliente
-                    <x-filament::button
-                        wire:click="quickBalcaoMode"
-                        color="warning"
-                        size="xs"
-                        title="Modo Balcão Rápido"
-                    >
-                        ⚡ Balcão
-                    </x-filament::button>
-                </h3>
-
-                @if($selectedCustomer)
-                    <div class="p-3 bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-800/20 rounded-lg border-2 border-primary-200 dark:border-primary-700">
-                        <div class="flex justify-between items-start mb-2">
-                            <div class="flex-1">
-                                <p class="font-bold text-sm text-gray-900 dark:text-white">{{ $customerName }}</p>
-                                <p class="text-xs text-gray-600 dark:text-gray-400">{{ $customerPhone }}</p>
-                            </div>
-                            <x-filament::button
-                                wire:click="clearCustomer"
-                                color="danger"
-                                size="xs"
-                                outlined
-                            >
-                                Trocar
-                            </x-filament::button>
-                        </div>
-
-                        <div class="flex gap-2 mt-3">
-                            <div class="flex-1 px-3 py-2 bg-white dark:bg-gray-900 rounded-lg border border-green-300 dark:border-green-700">
-                                <p class="text-xs text-gray-600 dark:text-gray-400">Saldo Cashback</p>
-                                <p class="font-bold text-sm text-green-600 dark:text-green-400">
-                                    R$ {{ number_format($customerCashbackBalance, 2, ',', '.') }}
-                                </p>
-                            </div>
-                            <div class="px-3 py-2 bg-white dark:bg-gray-900 rounded-lg border border-orange-300 dark:border-orange-700">
-                                <p class="text-xs text-gray-600 dark:text-gray-400">Tier</p>
-                                <p class="font-bold text-sm text-orange-600 dark:text-orange-400">
-                                    {{ $this->getCashbackPercentage() }}%
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                @else
-                    <div class="space-y-2">
-                        <x-filament::input.wrapper>
-                            <x-filament::input
-                                wire:model.live.debounce.300ms="searchCustomer"
-                                type="text"
-                                placeholder="🔍 Nome, telefone ou email"
-                                class="text-sm"
-                            />
-                        </x-filament::input.wrapper>
-
-                        {{-- Sugestões de clientes --}}
-                        @if($this->getCustomerSuggestions()->count() > 0)
-                            <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-2 space-y-1 max-h-40 overflow-y-auto">
-                                @foreach($this->getCustomerSuggestions() as $customer)
-                                    <button
-                                        wire:click="selectCustomer({{ $customer->id }})"
-                                        class="w-full text-left px-3 py-2 bg-white dark:bg-gray-800 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors"
-                                    >
-                                        <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ $customer->name }}</p>
-                                        <p class="text-xs text-gray-600 dark:text-gray-400">{{ $customer->phone }}</p>
-                                    </button>
-                                @endforeach
-                            </div>
-                        @endif
-
-                        <x-filament::button
-                            wire:click="$set('showNewCustomerModal', true)"
-                            color="gray"
-                            outlined
-                            size="sm"
-                            class="w-full"
-                        >
-                            + Cadastrar Novo Cliente
-                        </x-filament::button>
-                    </div>
-                @endif
-            </div>
 
             <!-- Carrinho -->
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
