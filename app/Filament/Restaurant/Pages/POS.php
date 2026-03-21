@@ -34,7 +34,6 @@ class POS extends Page implements HasForms
     public $cart = [];
     public $selectedCategory = null;
     public $searchProduct = '';
-    public $showImages = true; // Toggle imagens
     public $barcode = ''; // Código de barras
 
     // Cliente
@@ -114,6 +113,19 @@ class POS extends Page implements HasForms
         }
 
         return $query->ordered()->get();
+    }
+
+    /**
+     * Produtos agrupados por categoria (para exibição organizada)
+     */
+    public function getProductsByCategory(): Collection
+    {
+        $products = $this->getProducts();
+
+        // Agrupar produtos por categoria
+        return $products->groupBy(function ($product) {
+            return $product->category ? $product->category->name : 'Sem Categoria';
+        });
     }
 
     public function getCustomerSuggestions(): Collection
