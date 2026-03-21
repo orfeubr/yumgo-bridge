@@ -581,17 +581,9 @@
                         </div>
                         @if($pixCopyPaste)
                             <div class="text-xs text-gray-500 dark:text-gray-400">
-                                Código Copia e Cola disponível
+                                Código Copia e Cola disponível (já impresso no cupom)
                             </div>
                         @endif
-                        <x-filament::button
-                            wire:click="reprintPixFromWaiting"
-                            color="info"
-                            size="sm"
-                            outlined
-                        >
-                            🖨️ Reimprimir QR Code
-                        </x-filament::button>
                     </div>
                 </div>
             @endif
@@ -603,7 +595,7 @@
                         ✅ Pagamento Confirmado!
                     </div>
                     <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Cupom já foi impresso
+                        Cupom enviado para impressão
                     </div>
                 @else
                     <div class="text-orange-600 dark:text-orange-400 font-semibold">
@@ -611,9 +603,11 @@
                     </div>
                     <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         @if($currentPaymentMethod === 'pix')
-                            Cliente pode escanear o QR Code ou digitar o código manualmente
+                            QR Code disponível acima. Ou confirme manualmente se cliente pagou por outro meio.
+                        @elseif($currentPaymentMethod === 'cash')
+                            Receba o dinheiro e clique em "Aprovar Pagamento"
                         @else
-                            Marque como pago após receber o pagamento
+                            Confirme o pagamento e clique em "Aprovar Pagamento"
                         @endif
                     </div>
                 @endif
@@ -622,17 +616,15 @@
             {{-- Ações --}}
             <div class="grid grid-cols-1 gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                 @if(!$paymentConfirmed)
-                    @if($currentPaymentMethod !== 'pix')
-                        {{-- Botão: Marcar como Pago (Dinheiro, Débito, Crédito) --}}
-                        <x-filament::button
-                            wire:click="markOrderAsPaid"
-                            color="success"
-                            size="lg"
-                            class="w-full"
-                        >
-                            ✅ MARCAR COMO PAGO
-                        </x-filament::button>
-                    @endif
+                    {{-- ⭐ Botão SEMPRE VISÍVEL: Aprovar Pagamento --}}
+                    <x-filament::button
+                        wire:click="markOrderAsPaid"
+                        color="success"
+                        size="lg"
+                        class="w-full"
+                    >
+                        ✅ APROVAR PAGAMENTO
+                    </x-filament::button>
 
                     {{-- Botão: Cancelar Pedido --}}
                     <x-filament::button

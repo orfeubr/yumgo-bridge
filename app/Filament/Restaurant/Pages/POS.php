@@ -540,20 +540,7 @@ class POS extends Page implements HasForms
                 'cash_register_id' => $cashRegister?->id, // Vincular ao caixa aberto
             ]);
 
-            // ⭐ IMPRIMIR CUPOM DO PEDIDO (com QR Code PIX incluído, se aplicável)
-            try {
-                event(new \App\Events\NewOrderEvent($order));
-                \Log::info('🖨️ Evento de impressão do pedido disparado', [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'payment_method' => $this->paymentMethod,
-                    'includes_pix' => $this->paymentMethod === 'pix',
-                ]);
-            } catch (\Exception $e) {
-                \Log::error('❌ Erro ao disparar impressão do pedido', [
-                    'error' => $e->getMessage(),
-                ]);
-            }
+            // ⭐ NÃO IMPRIME AINDA - Só imprime após confirmar pagamento (markOrderAsPaid)
 
             // Se for PIX, buscar o pagamento e preencher dados do modal
             if ($this->paymentMethod === 'pix') {
@@ -589,7 +576,7 @@ class POS extends Page implements HasForms
             Notification::make()
                 ->success()
                 ->title("✅ Pedido #{$order->order_number} criado!")
-                ->body('Cupom enviado para impressão')
+                ->body('Aguardando confirmação de pagamento')
                 ->send();
 
         } catch (\Exception $e) {
@@ -630,10 +617,24 @@ class POS extends Page implements HasForms
 
             $this->paymentConfirmed = true;
 
+            // ⭐ IMPRIMIR CUPOM APENAS APÓS CONFIRMAR PAGAMENTO
+            try {
+                event(new \App\Events\NewOrderEvent($order));
+                \Log::info('🖨️ Evento de impressão disparado (pagamento confirmado)', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'payment_method' => $this->currentPaymentMethod,
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('❌ Erro ao disparar impressão', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             Notification::make()
                 ->success()
                 ->title('✅ Pedido marcado como PAGO!')
-                ->body("Pedido #{$order->order_number} - {$this->currentPaymentMethod}")
+                ->body("Pedido #{$order->order_number} - Cupom enviado para impressão")
                 ->send();
 
         } catch (\Exception $e) {
