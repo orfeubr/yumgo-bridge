@@ -571,17 +571,17 @@
 
             {{-- QR Code PIX (se aplicável) --}}
             @if($currentPaymentMethod === 'pix' && $pixQrCode)
-                <div class="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                <div class="bg-white dark:bg-gray-900 rounded-lg p-4 border-2 border-primary-200 dark:border-primary-700">
                     <div class="text-center space-y-3">
-                        <div class="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            📱 QR Code PIX
+                        <div class="text-sm font-bold text-primary-700 dark:text-primary-300">
+                            📱 Mostre este QR Code para o cliente escanear
                         </div>
-                        <div class="flex justify-center">
-                            <img src="{{ $pixQrCode }}" alt="QR Code PIX" class="w-48 h-48" />
+                        <div class="flex justify-center bg-white p-3 rounded-lg">
+                            <img src="{{ $pixQrCode }}" alt="QR Code PIX" class="w-64 h-64" />
                         </div>
                         @if($pixCopyPaste)
-                            <div class="text-xs text-gray-500 dark:text-gray-400">
-                                Código Copia e Cola disponível (já impresso no cupom)
+                            <div class="text-xs text-gray-600 dark:text-gray-400 font-medium">
+                                ✅ Código Copia e Cola também disponível
                             </div>
                         @endif
                     </div>
