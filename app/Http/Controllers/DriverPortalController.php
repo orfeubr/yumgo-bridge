@@ -35,13 +35,14 @@ class DriverPortalController extends Controller
 
     /**
      * Busca entregas pendentes do entregador
+     * Inclui pedidos recém-atribuídos (waiting_driver) e atribuídos (driver_assigned)
      */
     protected function getPendingDeliveries(DeliveryDriver $driver)
     {
         return Delivery::query()
             ->with(['order.customer'])
             ->where('driver_id', $driver->id)
-            ->whereIn('status', ['driver_assigned'])
+            ->whereIn('status', ['waiting_driver', 'driver_assigned'])
             ->orderBy('created_at', 'asc')
             ->get();
     }

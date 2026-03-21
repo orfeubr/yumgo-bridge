@@ -502,17 +502,17 @@
                         const data = await response.json();
 
                         if (data.success) {
-                            // Armazenar pedido encontrado
-                            this.foundOrder = data.order;
-
                             // Fechar modal de busca
                             this.closeManualSearch();
 
-                            // Marcar automaticamente como "saiu para entrega"
-                            await this.markAsOutForDelivery(data.delivery.id);
+                            // Limpar campo de busca
+                            this.manualSearchCode = '';
 
-                            // Mostrar detalhes
-                            this.showOrderDetails = true;
+                            // Atualizar lista de entregas
+                            await this.refreshDeliveries();
+
+                            // Mostrar mensagem de sucesso
+                            alert(`✅ Pedido #${data.order.order_number} adicionado à sua lista!`);
                         } else {
                             this.searchError = data.message || 'Pedido não encontrado';
                         }
