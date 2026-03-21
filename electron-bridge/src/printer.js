@@ -1290,8 +1290,24 @@ class ThermalPrinter {
             .size(2, 2)
             .text(formatText(`PEDIDO #${order.order_number}`))
             .size(1, 1)
-            .style('normal')
-            .text('');
+            .style('normal');
+
+        // Código de barras do número do pedido
+        try {
+            printer
+                .align('ct') // Centralizar código de barras
+                .barcode(order.order_number, 'CODE128', {
+                    width: 2,      // Largura das barras
+                    height: 60,    // Altura do código de barras
+                    displayValue: false // Não mostrar número embaixo (já imprimimos acima)
+                })
+                .align('lt')   // Voltar para alinhamento à esquerda
+                .text('');     // Linha em branco
+        } catch (barcodeError) {
+            // Se impressora não suportar código de barras, continua normalmente
+            log.warn('Impressora não suporta código de barras:', barcodeError.message);
+            printer.text('');
+        }
 
         // Data/Hora
         const date = new Date(order.created_at);
