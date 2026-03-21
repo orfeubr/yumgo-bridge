@@ -99,6 +99,7 @@ class DriverPortalController extends Controller
 
     /**
      * Busca pedido por número ou código
+     * Permite buscar pedidos não atribuídos (driver_id = null) OU já atribuídos ao motorista
      */
     public function findOrder(Request $request)
     {
@@ -114,7 +115,11 @@ class DriverPortalController extends Controller
         // Buscar por número do pedido
         $order = Order::where('order_number', $request->code)
             ->whereHas('delivery', function ($query) use ($driverId) {
-                $query->where('driver_id', $driverId);
+                // Pedidos disponíveis (sem motorista) OU já atribuídos a este motorista
+                $query->where(function ($q) use ($driverId) {
+                    $q->whereNull('driver_id')
+                      ->orWhere('driver_id', $driverId);
+                });
             })
             ->with(['delivery', 'customer'])
             ->first();
@@ -122,8 +127,17 @@ class DriverPortalController extends Controller
         if (!$order) {
             return response()->json([
                 'success' => false,
-                'message' => 'Pedido não encontrado ou não está atribuído a você.',
+                'message' => 'Pedido não encontrado ou já está com outro entregador.',
             ], 404);
+        }
+
+        // 🚚 AUTO-ATRIBUIÇÃO: Se pedido não tem motorista, atribui automaticamente
+        if ($order->delivery->driver_id === null) {
+            $order->delivery->update(['driver_id' => $driverId]);
+            \Log::info('🚚 Motorista deu entrada no pedido', [
+                'order_number' => $order->order_number,
+                'driver_id' => $driverId,
+            ]);
         }
 
         return response()->json([

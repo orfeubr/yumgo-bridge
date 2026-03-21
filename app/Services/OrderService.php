@@ -99,7 +99,28 @@ class OrderService
             }
             \Log::info('✅ Items criados');
 
-            // 9. Criar pagamento PIX (se aplicável)
+            // 9. Criar registro de delivery (se pedido for delivery)
+            if ($order->delivery_type === 'delivery') {
+                $tenant = tenant();
+                $settings = \App\Models\Settings::first();
+
+                // Endereço de coleta (restaurante)
+                $pickupAddress = $settings
+                    ? "{$settings->address}, {$settings->city} - {$settings->state}"
+                    : "Endereço do Restaurante";
+
+                \App\Models\Delivery::create([
+                    'order_id' => $order->id,
+                    'driver_id' => null, // Será atribuído depois (manual ou motorista dá entrada)
+                    'pickup_address' => $pickupAddress,
+                    'delivery_address' => $order->delivery_address,
+                    'delivery_fee' => $order->delivery_fee,
+                    'status' => 'waiting_driver', // Status padrão
+                ]);
+                \Log::info('🚚 Registro de delivery criado', ['order_id' => $order->id]);
+            }
+
+            // 10. Criar pagamento PIX (se aplicável)
             if ($data['payment_method'] === 'pix') {
                 $this->createPaymentForPix($order, $data['payment_method']);
             }
