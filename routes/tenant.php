@@ -187,6 +187,12 @@ Route::middleware([
         return view('tenant.order-tracking', ['tenant' => $tenant, 'orderId' => $id]);
     })->name('order.tracking');
 
+    // ⭐ Página de pedidos pendentes (para caixa mostrar QR Code PIX)
+    Route::get('/pedidos-pendentes', function () {
+        $tenant = tenant();
+        return view('tenant.pending-orders', compact('tenant'));
+    })->name('pending.orders');
+
     // Página de cashback (redireciona para perfil)
     Route::get('/cashback', function () {
         return redirect('/perfil');
@@ -347,6 +353,9 @@ Route::prefix('api/v1')->middleware([
     Route::get('/orders/{id}/payment', [OrderController::class, 'payment'])->middleware('throttle:60,1'); // 60 req/min
     Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:30,60'); // 30 pedidos/hora (razoável)
     Route::post('/orders/{id}/cancel', [OrderController::class, 'cancel'])->middleware('throttle:10,1'); // 10 cancelamentos/min
+
+    // ⭐ Pedidos pendentes (para tela de caixa)
+    Route::get('/orders/pending', [OrderController::class, 'pending'])->middleware('throttle:120,1'); // Polling frequente
 
     // Pedidos por ORDER_NUMBER (segurança - oculta IDs sequenciais)
     Route::get('/orders/number/{orderNumber}', [OrderController::class, 'showByOrderNumber']);

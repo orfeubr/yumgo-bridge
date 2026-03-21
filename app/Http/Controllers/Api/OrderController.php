@@ -53,6 +53,52 @@ class OrderController extends Controller
     }
 
     /**
+     * ⭐ Listar pedidos pendentes (para tela de caixa)
+     */
+    public function pending(Request $request)
+    {
+        $showAll = $request->boolean('show_all', false);
+
+        $query = Order::query()
+            ->with(['payments' => function($q) {
+                $q->where('method', 'pix')->latest();
+            }])
+            ->orderBy('created_at', 'desc');
+
+        // Filtro padrão: apenas pendentes + balcão/mesa
+        if (!$showAll) {
+            $query->where('payment_status', 'pending')
+                  ->whereIn('service_type', ['counter', 'table']);
+        }
+
+        $orders = $query->limit(50)->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $orders->map(function($order) {
+                $payment = $order->payments->first();
+
+                return [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'customer_name' => $order->customer_name ?? 'Cliente',
+                    'total' => (float) $order->total,
+                    'payment_method' => $order->payment_method,
+                    'payment_status' => $order->payment_status,
+                    'service_type' => $order->service_type,
+                    'table_number' => $order->table_number,
+                    'created_at' => $order->created_at->toIso8601String(),
+                    'created_at_human' => $order->created_at->diffForHumans(),
+                    'pix' => $payment ? [
+                        'qrcode' => $payment->pix_qrcode,
+                        'code' => $payment->pix_copy_paste,
+                    ] : null,
+                ];
+            }),
+        ]);
+    }
+
+    /**
      * Mostrar detalhes de um pedido
      */
     public function show(Request $request, $id)
