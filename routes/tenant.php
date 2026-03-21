@@ -652,6 +652,7 @@ Route::prefix('test-api')->middleware([
 // PORTAL DO ENTREGADOR (autenticação por token único)
 // ============================================
 Route::middleware([
+    'web', // ⭐ Middleware web para sessão e CSRF
     InitializeTenancyByDomain::class,
     PreventAccessFromCentralDomains::class,
 ])->group(function () {
