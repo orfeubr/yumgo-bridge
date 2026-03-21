@@ -137,8 +137,9 @@ class DeliveryDriverResource extends Resource
                     ->color('warning')
                     ->default(0),
 
-                Tables\Columns\IconBooleanColumn::make('is_active')
+                Tables\Columns\IconColumn::make('is_active')
                     ->label('Ativo')
+                    ->boolean()
                     ->trueIcon('heroicon-o-check-circle')
                     ->falseIcon('heroicon-o-x-circle')
                     ->trueColor('success')
