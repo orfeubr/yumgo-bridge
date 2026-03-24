@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YumGo Bridge v3.0</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <!-- Status Bar (topo) -->
+    <div class="status-bar">
+        <div class="status-left">
+            <div class="logo">🖨️ YumGo Bridge</div>
+            <div class="version">v<span id="appVersion">3.0.0</span></div>
+        </div>
+        <div class="status-center">
+            <div class="connection-status" id="connectionStatus">
+                <div class="status-dot disconnected"></div>
+                <span>Desconectado</span>
+            </div>
+        </div>
+        <div class="status-right">
+            <button class="btn-icon" id="settingsBtn" title="Configurações">⚙️</button>
+            <button class="btn-icon" id="minimizeBtn" title="Minimizar">━</button>
+            <button class="btn-icon" id="closeBtn" title="Fechar">✕</button>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="tab-item active" data-tab="home">
+                <span class="tab-icon">🏠</span>
+                <span class="tab-label">Início</span>
+            </div>
+            <div class="tab-item" data-tab="config">
+                <span class="tab-icon">🔐</span>
+                <span class="tab-label">Conexão</span>
+            </div>
+            <div class="tab-item" data-tab="printers">
+                <span class="tab-icon">🖨️</span>
+                <span class="tab-label">Impressoras</span>
+            </div>
+            <div class="tab-item" data-tab="tests">
+                <span class="tab-icon">🧪</span>
+                <span class="tab-label">Testes</span>
+            </div>
+            <div class="tab-item" data-tab="history">
+                <span class="tab-icon">📊</span>
+                <span class="tab-label">Histórico</span>
+            </div>
+            <div class="tab-item" data-tab="logs">
+                <span class="tab-icon">📝</span>
+                <span class="tab-label">Logs</span>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+
+            <!-- ========== TAB: HOME ========== -->
+            <div class="tab-content active" id="tab-home">
+                <h1>🏠 Bem-vindo ao YumGo Bridge</h1>
+
+                <div class="card">
+                    <h2>Status do Sistema</h2>
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-icon">🔌</div>
+                            <div class="status-info">
+                                <div class="status-label">Conexão</div>
+                                <div class="status-value" id="homeConnectionStatus">Desconectado</div>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-icon">🖨️</div>
+                            <div class="status-info">
+                                <div class="status-label">Impressoras</div>
+                                <div class="status-value" id="homePrintersStatus">0 configuradas</div>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-icon">📋</div>
+                            <div class="status-info">
+                                <div class="status-label">Pedidos hoje</div>
+                                <div class="status-value" id="homeOrdersCount">0</div>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-icon">🚀</div>
+                            <div class="status-info">
+                                <div class="status-label">Autostart</div>
+                                <div class="status-value" id="homeAutostartStatus">Desabilitado</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Últimos Pedidos</h2>
+                    <div id="recentOrders" class="recent-orders">
+                        <p class="empty-state">Nenhum pedido recebido ainda</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== TAB: CONFIG ========== -->
+            <div class="tab-content" id="tab-config">
+                <h1>🔐 Configuração de Conexão</h1>
+
+                <div class="card">
+                    <h2>Credenciais do Restaurante</h2>
+                    <div class="form-group">
+                        <label>ID do Restaurante</label>
+                        <input type="text" id="restaurantId" placeholder="Ex: marmitariadagi">
+                        <small>Encontre em: Painel YumGo > Configurações > Impressora</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Token de Acesso</label>
+                        <div class="input-group">
+                            <input type="password" id="token" placeholder="Ex: 7|ABC123...">
+                            <button class="btn-icon" id="toggleToken" title="Mostrar/Ocultar">👁️</button>
+                        </div>
+                        <small>Gere um token em: Painel YumGo > Configurações > Impressora</small>
+                    </div>
+                    <button class="btn btn-primary" id="connectBtn">Conectar</button>
+                    <button class="btn btn-secondary hidden" id="disconnectBtn">Desconectar</button>
+                </div>
+
+                <div class="card">
+                    <h2>Preferências</h2>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="autostartCheckbox">
+                            <span>🚀 Iniciar automaticamente com o Windows</span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="soundEnabledCheckbox" checked>
+                            <span>🔔 Tocar som ao receber pedido</span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="notificationsEnabledCheckbox" checked>
+                            <span>💬 Mostrar notificações do sistema</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== TAB: PRINTERS ========== -->
+            <div class="tab-content" id="tab-printers">
+                <h1>🖨️ Configuração de Impressoras</h1>
+
+                <!-- Será preenchido dinamicamente pelo renderer.js -->
+                <div id="printers-container"></div>
+
+                <div class="card info-card">
+                    <h3>💡 Dicas</h3>
+                    <ul>
+                        <li><strong>Caracteres por linha:</strong> 32 para papel 58mm, 48 para 80mm</li>
+                        <li><strong>Cópias:</strong> 2 vias é ideal (1 cozinha, 1 entregador)</li>
+                        <li><strong>Sistema:</strong> Funciona com qualquer impressora instalada</li>
+                        <li><strong>USB:</strong> Apenas para impressoras térmicas diretas</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- ========== TAB: TESTS ========== -->
+            <div class="tab-content" id="tab-tests">
+                <h1>🧪 Testes</h1>
+
+                <div class="card">
+                    <h2>Teste de Conexão WebSocket</h2>
+                    <p>Verifica se o bridge consegue conectar ao servidor YumGo.</p>
+                    <button class="btn btn-primary" id="testWebSocketBtn">Testar Conexão</button>
+                    <div class="test-result hidden" id="websocketTestResult"></div>
+                </div>
+
+                <div class="card">
+                    <h2>Teste de Impressão</h2>
+                    <p>Imprime um pedido de teste em todas as impressoras configuradas.</p>
+                    <button class="btn btn-primary" id="testPrintBtn">Imprimir Teste</button>
+                    <div class="test-result hidden" id="printTestResult"></div>
+                </div>
+
+                <div class="card">
+                    <h2>Informações do Sistema</h2>
+                    <table class="info-table">
+                        <tr>
+                            <td>Sistema Operacional:</td>
+                            <td id="systemOs">-</td>
+                        </tr>
+                        <tr>
+                            <td>Versão do Bridge:</td>
+                            <td id="systemVersion">-</td>
+                        </tr>
+                        <tr>
+                            <td>Electron:</td>
+                            <td id="systemElectron">-</td>
+                        </tr>
+                        <tr>
+                            <td>Node.js:</td>
+                            <td id="systemNode">-</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ========== TAB: HISTORY ========== -->
+            <div class="tab-content" id="tab-history">
+                <h1>📊 Histórico de Pedidos</h1>
+
+                <div class="card">
+                    <div class="history-header">
+                        <h2>Últimos 50 pedidos</h2>
+                        <button class="btn btn-secondary" id="clearHistoryBtn">Limpar Histórico</button>
+                    </div>
+                    <div id="historyList" class="history-list">
+                        <p class="empty-state">Nenhum pedido impresso ainda</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== TAB: LOGS ========== -->
+            <div class="tab-content" id="tab-logs">
+                <h1>📝 Logs do Sistema</h1>
+
+                <div class="card">
+                    <div class="logs-header">
+                        <div class="logs-filters">
+                            <button class="btn-filter active" data-level="all">Todos</button>
+                            <button class="btn-filter" data-level="info">Info</button>
+                            <button class="btn-filter" data-level="warn">Avisos</button>
+                            <button class="btn-filter" data-level="error">Erros</button>
+                        </div>
+                        <div class="logs-actions">
+                            <button class="btn btn-secondary" id="clearLogsBtn">Limpar</button>
+                            <button class="btn btn-secondary" id="exportLogsBtn">Exportar</button>
+                        </div>
+                    </div>
+                    <div id="logsContainer" class="logs-container">
+                        <div class="log-entry info">
+                            <span class="log-time">00:00:00</span>
+                            <span class="log-level">INFO</span>
+                            <span class="log-message">YumGo Bridge iniciado</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>

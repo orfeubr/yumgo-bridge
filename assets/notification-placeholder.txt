@@ -1,0 +1,10 @@
+Som de notificação não pode ser gerado via código.
+
+Baixe um arquivo MP3 curto (1-2 segundos) e renomeie para:
+notification.mp3
+
+Sugestões:
+- https://notificationsounds.com/
+- https://freesound.org/
+
+Ou use o som padrão do sistema (remova linha do código).
